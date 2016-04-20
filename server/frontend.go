@@ -1,17 +1,44 @@
 package server
 
 import (
-	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"os"
+	"strconv"
 )
 
 type Frontend struct {
-	temp int
+	log        *log.Logger
+	httpServer *http.Server
+	mux        *http.ServeMux
 }
 
-func MakeFrontend(port int) *FrontEnd {
-	fe := new(Frontend)
-	fe.temp = 100
-	fmt.Println(port)
-	fmt.Println(fe.temp)
+func New(port int) *Frontend {
+	fe := &Frontend{}
+	fe.log = log.New(os.Stdout, "[server] ", log.Ldate|log.Ltime|log.Lshortfile)
+	fe.mux = http.NewServeMux()
+	fe.mux.HandleFunc("/ping", fe.handlePing)
+	fe.mux.HandleFunc("/", fe.handleDefault)
+	fe.httpServer = &http.Server{
+		Addr:    ":" + strconv.Itoa(port),
+		Handler: fe.mux,
+	}
+	fe.log.Println("New: starting new server on port " + strconv.Itoa(port))
+	log.Fatal(fe.httpServer.ListenAndServe())
 	return fe
+}
+
+func (fe *Frontend) handleDefault(w http.ResponseWriter, r *http.Request) {
+	fe.log.Println("handleDefault: " + r.Method + " from " + r.RemoteAddr + ", ... dropping")
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+	http.NotFound(w, r)
+}
+
+func (fe *Frontend) handlePing(w http.ResponseWriter, r *http.Request) {
+	fe.log.Println("handlePing: " + r.Method + " from " + r.RemoteAddr + ", ... PONG")
+	io.WriteString(w, "PONG")
 }

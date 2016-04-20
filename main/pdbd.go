@@ -1,11 +1,14 @@
 package main
 
 import (
-	"fmt"
-	"server"
+	"github.com/ryscheng/pdb/server"
+	"log"
 )
 
 func main() {
-	fmt.Println("---")
-	fe := server.MakeFrontend(9999)
+	log.Println("------------------")
+	log.Println("--- PDB Server ---")
+	log.Println("------------------")
+	fe := server.New(9999)
+	log.Println(fe)
 }
