@@ -14,7 +14,7 @@ type Frontend struct {
 	mux        *http.ServeMux
 }
 
-func New(port int) *Frontend {
+func NewFrontend(port int) *Frontend {
 	fe := &Frontend{}
 	fe.log = log.New(os.Stdout, "[server] ", log.Ldate|log.Ltime|log.Lshortfile)
 	fe.mux = http.NewServeMux()
