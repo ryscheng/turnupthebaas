@@ -8,15 +8,15 @@ import (
 	"strconv"
 )
 
-type Frontend struct {
+type FrontEndHttp struct {
 	log        *log.Logger
 	httpServer *http.Server
 	mux        *http.ServeMux
 }
 
-func NewFrontend(port int) *Frontend {
+func NewFrontendHttp(port int) *Frontend {
 	fe := &Frontend{}
-	fe.log = log.New(os.Stdout, "[server] ", log.Ldate|log.Ltime|log.Lshortfile)
+	fe.log = log.New(os.Stdout, "[frontendhttp] ", log.Ldate|log.Ltime|log.Lshortfile)
 	fe.mux = http.NewServeMux()
 	fe.mux.HandleFunc("/ping", fe.handlePing)
 	fe.mux.HandleFunc("/", fe.handleDefault)
