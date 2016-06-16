@@ -13,9 +13,7 @@ type Server struct {
 
 func NewServer(rpcPort int, httpPort int) *Server {
 	s := &Server{}
-	s.log = log.New(os.Stdout, "[server] ", log.Ldate|log.Ltime|log.Lshortfile)
-	s.log.Println(rpcPort)
-	s.log.Println(httpPort)
+	s.log = log.New(os.Stdout, "[Server] ", log.Ldate|log.Ltime|log.Lshortfile)
 	if rpcPort != 0 {
 		s.feRpc = NewFrontEndRpc(rpcPort)
 	}

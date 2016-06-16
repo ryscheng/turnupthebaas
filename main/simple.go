@@ -4,6 +4,7 @@ import (
 	"github.com/ryscheng/pdb/libpdb"
 	"github.com/ryscheng/pdb/server"
 	"log"
+	"time"
 )
 
 func main() {
@@ -12,4 +13,5 @@ func main() {
 	c := libpdb.NewClient("c1", []string{"localhost:9000"})
 	c.Ping()
 	s.Kill()
+	time.Sleep(10 * time.Second)
 }

@@ -19,7 +19,7 @@ type FrontEndRpc struct {
 
 func NewFrontEndRpc(port int) *FrontEndRpc {
 	fe := &FrontEndRpc{}
-	fe.log = log.New(os.Stdout, "[frontendrpc] ", log.Ldate|log.Ltime|log.Lshortfile)
+	fe.log = log.New(os.Stdout, "[FrontEndRpc] ", log.Ldate|log.Ltime|log.Lshortfile)
 	fe.dead = 0
 	fe.port = port
 	// Register RPC
@@ -43,8 +43,11 @@ func NewFrontEndRpc(port int) *FrontEndRpc {
 			if err != nil && fe.isDead() == false {
 				fe.log.Printf("Accept: error %v\n", err.Error())
 				continue
+			} else if err == nil && fe.isDead() == false {
+				go rpc.ServeConn(conn)
+			} else if err == nil {
+				conn.Close()
 			}
-			go rpc.ServeConn(conn)
 		}
 	}()
 	return fe
