@@ -41,11 +41,20 @@ func NewClient(name string, servers []string) *Client {
 	return c
 }
 
-func (c *Client) Ping() bool {
+func (c *Client) Ping() []bool {
+	result := make([]bool, len(c.servers))
 	c.log.Printf("Ping: enter\n")
+	var err error
 	args := &common.PingArgs{"PING"}
 	var reply common.PingReply
-	Call(c.servers[0], "FrontEndRpc.Ping", args, &reply)
-	c.log.Printf("Ping: %v, %v", args, reply)
-	return true
+	for i := 0; i < len(result); i++ {
+		err = Call(c.servers[i], "FrontEndRpc.Ping", args, &reply)
+		c.log.Printf("%s.Ping(): %v, %v\n", c.servers[i], args, reply)
+		if err == nil {
+			result[i] = true
+		} else {
+			result[i] = false
+		}
+	}
+	return result
 }

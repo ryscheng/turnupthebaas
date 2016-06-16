@@ -46,12 +46,20 @@ func (rm *RequestManager) isDead() bool {
 }
 
 func (rm *RequestManager) readPeriodic() {
+	for rm.isDead() == false {
+		rm.log.Println("readPeriodic: ")
+		time.Sleep(time.Duration(atomic.LoadInt64(&rm.readInterval)))
+	}
+}
 
+func (rm *RequestManager) generateRandomAppend() {
+	args := &common.AppendArgs
 }
 
 func (rm *RequestManager) writePeriodic() {
 	for rm.isDead() == false {
-		log.Println("Work")
+		rm.log.Println("writePeriodic: ")
+
 		time.Sleep(time.Duration(atomic.LoadInt64(&rm.writeInterval)))
 	}
 }
