@@ -8,7 +8,8 @@ import (
 
 func main() {
 	log.Println("Simple Sanity Test")
-	go server.NewFrontend(9000)
-	c := libpdb.NewClient("c1", []string{"http://localhost:9000"})
+	s := server.NewServer(9000, 0)
+	c := libpdb.NewClient("c1", []string{"localhost:9000"})
 	c.Ping()
+	s.Kill()
 }
