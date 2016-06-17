@@ -66,8 +66,22 @@ func (fe *FrontEndRpc) isDead() bool {
 
 func (fe *FrontEndRpc) Ping(args *common.PingArgs, reply *common.PingReply) error {
 	fe.log.Println("Ping: " + args.Msg + ", ... Pong")
+	var err error = nil
 	reply.Err = ""
 	reply.Msg = "PONG"
+	return err
+}
+
+func (fe *FrontEndRpc) Append(args *common.AppendArgs, reply *common.AppendReply) error {
+	fe.log.Println("Append: ")
 	var err error = nil
+	reply.Err = ""
+	return err
+}
+
+func (fe *FrontEndRpc) Pir(args *common.PirArgs, reply *common.PirReply) error {
+	fe.log.Println("Pir: ")
+	var err error = nil
+	reply.Err = ""
 	return err
 }

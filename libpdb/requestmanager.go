@@ -1,6 +1,7 @@
 package libpdb
 
 import (
+	"github.com/ryscheng/pdb/common"
 	"log"
 	"os"
 	"strconv"
@@ -52,13 +53,15 @@ func (rm *RequestManager) readPeriodic() {
 	}
 }
 
-func (rm *RequestManager) generateRandomAppend() {
-	args := &common.AppendArgs
+func (rm *RequestManager) generateRandomAppend(args *AppendArgs) {
+
 }
 
 func (rm *RequestManager) writePeriodic() {
 	for rm.isDead() == false {
-		rm.log.Println("writePeriodic: ")
+		rm.log.Println("writePeriodic: Dummy request")
+		args := &common.AppendArgs{}
+		rm.generateRandomAppend(args)
 
 		time.Sleep(time.Duration(atomic.LoadInt64(&rm.writeInterval)))
 	}
