@@ -53,7 +53,7 @@ func (rm *RequestManager) readPeriodic() {
 	}
 }
 
-func (rm *RequestManager) generateRandomAppend(args *AppendArgs) {
+func (rm *RequestManager) generateRandomAppend(args *common.AppendArgs) {
 
 }
 
