@@ -42,7 +42,7 @@ func (p *PIRServer) Read(requests []bitvec.BitVec) [][]byte {
 			if requests[j].IsSet(int(i)) {
 				dest := *(*[]uintptr)(unsafe.Pointer(&out[j]))
 				for k := 0; k < words; k++ {
-					dest[i] ^= cell[i]
+					dest[k] ^= cell[k]
 				}
 			}
 		}
