@@ -8,15 +8,15 @@ import (
 	"strconv"
 )
 
-type FrontEndHttp struct {
+type NetworkHttp struct {
 	log        *log.Logger
 	port       int
 	mux        *http.ServeMux
 	httpServer *http.Server
 }
 
-func NewFrontEndHttp(port int) *FrontEndHttp {
-	fe := &FrontEndHttp{}
+func NewNetworkHttp(port int) *NetworkHttp {
+	fe := &NetworkHttp{}
 	fe.log = log.New(os.Stdout, "[frontendhttp] ", log.Ldate|log.Ltime|log.Lshortfile)
 	fe.port = port
 	// HTTP Handlers
@@ -29,12 +29,12 @@ func NewFrontEndHttp(port int) *FrontEndHttp {
 		Handler: fe.mux,
 	}
 	// Start services
-	fe.log.Println("NewFrontEndHttp: starting new server on port " + strconv.Itoa(port))
+	fe.log.Println("NewNetworkHttp: starting new server on port " + strconv.Itoa(port))
 	go fe.log.Fatal(fe.httpServer.ListenAndServe())
 	return fe
 }
 
-func (fe *FrontEndHttp) handleDefault(w http.ResponseWriter, r *http.Request) {
+func (fe *NetworkHttp) handleDefault(w http.ResponseWriter, r *http.Request) {
 	fe.log.Println("handleDefault: " + r.Method + " from " + r.RemoteAddr + ", ... dropping")
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
@@ -43,7 +43,7 @@ func (fe *FrontEndHttp) handleDefault(w http.ResponseWriter, r *http.Request) {
 	http.NotFound(w, r)
 }
 
-func (fe *FrontEndHttp) handlePing(w http.ResponseWriter, r *http.Request) {
+func (fe *NetworkHttp) handlePing(w http.ResponseWriter, r *http.Request) {
 	fe.log.Println("handlePing: " + r.Method + " from " + r.RemoteAddr + ", ... PONG")
 	io.WriteString(w, "PONG")
 }

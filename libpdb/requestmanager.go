@@ -53,15 +53,15 @@ func (rm *RequestManager) readPeriodic() {
 	}
 }
 
-func (rm *RequestManager) generateRandomAppend(args *common.AppendArgs) {
+func (rm *RequestManager) generateRandomWrite(args *common.WriteArgs) {
 
 }
 
 func (rm *RequestManager) writePeriodic() {
 	for rm.isDead() == false {
 		rm.log.Println("writePeriodic: Dummy request")
-		args := &common.AppendArgs{}
-		rm.generateRandomAppend(args)
+		args := &common.WriteArgs{}
+		rm.generateRandomWrite(args)
 
 		time.Sleep(time.Duration(atomic.LoadInt64(&rm.writeInterval)))
 	}

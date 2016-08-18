@@ -9,9 +9,9 @@ import (
 
 func main() {
 	log.Println("Simple Sanity Test")
-	s := server.NewServer(9000, 0)
+	s := server.NewShardServer(9000, 0)
 	c := libpdb.NewClient("c1", []string{"localhost:9000"})
 	c.Ping()
-	s.Kill()
 	time.Sleep(10 * time.Second)
+	s.Kill()
 }

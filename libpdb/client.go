@@ -7,6 +7,12 @@ import (
 	"os"
 )
 
+/**
+ * Client interface for libpdb
+ * Goroutines:
+ * - 1x RequestManager.writePeriodic
+ * - 1x RequestManager.readPeriodic
+ */
 type Client struct {
 	log       *log.Logger
 	name      string
@@ -48,7 +54,7 @@ func (c *Client) Ping() []bool {
 	args := &common.PingArgs{"PING"}
 	var reply common.PingReply
 	for i := 0; i < len(result); i++ {
-		err = Call(c.servers[i], "FrontEndRpc.Ping", args, &reply)
+		err = Call(c.servers[i], "Shard.Ping", args, &reply)
 		c.log.Printf("%s.Ping(): %v, %v\n", c.servers[i], args, reply)
 		if err == nil {
 			result[i] = true
