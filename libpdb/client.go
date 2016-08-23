@@ -16,7 +16,7 @@ import (
 type Client struct {
 	log       *log.Logger
 	name      string
-	server    string
+	server    *common.TrustDomainConfig
 	msgReqMan *RequestManager
 }
 
@@ -36,7 +36,7 @@ func Call(addr string, methodName string, args interface{}, reply interface{}) e
 	return nil
 }
 
-func NewClient(name string, server string) *Client {
+func NewClient(name string, server *common.TrustDomainConfig) *Client {
 	c := &Client{}
 	c.log = log.New(os.Stdout, "[Client:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	c.name = name
@@ -51,9 +51,13 @@ func (c *Client) Ping() bool {
 	c.log.Printf("Ping: enter\n")
 	args := &common.PingArgs{"PING"}
 	var reply common.PingReply
-	err := Call(c.server, "Shard.Ping", args, &reply)
+	addr, ok := c.server.GetAddress()
+	if !ok {
+		return false
+	}
+	err := Call(addr, "Frontend.Ping", args, &reply)
 
-	c.log.Printf("%s.Ping(): %v, %v\n", c.server, args, reply)
+	c.log.Printf("%s.Ping(): %v, %v\n", addr, args, reply)
 	if err == nil {
 		return true
 	} else {

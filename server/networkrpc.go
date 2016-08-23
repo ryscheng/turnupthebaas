@@ -19,7 +19,9 @@ import (
 type NetworkRpc struct {
 	log      *log.Logger
 	dead     int32
+	handler  Handler
 	port     int
+	server   *rpc.Server
 	listener net.Listener
 }
 
@@ -34,9 +36,12 @@ func NewNetworkRpc(handler Handler, port int) *NetworkRpc {
 	n := &NetworkRpc{}
 	n.log = log.New(os.Stdout, "[NetworkRpc] ", log.Ldate|log.Ltime|log.Lshortfile)
 	n.dead = 0
+	n.handler = handler
 	n.port = port
 	// Register RPC
-	rpc.Register(handler)
+	n.server = rpc.NewServer()
+	n.server.Register(handler)
+	//rpc.Register(handler)
 	l, e := net.Listen("tcp", ":"+strconv.Itoa(port))
 	if e != nil {
 		n.log.Fatal("listen error:", e)
@@ -57,7 +62,8 @@ func NewNetworkRpc(handler Handler, port int) *NetworkRpc {
 				n.log.Printf("Accept: error %v\n", err.Error())
 				continue
 			} else if err == nil && n.isDead() == false {
-				go rpc.ServeConn(conn)
+				//go rpc.ServeConn(conn)
+				go n.server.ServeConn(conn)
 			} else if err == nil {
 				conn.Close()
 			}
