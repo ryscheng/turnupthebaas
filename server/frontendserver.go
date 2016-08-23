@@ -7,12 +7,9 @@ import (
 )
 
 type FrontendServer struct {
-	log             *log.Logger
-	name            string
-	rpcPort         int
-	dataLayerConfig *DataLayerConfig
-	follower        *common.TrustDomainConfig
-	isLeader        bool
+	log     *log.Logger
+	name    string
+	rpcPort int
 
 	frontend *Frontend
 	netRpc   *NetworkRpc
@@ -24,11 +21,8 @@ func NewFrontendServer(name string, rpcPort int, dataLayerConfig *DataLayerConfi
 	fe.log = log.New(os.Stdout, "[FrontendServer:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	fe.name = name
 	fe.rpcPort = rpcPort
-	fe.dataLayerConfig = dataLayerConfig
-	fe.follower = follower
-	fe.isLeader = isLeader
 
-	fe.frontend = NewFrontend(name)
+	fe.frontend = NewFrontend(name, dataLayerConfig, follower, isLeader)
 	if rpcPort != 0 {
 		fe.netRpc = NewNetworkRpc(fe.frontend, rpcPort)
 	}

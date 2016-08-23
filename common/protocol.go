@@ -25,7 +25,7 @@ type PingArgs struct {
 }
 
 type PingReply struct {
-	Err Error
+	Err string
 	Msg string
 }
 
@@ -39,7 +39,7 @@ type WriteArgs struct {
 }
 
 type WriteReply struct {
-	Err Error
+	Err string
 }
 
 type ReadArgs struct {
@@ -47,7 +47,7 @@ type ReadArgs struct {
 }
 
 type ReadReply struct {
-	Err  Error
+	Err  string
 	Data []byte
 }
 
@@ -55,6 +55,6 @@ type GetUpdatesArgs struct {
 }
 
 type GetUpdatesReply struct {
-	Err            Error
+	Err            string
 	InterestVector []byte
 }

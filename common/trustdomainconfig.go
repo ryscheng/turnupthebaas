@@ -1,20 +1,29 @@
 package common
 
 type TrustDomainConfig struct {
-	Address string
-	IsValid bool
+	name    string
+	address string
+	isValid bool
 }
 
-func NewTrustDomainConfig(address string, isValid bool) *TrustDomainConfig {
+func NewTrustDomainConfig(name string, address string, isValid bool) *TrustDomainConfig {
 	td := &TrustDomainConfig{}
-	td.Address = address
-	td.IsValid = isValid
+	td.name = name
+	td.address = address
+	td.isValid = isValid
 	return td
 }
 
-func (td *TrustDomainConfig) GetAddress() (string, bool) {
-	if td.IsValid == false {
+func (td *TrustDomainConfig) GetName() (string, bool) {
+	if td.isValid == false {
 		return "", false
 	}
-	return td.Address, td.IsValid
+	return td.name, td.isValid
+}
+
+func (td *TrustDomainConfig) GetAddress() (string, bool) {
+	if td.isValid == false {
+		return "", false
+	}
+	return td.address, td.isValid
 }

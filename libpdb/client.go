@@ -3,7 +3,6 @@ package libpdb
 import (
 	"github.com/ryscheng/pdb/common"
 	"log"
-	"net/rpc"
 	"os"
 )
 
@@ -14,51 +13,30 @@ import (
  * - 1x RequestManager.readPeriodic
  */
 type Client struct {
-	log       *log.Logger
-	name      string
-	server    *common.TrustDomainConfig
-	msgReqMan *RequestManager
+	log          *log.Logger
+	name         string
+	serverConfig *common.TrustDomainConfig
+	serverRef    *common.TrustDomainRef
+	msgReqMan    *RequestManager
 }
 
-func Call(addr string, methodName string, args interface{}, reply interface{}) error {
-	client, err := rpc.Dial("tcp", addr)
-	if err != nil {
-		log.Printf("rpc dialing failed: %v\n", err)
-		return err
-	}
-	defer client.Close()
-
-	err = client.Call(methodName, args, reply)
-	if err != nil {
-		log.Printf("rpc error:", err)
-		return err
-	}
-	return nil
-}
-
-func NewClient(name string, server *common.TrustDomainConfig) *Client {
+func NewClient(name string, serverConfig *common.TrustDomainConfig) *Client {
 	c := &Client{}
 	c.log = log.New(os.Stdout, "[Client:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	c.name = name
-	c.server = server
-	// @todo update
-	c.msgReqMan = NewRequestManager(name, 8)
+	c.serverConfig = serverConfig
+	c.serverRef = common.NewTrustDomainRef(name, serverConfig)
+
+	// @todo
+	c.msgReqMan = NewRequestManager(name, 8, c.serverRef)
+
 	c.log.Println("NewClient: starting new client - " + name)
 	return c
 }
 
 func (c *Client) Ping() bool {
-	c.log.Printf("Ping: enter\n")
-	args := &common.PingArgs{"PING"}
-	var reply common.PingReply
-	addr, ok := c.server.GetAddress()
-	if !ok {
-		return false
-	}
-	err := Call(addr, "Frontend.Ping", args, &reply)
-
-	c.log.Printf("%s.Ping(): %v, %v\n", addr, args, reply)
-	if err == nil {
+	err, reply := c.serverRef.Ping()
+	if err == nil && reply.Err == "" {
 		return true
 	} else {
 		return false

@@ -39,36 +39,28 @@ func NewShard(name string) *Shard {
 /** PUBLIC METHODS (threadsafe) **/
 func (s *Shard) Ping(args *common.PingArgs, reply *common.PingReply) error {
 	s.log.Println("Ping: " + args.Msg + ", ... Pong")
-	var err error = nil
-	reply.Err = ""
 	reply.Msg = "PONG"
-	return err
+	return nil
 }
 
 func (s *Shard) Write(args *common.WriteArgs, reply *common.WriteReply) error {
 	s.log.Println("Write: ")
-	var err error = nil
 	s.WriteChan <- args
-	reply.Err = ""
-	return err
+	return nil
 }
 
 func (s *Shard) Read(args *common.ReadArgs, reply *common.ReadReply) error {
 	s.log.Println("Read: ")
-	var err error = nil
 	resultChan := make(chan []byte)
 	s.ReadChan <- &ReadRequest{args, resultChan}
 	reply.Data = <-resultChan
-	reply.Err = ""
-	return err
+	return nil
 }
 
 func (s *Shard) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdatesReply) error {
 	s.log.Println("GetUpdates: ")
-	var err error = nil
 	// @TODO
-	reply.Err = ""
-	return err
+	return nil
 }
 
 /** PRIVATE METHODS (singlethreaded) **/
