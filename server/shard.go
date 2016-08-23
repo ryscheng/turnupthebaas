@@ -14,6 +14,7 @@ import (
 type Shard struct {
 	// Private State
 	log       *log.Logger
+	name      string
 	WriteLog  map[uint64]*common.WriteArgs
 	ReadBatch []*ReadRequest
 	// Channels
@@ -22,9 +23,10 @@ type Shard struct {
 	TriggerBatch chan *common.Range
 }
 
-func NewShard() *Shard {
+func NewShard(name string) *Shard {
 	s := &Shard{}
-	s.log = log.New(os.Stdout, "[Shard] ", log.Ldate|log.Ltime|log.Lshortfile)
+	s.log = log.New(os.Stdout, "[Shard:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
+	s.name = name
 	s.WriteLog = make(map[uint64]*common.WriteArgs)
 	s.ReadBatch = make([]*ReadRequest, 0)
 	s.WriteChan = make(chan *common.WriteArgs)

@@ -20,9 +20,9 @@ type RequestManager struct {
 	writeInterval int64
 }
 
-func NewRequestManager(dataSize int) *RequestManager {
+func NewRequestManager(name string, dataSize int) *RequestManager {
 	rm := &RequestManager{}
-	rm.log = log.New(os.Stdout, "[RequestManager:"+strconv.Itoa(dataSize)+"] ", log.Ldate|log.Ltime|log.Lshortfile)
+	rm.log = log.New(os.Stdout, "[RequestManager:"+name+":"+strconv.Itoa(dataSize)+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	rm.dead = 0
 	rm.dataSize = dataSize
 	rm.readInterval = defaultReadInterval

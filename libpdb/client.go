@@ -16,7 +16,7 @@ import (
 type Client struct {
 	log       *log.Logger
 	name      string
-	servers   []string
+	server    string
 	msgReqMan *RequestManager
 }
 
@@ -36,31 +36,27 @@ func Call(addr string, methodName string, args interface{}, reply interface{}) e
 	return nil
 }
 
-func NewClient(name string, servers []string) *Client {
+func NewClient(name string, server string) *Client {
 	c := &Client{}
 	c.log = log.New(os.Stdout, "[Client:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	c.name = name
-	c.servers = servers
+	c.server = server
 	// @todo update
-	c.msgReqMan = NewRequestManager(8)
+	c.msgReqMan = NewRequestManager(name, 8)
 	c.log.Println("NewClient: starting new client - " + name)
 	return c
 }
 
-func (c *Client) Ping() []bool {
-	result := make([]bool, len(c.servers))
+func (c *Client) Ping() bool {
 	c.log.Printf("Ping: enter\n")
-	var err error
 	args := &common.PingArgs{"PING"}
 	var reply common.PingReply
-	for i := 0; i < len(result); i++ {
-		err = Call(c.servers[i], "Shard.Ping", args, &reply)
-		c.log.Printf("%s.Ping(): %v, %v\n", c.servers[i], args, reply)
-		if err == nil {
-			result[i] = true
-		} else {
-			result[i] = false
-		}
+	err := Call(c.server, "Shard.Ping", args, &reply)
+
+	c.log.Printf("%s.Ping(): %v, %v\n", c.server, args, reply)
+	if err == nil {
+		return true
+	} else {
+		return false
 	}
-	return result
 }
