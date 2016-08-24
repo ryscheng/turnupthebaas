@@ -14,15 +14,12 @@ import (
 //const defaultWriteInterval = int64(time.Second)
 
 type RequestManager struct {
-	log          *log.Logger
-	dataSize     int
-	serverRef    *common.TrustDomainRef
-	globalConfig *common.GlobalConfig
+	log       *log.Logger
+	dataSize  int
+	serverRef *common.TrustDomainRef
 	// Protected by `atomic`
-	writeInterval int64
-	readInterval  int64
-	dead          int32
-	// Channels
+	globalConfig *common.GlobalConfig
+	dead         int32
 }
 
 func NewRequestManager(name string, dataSize int, serverRef *common.TrustDomainRef, globalConfig *common.GlobalConfig) *RequestManager {
@@ -31,9 +28,6 @@ func NewRequestManager(name string, dataSize int, serverRef *common.TrustDomainR
 	rm.dataSize = dataSize
 	rm.serverRef = serverRef
 	rm.globalConfig = globalConfig
-
-	rm.writeInterval = int64(globalConfig.WriteInterval)
-	rm.readInterval = int64(globalConfig.ReadInterval)
 	rm.dead = 0
 
 	rm.log.Printf("NewRequestManager for size=%d\n", dataSize)
@@ -43,12 +37,8 @@ func NewRequestManager(name string, dataSize int, serverRef *common.TrustDomainR
 }
 
 /** PUBLIC METHODS (threadsafe) **/
-func (rm *RequestManager) SetWriteInterval(period time.Duration) {
+func (rm *RequestManager) SetGlobalConfig(globalConfig *common.GlobalConfig) {
 	atomic.StoreInt64(&rm.writeInterval, int64(period))
-}
-
-func (rm *RequestManager) SetReadInterval(period time.Duration) {
-	atomic.StoreInt64(&rm.readInterval, int64(period))
 }
 
 func (rm *RequestManager) Kill() {
