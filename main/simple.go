@@ -16,23 +16,24 @@ func main() {
 	log.Println("Simple Sanity Test")
 	s := make(map[string]Killable)
 
-	// Trust Domain Config
-	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9000", true)
-	trustDomainConfig2 := common.NewTrustDomainConfig("t2", "localhost:9010", true)
+	// Config
+	trustDomainConfig0 := common.NewTrustDomainConfig("t0", "localhost:9000", true)
+	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9010", true)
 	emptyTrustDomainConfig := common.NewTrustDomainConfig("", "", false)
-
-	// Trust Domain 2
-	dataLayerConfig2 := &server.DataLayerConfig{map[string]map[string]string{"t2g1": map[string]string{"t2g1s1": "localhost:9011"}}}
-	s["t2g1s1"] = server.NewShardServer("t2g1", "t2g1s1", 9011, dataLayerConfig2)
-	s["t2fe1"] = server.NewFrontendServer("t2fe1", 9010, dataLayerConfig2, emptyTrustDomainConfig, false)
+	globalConfig := common.GlobalConfig{10, time.Second, time.Second, []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1}}
 
 	// Trust Domain 1
-	dataLayerConfig1 := &server.DataLayerConfig{map[string]map[string]string{"t1g1": map[string]string{"t1g1s1": "localhost:9001"}}}
-	s["t1g1s1"] = server.NewShardServer("t1g1", "t1g1s1", 9001, dataLayerConfig1)
-	s["t1fe1"] = server.NewFrontendServer("t1fe1", 9000, dataLayerConfig1, trustDomainConfig2, true)
+	dataLayerConfig1 := &server.DataLayerConfig{map[string]map[string]string{"t2g1": map[string]string{"t2g1s1": "localhost:9011"}}}
+	s["t1g0s0"] = server.NewShardServer("t1g0", "t1g0s0", 9011, dataLayerConfig1)
+	s["t1fe0"] = server.NewFrontendServer("t1fe0", 9010, dataLayerConfig1, emptyTrustDomainConfig, false)
+
+	// Trust Domain 0
+	dataLayerConfig0 := &server.DataLayerConfig{map[string]map[string]string{"t1g1": map[string]string{"t1g1s1": "localhost:9001"}}}
+	s["t0g0s0"] = server.NewShardServer("t0g0", "t0g0s0", 9001, dataLayerConfig0)
+	s["t0fe0"] = server.NewFrontendServer("t0fe0", 9000, dataLayerConfig0, trustDomainConfig1, true)
 
 	// Client
-	c := libpdb.NewClient("c1", trustDomainConfig1)
+	c := libpdb.NewClient("c1", globalConfig)
 	c.Ping()
 	time.Sleep(10 * time.Second)
 

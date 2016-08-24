@@ -15,27 +15,26 @@ import (
 type Client struct {
 	log          *log.Logger
 	name         string
-	serverConfig *common.TrustDomainConfig
-	serverRef    *common.TrustDomainRef
+	globalConfig *common.GlobalConfig
+	leaderRef    *common.TrustDomainRef
 	msgReqMan    *RequestManager
 }
 
-func NewClient(name string, serverConfig *common.TrustDomainConfig) *Client {
+func NewClient(name string, globalConfig *common.GlobalConfig) *Client {
 	c := &Client{}
 	c.log = log.New(os.Stdout, "[Client:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	c.name = name
-	c.serverConfig = serverConfig
-	c.serverRef = common.NewTrustDomainRef(name, serverConfig)
+	c.globalConfig = globalConfig
+	c.leaderRef = common.NewTrustDomainRef(name, globalConfig.TrustDomains[0])
 
-	// @todo
-	c.msgReqMan = NewRequestManager(name, 8, c.serverRef)
+	c.msgReqMan = NewRequestManager(name, 8, c.serverRef, globalConfig)
 
 	c.log.Println("NewClient: starting new client - " + name)
 	return c
 }
 
 func (c *Client) Ping() bool {
-	err, reply := c.serverRef.Ping()
+	err, reply := c.leaderRef.Ping()
 	if err == nil && reply.Err == "" {
 		return true
 	} else {
