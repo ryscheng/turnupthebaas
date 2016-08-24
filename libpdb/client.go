@@ -27,7 +27,7 @@ func NewClient(name string, globalConfig *common.GlobalConfig) *Client {
 	c.globalConfig = globalConfig
 	c.leaderRef = common.NewTrustDomainRef(name, globalConfig.TrustDomains[0])
 
-	c.msgReqMan = NewRequestManager(name, 8, c.serverRef, globalConfig)
+	c.msgReqMan = NewRequestManager(name, 8, c.leaderRef, globalConfig)
 
 	c.log.Println("NewClient: starting new client - " + name)
 	return c

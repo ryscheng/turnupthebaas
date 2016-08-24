@@ -32,8 +32,8 @@ func NewRequestManager(name string, dataSize int, serverRef *common.TrustDomainR
 	rm.serverRef = serverRef
 	rm.globalConfig = globalConfig
 
-	rm.writeInterval = int64(writeInterval)
-	rm.readInterval = int64(readInterval)
+	rm.writeInterval = int64(globalConfig.WriteInterval)
+	rm.readInterval = int64(globalConfig.ReadInterval)
 	rm.dead = 0
 
 	rm.log.Printf("NewRequestManager for size=%d\n", dataSize)
