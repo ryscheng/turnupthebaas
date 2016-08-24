@@ -20,7 +20,7 @@ func main() {
 	trustDomainConfig0 := common.NewTrustDomainConfig("t0", "localhost:9000", true)
 	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9100", true)
 	emptyTrustDomainConfig := common.NewTrustDomainConfig("", "", false)
-	globalConfig := &common.GlobalConfig{10, time.Second, time.Second, []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1}}
+	globalConfig := common.GlobalConfig{10, 1024, time.Second, time.Second, []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1}}
 
 	// Trust Domain 1
 	dataLayerConfig1 := &server.DataLayerConfig{map[string]map[string]string{

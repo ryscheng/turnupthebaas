@@ -4,6 +4,7 @@ import (
 	"github.com/ryscheng/pdb/common"
 	"log"
 	"os"
+	"sync/atomic"
 )
 
 /**
@@ -15,24 +16,25 @@ import (
 type Client struct {
 	log          *log.Logger
 	name         string
-	globalConfig *common.GlobalConfig
+	globalConfig atomic.Value //common.GlobalConfig
 	leaderRef    *common.TrustDomainRef
 	msgReqMan    *RequestManager
 }
 
-func NewClient(name string, globalConfig *common.GlobalConfig) *Client {
+func NewClient(name string, globalConfig common.GlobalConfig) *Client {
 	c := &Client{}
 	c.log = log.New(os.Stdout, "[Client:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	c.name = name
-	c.globalConfig = globalConfig
+	c.globalConfig.Store(globalConfig)
 	c.leaderRef = common.NewTrustDomainRef(name, globalConfig.TrustDomains[0])
 
-	c.msgReqMan = NewRequestManager(name, 8, c.leaderRef, globalConfig)
+	c.msgReqMan = NewRequestManager(name, c.leaderRef, &c.globalConfig)
 
 	c.log.Println("NewClient: starting new client - " + name)
 	return c
 }
 
+/** PUBLIC METHODS (threadsafe) **/
 func (c *Client) Ping() bool {
 	err, reply := c.leaderRef.Ping()
 	if err == nil && reply.Err == "" {
@@ -40,4 +42,8 @@ func (c *Client) Ping() bool {
 	} else {
 		return false
 	}
+}
+
+func (c *Client) SetGlobalConfig(globalConfig common.GlobalConfig) {
+	c.globalConfig.Store(globalConfig)
 }
