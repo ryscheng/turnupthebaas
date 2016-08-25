@@ -1,9 +1,8 @@
 package libpdb
 
 import (
-	"encoding/binary"
-	"github.com/Yawning/obfs4/common/drbg"
 	"github.com/ryscheng/pdb/common"
+	"github.com/ryscheng/pdb/drbg"
 	"log"
 	"os"
 	"sync/atomic"
@@ -46,11 +45,13 @@ func (rm *RequestManager) isDead() bool {
 }
 
 func (rm *RequestManager) writePeriodic() {
+	seed, _ := drbg.NewSeed()
+	rand := drbg.NewHashDrbg(seed)
 	for rm.isDead() == false {
 		// Load latest config
 		globalConfig := rm.globalConfig.Load().(common.GlobalConfig)
 		args := &common.WriteArgs{}
-		rm.generateRandomWrite(globalConfig, args)
+		rm.generateRandomWrite(globalConfig, rand, args)
 		rm.log.Printf("writePeriodic: Dummy request to %v, %v \n", args.Bucket1, args.Bucket2)
 		time.Sleep(globalConfig.WriteInterval)
 		//time.Sleep(time.Duration(atomic.LoadInt64(&rm.writeInterval)))
@@ -58,35 +59,34 @@ func (rm *RequestManager) writePeriodic() {
 }
 
 func (rm *RequestManager) readPeriodic() {
+	seed, _ := drbg.NewSeed()
+	rand := drbg.NewHashDrbg(seed)
 	for rm.isDead() == false {
 		rm.log.Println("readPeriodic: ")
 		globalConfig := rm.globalConfig.Load().(common.GlobalConfig)
-		//todo
+		args := &common.ReadArgs{}
+		rm.generateRandomRead(globalConfig, rand, args)
+		rm.log.Printf("readPeriodic: Dummy request \n")
 		time.Sleep(globalConfig.ReadInterval)
 		//time.Sleep(time.Duration(atomic.LoadInt64(&rm.readInterval)))
 	}
 }
 
-func randomUint32(d *drbg.HashDrbg) uint32 {
-	block := d.NextBlock()
-	ret := binary.BigEndian.Uint32(block)
-	return ret
+func (rm *RequestManager) generateRandomWrite(globalConfig common.GlobalConfig, rand *drbg.HashDrbg, args *common.WriteArgs) {
+	args.Bucket1 = rand.RandomUint32() % globalConfig.NumBuckets
+	args.Bucket2 = rand.RandomUint32() % globalConfig.NumBuckets
+	args.Data = make([]byte, globalConfig.DataSize, globalConfig.DataSize)
+	rand.FillBytes(&args.Data)
 }
 
-func (rm *RequestManager) generateRandomWrite(globalConfig common.GlobalConfig, args *common.WriteArgs) {
-	seed, _ := drbg.NewSeed()
-	rand, _ := drbg.NewHashDrbg(seed)
-	dataSize := globalConfig.DataSize
-	args.Bucket1 = randomUint32(rand) % globalConfig.NumBuckets
-	args.Bucket2 = randomUint32(rand) % globalConfig.NumBuckets
-	args.Data = make([]byte, dataSize, dataSize)
-	randBytes := rand.NextBlock()
-	for i := uint32(0); i < dataSize; i++ {
-		args.Data[i] = randBytes[0]
-		if len(randBytes) < 2 {
-			randBytes = rand.NextBlock()
-		} else {
-			randBytes = randBytes[1:]
-		}
+func (rm *RequestManager) generateRandomRead(globalConfig common.GlobalConfig, rand *drbg.HashDrbg, args *common.ReadArgs) {
+	numBytes := (globalConfig.NumBuckets / uint32(8))
+	lastNumBits := (globalConfig.NumBuckets % uint32(8))
+	if lastNumBits > 0 {
+		numBytes = numBytes + 1
 	}
+	args.RequestVector = make([]byte, numBytes, numBytes)
+	rand.FillBytes(&args.RequestVector)
+	//@todo Trim last byte to expected number of bits
+
 }
