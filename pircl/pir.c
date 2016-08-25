@@ -6,36 +6,30 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifdef __APPLE__
 #include <OpenCL/opencl.h>
+#else
+#include <CL/cl.h>
+#endif
 
 #define BLOCK_COUNT (1024)
 #define BLOCK_SIZE (1024)
 #define BATCH_SIZE (1)
-#define stringize(sequence) "\"" #sequence "\""
 
 // Simple compute kernel which computes the square of an input array
 const char *KernelSource = "\n" \
 "#define BLOCK_SIZE 1024                                                \n" \
-"__local char accumulator[BLOCK_SIZE];                                        \n" \
 "__kernel void pir(                                                     \n" \
 "   __global char* input,                                               \n" \
 "   __global char* database,                                            \n" \
-"   const unsigned int count)                                           \n" \
-"{                                                                      \n" \
-"   int i = get_global_id(0);                                           \n" \
-"   int bit = i / BLOCK_SIZE;                          \n" \
-"   if ((input[bit / 8] & (1 << (bit % 8))) != 0)                       \n" \
-"       accumulator[i % BLOCK_SIZE] ^= database[i];      \n" \
-"}                                                                      \n" \
-"__kernel void reducepir(                                               \n" \
 "   __global char* output,                                              \n" \
 "   const unsigned int count)                                           \n" \
 "{                                                                      \n" \
-"   int i = 0;                                                          \n" \
-"   for (i = 0; i < BLOCK_SIZE; i++) {                   \n" \
-"     output[i] ^= accumulator[i];                                      \n" \
-"     accumulator[i] = 0;                                               \n" \
-"   }                                                                   \n" \
+"   int i = get_global_id(0);                                           \n" \
+"   int bit = i / BLOCK_SIZE;                                           \n" \
+"   char* localInput input[b]"
+"   if ((input[bit / 8] & (1 << (bit % 8))) != 0)                       \n" \
+"       accumulator[i % BLOCK_SIZE] ^= database[i];      \n" \
 "}                                                                      \n" \
 "\n";
 
