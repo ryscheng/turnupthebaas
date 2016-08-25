@@ -18,6 +18,11 @@ type RequestManager struct {
 	// Protected by `atomic`
 	globalConfig *atomic.Value //*common.GlobalConfig
 	dead         int32
+	// Channels
+	writeChan  chan *common.WriteArgs
+	writeQueue []*common.WriteArgs
+	readChan   chan *common.ReadArgs
+	readQueue  []*common.ReadArgs
 }
 
 func NewRequestManager(name string, serverRef *common.TrustDomainRef, globalConfig *atomic.Value) *RequestManager {
@@ -39,6 +44,14 @@ func (rm *RequestManager) Kill() {
 	atomic.StoreInt32(&rm.dead, 1)
 }
 
+func (rm *RequestManager) EnqueueWrite(args *common.WriteArgs) {
+	rm.writeChan <- args
+}
+
+func (rm *RequestManager) EnqueueRead(args *common.ReadArgs) {
+	rm.readChan <- args
+}
+
 /** PRIVATE METHODS **/
 func (rm *RequestManager) isDead() bool {
 	return atomic.LoadInt32(&rm.dead) != 0
@@ -48,13 +61,24 @@ func (rm *RequestManager) writePeriodic() {
 	seed, _ := drbg.NewSeed()
 	rand := drbg.NewHashDrbg(seed)
 	for rm.isDead() == false {
-		// Load latest config
-		globalConfig := rm.globalConfig.Load().(common.GlobalConfig)
-		args := &common.WriteArgs{}
-		rm.generateRandomWrite(globalConfig, rand, args)
-		rm.log.Printf("writePeriodic: Dummy request to %v, %v \n", args.Bucket1, args.Bucket2)
-		time.Sleep(globalConfig.WriteInterval)
-		//time.Sleep(time.Duration(atomic.LoadInt64(&rm.writeInterval)))
+		select {
+		case msg := <-rm.writeChan:
+			rm.writeQueue = append(rm.writeQueue, msg)
+		default:
+			globalConfig := rm.globalConfig.Load().(common.GlobalConfig)
+			var args *common.WriteArgs
+			if len(rm.writeQueue) > 0 {
+				args = rm.writeQueue[0]
+				rm.writeQueue = rm.writeQueue[1:]
+			} else {
+				args = &common.WriteArgs{}
+				rm.generateRandomWrite(globalConfig, rand, args)
+				rm.log.Printf("writePeriodic: Dummy request to %v, %v \n", args.Bucket1, args.Bucket2)
+			}
+			//@todo Send request
+			time.Sleep(globalConfig.WriteInterval)
+			//time.Sleep(time.Duration(atomic.LoadInt64(&rm.writeInterval)))
+		}
 	}
 }
 
@@ -62,13 +86,24 @@ func (rm *RequestManager) readPeriodic() {
 	seed, _ := drbg.NewSeed()
 	rand := drbg.NewHashDrbg(seed)
 	for rm.isDead() == false {
-		rm.log.Println("readPeriodic: ")
-		globalConfig := rm.globalConfig.Load().(common.GlobalConfig)
-		args := &common.ReadArgs{}
-		rm.generateRandomRead(globalConfig, rand, args)
-		rm.log.Printf("readPeriodic: Dummy request \n")
-		time.Sleep(globalConfig.ReadInterval)
-		//time.Sleep(time.Duration(atomic.LoadInt64(&rm.readInterval)))
+		select {
+		case msg := <-rm.readChan:
+			rm.readQueue = append(rm.readQueue, msg)
+		default:
+			globalConfig := rm.globalConfig.Load().(common.GlobalConfig)
+			var args *common.ReadArgs
+			if len(rm.readQueue) > 0 {
+				args = rm.readQueue[0]
+				rm.readQueue = rm.readQueue[1:]
+			} else {
+				args = &common.ReadArgs{}
+				rm.generateRandomRead(globalConfig, rand, args)
+				rm.log.Printf("readPeriodic: Dummy request \n")
+			}
+			//@todo Send request
+			time.Sleep(globalConfig.ReadInterval)
+			//time.Sleep(time.Duration(atomic.LoadInt64(&rm.readInterval)))
+		}
 	}
 }
 
