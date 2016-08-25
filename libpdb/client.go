@@ -35,6 +35,11 @@ func NewClient(name string, globalConfig common.GlobalConfig) *Client {
 }
 
 /** PUBLIC METHODS (threadsafe) **/
+
+func (c *Client) SetGlobalConfig(globalConfig common.GlobalConfig) {
+	c.globalConfig.Store(globalConfig)
+}
+
 func (c *Client) Ping() bool {
 	err, reply := c.leaderRef.Ping()
 	if err == nil && reply.Err == "" {
@@ -44,6 +49,15 @@ func (c *Client) Ping() bool {
 	}
 }
 
-func (c *Client) SetGlobalConfig(globalConfig common.GlobalConfig) {
-	c.globalConfig.Store(globalConfig)
+func (c *Client) CreateTopic() *TopicHandle {
+	handle := &TopicHandle{}
+	return handle
+}
+
+func (c *Client) Publish(handle *TopicHandle, data []byte) bool {
+	return true
+}
+
+func (c *Client) Subscribe(handle *TopicHandle) bool {
+	return true
 }
