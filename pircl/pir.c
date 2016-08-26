@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/mman.h>
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
 #else
@@ -15,23 +16,6 @@
 #define BLOCK_COUNT (1024)
 #define BLOCK_SIZE (1024)
 #define BATCH_SIZE (1)
-
-// Simple compute kernel which computes the square of an input array
-const char *KernelSource = "\n" \
-"#define BLOCK_SIZE 1024                                                \n" \
-"__kernel void pir(                                                     \n" \
-"   __global char* input,                                               \n" \
-"   __global char* database,                                            \n" \
-"   __global char* output,                                              \n" \
-"   const unsigned int count)                                           \n" \
-"{                                                                      \n" \
-"   int i = get_global_id(0);                                           \n" \
-"   int bit = i / BLOCK_SIZE;                                           \n" \
-"   char* localInput input[b]"
-"   if ((input[bit / 8] & (1 << (bit % 8))) != 0)                       \n" \
-"       accumulator[i % BLOCK_SIZE] ^= database[i];      \n" \
-"}                                                                      \n" \
-"\n";
 
 ////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv)
@@ -51,7 +35,6 @@ int main(int argc, char** argv)
     cl_command_queue commands;          // compute command queue
     cl_program program;                 // compute program
     cl_kernel kernel;                   // compute kernel
-    cl_kernel kernel2;                   // compute kernel
 
     cl_mem db;                          // device memory used for the database
     cl_mem input;                       // device memory used for the input array
@@ -95,9 +78,15 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
 
+    // Map in kernel source code
+    struct stat kernelStat;
+    int kernelHandle = open("kernel.c", O_RDONLY);
+    int status = fstat (kernelHandle, &kernelStat);
+    char* kernelSource = (char *) mmap(NULL, kernelStat.st_size, PROT_READ, MAP_PRIVATE, kernelHandle, 0);
+
     // Create the compute program from the source buffer
     //
-    program = clCreateProgramWithSource(context, 1, (const char **) & KernelSource, NULL, &err);
+    program = clCreateProgramWithSource(context, 1, (const char **) & kernelSource, NULL, &err);
     if (!program)
     {
         printf("Error: Failed to create compute program!\n");
@@ -122,13 +111,6 @@ int main(int argc, char** argv)
     //
     kernel = clCreateKernel(program, "pir", &err);
     if (!kernel || err != CL_SUCCESS)
-    {
-        printf("Error: Failed to create compute kernel!\n");
-        exit(1);
-    }
-
-    kernel2 = clCreateKernel(program, "reducepir", &err);
-    if (!kernel2 || err != CL_SUCCESS)
     {
         printf("Error: Failed to create compute kernel!\n");
         exit(1);
@@ -209,38 +191,6 @@ int main(int argc, char** argv)
     //
     clFinish(commands);
 
-    // Stage 2
-    err = 0;
-    err  = clSetKernelArg(kernel2, 0, sizeof(cl_mem), &output);
-    if (err != CL_SUCCESS)
-    {
-        printf("Error: Failed to set kernel arguments! %d\n", err);
-        exit(1);
-    }
-
-    // Get the maximum work group size for executing the kernel on the device
-    //
-    err = clGetKernelWorkGroupInfo(kernel2, device_id, CL_KERNEL_WORK_GROUP_SIZE, sizeof(local), &local, NULL);
-    if (err != CL_SUCCESS)
-    {
-        printf("Error: Failed to retrieve kernel work group info! %d\n", err);
-        exit(1);
-    }
-
-    // Execute the kernel over the entire range of our 1d input data set
-    // using the maximum number of work group items for this device
-    //
-    global = count;
-    err = clEnqueueNDRangeKernel(commands, kernel2, 1, NULL, &global, &local, 0, NULL, NULL);
-    if (err)
-    {
-        printf("Error: Failed to execute kernel!\n");
-        return EXIT_FAILURE;
-    }
-    // Wait for the command commands to get serviced before stage 2
-    //
-    clFinish(commands);
-
     // Read back the results from the device to verify the output
     //
     err = clEnqueueReadBuffer( commands, output, CL_TRUE, 0, sizeof(char) * BLOCK_SIZE * BATCH_SIZE, outdata, 0, NULL, NULL );
@@ -286,7 +236,6 @@ int main(int argc, char** argv)
     clReleaseMemObject(output);
     clReleaseProgram(program);
     clReleaseKernel(kernel);
-    clReleaseKernel(kernel2);
     clReleaseCommandQueue(commands);
     clReleaseContext(context);
 
