@@ -1,8 +1,9 @@
 __kernel
-void pir(__global float* buffer,
-            __local float* scratch,
-            __const int length,
-            __global float* result) {
+void pir(__global ulong* buffer,
+         __global char* mask,
+         __local ulong* scratch,
+         __const int length,
+         __global ulong* output) {
 
   int global_index = get_global_id(0);
   float accumulator = INFINITY;
@@ -28,6 +29,6 @@ void pir(__global float* buffer,
     barrier(CLK_LOCAL_MEM_FENCE);
   }
   if (local_index == 0) {
-    result[get_group_id(0)] = scratch[0];
+    output[get_group_id(0)] = scratch[0];
   }
 }
