@@ -17,16 +17,15 @@
 #define BLOCK_SIZE (1024)
 
 #define DATA_TYPE unsigned long
-#define DATA_BYTES 8
 
 ////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv)
 {
     int err;                            // error code returned from api calls
 
-    DATA_TYPE database[BLOCK_COUNT * BLOCK_SIZE / DATA_BYTES];
+    DATA_TYPE database[BLOCK_COUNT * BLOCK_SIZE];
     char invector[BLOCK_COUNT]; // input vector given to device
-    DATA_TYPE outdata[BLOCK_SIZE / DATA_BYTES];   // results returned from device
+    DATA_TYPE outdata[BLOCK_SIZE];   // results returned from device
     unsigned int correct;               // number of correct results returned
 
     size_t global;                      // global domain size for our calculation
@@ -49,7 +48,8 @@ int main(int argc, char** argv)
     int i = 0;
     int j = 0;
     unsigned int count = BLOCK_COUNT;
-    unsigned int dbsize = BLOCK_COUNT * BLOCK_SIZE / DATA_BYTES;
+    unsigned int dbsize = BLOCK_COUNT * BLOCK_SIZE;
+    unsigned int block_size = BLOCK_SIZE;
     for(i = 0; i < count; i++)
         invector[i] = rand();
 
@@ -128,9 +128,9 @@ int main(int argc, char** argv)
 
     // Create the arrays in device memory for our calculation
     //
-    db = clCreateBuffer(context, CL_MEM_READ_ONLY, BLOCK_COUNT * BLOCK_SIZE, NULL, NULL);
+    db = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(DATA_TYPE) * BLOCK_COUNT * BLOCK_SIZE, NULL, NULL);
     input = clCreateBuffer(context,  CL_MEM_READ_ONLY, count, NULL, NULL);
-    output = clCreateBuffer(context, CL_MEM_WRITE_ONLY, BLOCK_SIZE, NULL, NULL);
+    output = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(DATA_TYPE) * BLOCK_SIZE, NULL, NULL);
     if (!input || !output || !db)
     {
         printf("Error: Failed to allocate device memory!\n");
@@ -142,7 +142,7 @@ int main(int argc, char** argv)
     for(i = 0; i < dbsize; i++)
         database[i] = rand();
 
-    err = clEnqueueWriteBuffer(commands, db, CL_TRUE, 0, DATA_BYTES * dbsize, database, 0, NULL, NULL);
+    err = clEnqueueWriteBuffer(commands, db, CL_TRUE, 0, dbsize, database, 0, NULL, NULL);
     if (err != CL_SUCCESS)
     {
         printf("Error: Failed to write db to device!\n");
@@ -164,9 +164,10 @@ int main(int argc, char** argv)
     err = 0;
     err  = clSetKernelArg(kernel, 0, sizeof(cl_mem), &db);
     err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &input);
-    err |= clSetKernelArg(kernel, 2, BLOCK_SIZE, NULL);
+    err |= clSetKernelArg(kernel, 2, sizeof(unsigned long) * BLOCK_SIZE, NULL);
     err |= clSetKernelArg(kernel, 3, sizeof(unsigned int), &dbsize);
-    err |= clSetKernelArg(kernel, 4, sizeof(cl_mem), &output);
+    err |= clSetKernelArg(kernel, 4, sizeof(unsigned int), &block_size);
+    err |= clSetKernelArg(kernel, 5, sizeof(cl_mem), &output);
     if (err != CL_SUCCESS)
     {
         printf("Error: Failed to set kernel arguments! %d\n", err);
@@ -198,7 +199,7 @@ int main(int argc, char** argv)
 
     // Read back the results from the device to verify the output
     //
-    err = clEnqueueReadBuffer( commands, output, CL_TRUE, 0, BLOCK_SIZE, outdata, 0, NULL, NULL );
+    err = clEnqueueReadBuffer( commands, output, CL_TRUE, 0, sizeof(DATA_TYPE) * BLOCK_SIZE, outdata, 0, NULL, NULL );
     if (err != CL_SUCCESS)
     {
         printf("Error: Failed to read output array! %d\n", err);

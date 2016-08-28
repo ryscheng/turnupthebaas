@@ -1,34 +1,26 @@
 __kernel
-void pir(__global ulong* buffer,
+void pir(__global unsigned long* buffer,
          __global char* mask,
-         __local ulong* scratch,
+         __local unsigned long* scratch,
          __const int length,
-         __global ulong* output) {
+         __const int scratch_length,
+         __global unsigned long* output) {
 
   int global_index = get_global_id(0);
-  float accumulator = INFINITY;
   // Loop sequentially over chunks of input vector
   while (global_index < length) {
-    float element = buffer[global_index];
-    accumulator = (accumulator < element) ? accumulator : element;
+    if (mask[global_index]) {
+      scratch[global_index % scratch_length] ^= buffer[global_index];
+    }
     global_index += get_global_size(0);
   }
 
   // Perform parallel reduction
   int local_index = get_local_id(0);
-  scratch[local_index] = accumulator;
   barrier(CLK_LOCAL_MEM_FENCE);
-  for(int offset = get_local_size(0) / 2;
-      offset > 0;
-      offset = offset / 2) {
-    if (local_index < offset) {
-      float other = scratch[local_index + offset];
-      float mine = scratch[local_index];
-      scratch[local_index] = (mine < other) ? mine : other;
-    }
-    barrier(CLK_LOCAL_MEM_FENCE);
-  }
   if (local_index == 0) {
-    output[get_group_id(0)] = scratch[0];
+    for (int offset = 0; offset < scratch_length; offset ++) {
+      output[offset] ^= scratch[offset];
+    }
   }
 }
