@@ -17,9 +17,9 @@ func main() {
 	s := make(map[string]Killable)
 
 	// Config
-	trustDomainConfig0 := common.NewTrustDomainConfig("t0", "localhost:9000", true)
-	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9100", true)
-	emptyTrustDomainConfig := common.NewTrustDomainConfig("", "", false)
+	trustDomainConfig0 := common.NewTrustDomainConfig("t0", "localhost:9000", true, true)
+	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9100", true, true)
+	emptyTrustDomainConfig := common.NewTrustDomainConfig("", "", false, true)
 	globalConfig := common.GlobalConfig{100, 1024, time.Second, time.Second, []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1}}
 
 	// Trust Domain 1
