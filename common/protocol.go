@@ -42,8 +42,13 @@ type WriteReply struct {
 	Err string
 }
 
-type ReadArgs struct {
+type PIRArgs struct {
 	RequestVector []byte
+	PadSeed       []byte
+}
+
+type ReadArgs struct {
+	ForTd []PIRArgs // Set of args for each trust domain
 }
 
 type ReadReply struct {

@@ -64,7 +64,7 @@ func (c *Centralized) Ping(args *common.PingArgs, reply *common.PingReply) error
 func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) error {
 	c.log.Println("Write: ")
 
-	// @todo Parallelize writes.
+	// @todo --- parallelize writes.
 	c.mu.Lock()
 	if c.isLeader {
 		args.GlobalSeqNo = c.globalSeqNo
@@ -91,7 +91,7 @@ func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) er
 
 func (c *Centralized) Read(args *common.ReadArgs, reply *common.ReadReply) error {
 	c.log.Println("Read: ")
-	// @TODO
+	c.shard.Read(args, reply)
 	return nil
 }
 
