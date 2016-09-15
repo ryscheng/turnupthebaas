@@ -52,17 +52,17 @@ func (t *TrustDomainRef) Call(methodName string, args interface{}, reply interfa
 	return nil
 }
 
-func (t *TrustDomainRef) Ping() (error, *PingReply) {
+func (t *TrustDomainRef) Ping() (*PingReply, error) {
 	t.log.Printf("Ping: enter\n")
 	args := &PingArgs{"PING"}
 	var reply PingReply
 	err := t.Call(t.methodPrefix+".Ping", args, &reply)
-	return err, &reply
+	return &reply, err
 }
 
-func (t *TrustDomainRef) Write(args *WriteArgs) (error, *WriteReply) {
+func (t *TrustDomainRef) Write(args *WriteArgs) (*WriteReply, error) {
 	t.log.Printf("Write: enter\n")
 	var reply WriteReply
 	err := t.Call(t.methodPrefix+".Write", args, &reply)
-	return err, &reply
+	return &reply, err
 }

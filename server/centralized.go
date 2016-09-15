@@ -4,6 +4,7 @@ import (
 	"github.com/ryscheng/pdb/common"
 	"log"
 	"os"
+	"sync"
 )
 
 type Centralized struct {
@@ -13,10 +14,14 @@ type Centralized struct {
 	dataLayerConfig *DataLayerConfig
 	followerConfig  *common.TrustDomainConfig
 	isLeader        bool
+	followerRef     *common.TrustDomainRef
 
-	followerRef *common.TrustDomainRef
+	// Thread-safe
+	shard *Shard
+
+	// Unsafe
+	mu          sync.Mutex
 	globalSeqNo uint64
-	shard       *Shard
 }
 
 func NewCentralized(name string, followerConfig *common.TrustDomainConfig, isLeader bool) *Centralized {
@@ -25,10 +30,12 @@ func NewCentralized(name string, followerConfig *common.TrustDomainConfig, isLea
 	c.name = name
 	c.followerConfig = followerConfig
 	c.isLeader = isLeader
-
 	c.followerRef = common.NewTrustDomainRef(name, followerConfig)
-	c.globalSeqNo = 1
+
 	c.shard = NewShard(name)
+
+	c.mu = sync.Mutex{}
+	c.globalSeqNo = 1
 
 	return c
 }
@@ -40,7 +47,7 @@ func (c *Centralized) Ping(args *common.PingArgs, reply *common.PingReply) error
 	// Try to ping the follower if one exists
 	fName, haveFollower := c.followerConfig.GetName()
 	if haveFollower {
-		fErr, fReply := c.followerRef.Ping()
+		fReply, fErr := c.followerRef.Ping()
 		if fErr != nil {
 			reply.Err = fName + " Ping failed"
 		} else {
@@ -57,7 +64,8 @@ func (c *Centralized) Ping(args *common.PingArgs, reply *common.PingReply) error
 func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) error {
 	c.log.Println("Write: ")
 
-	// @TODO - need to lock
+	// @todo Parallelize writes.
+	c.mu.Lock()
 	if c.isLeader {
 		args.GlobalSeqNo = c.globalSeqNo
 	}
@@ -65,13 +73,19 @@ func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) er
 	c.shard.Write(args, &common.WriteReply{})
 	fName, haveFollower := c.followerConfig.GetName()
 	if haveFollower {
-		fErr, fReply := c.followerRef.Write(args)
-
+		fReply, fErr := c.followerRef.Write(args)
+		if fErr != nil {
+			// Assume all servers always available
+			c.log.Fatalf("Error forwarding to follower %v", c.followerConfig)
+			c.mu.Unlock()
+			return fErr
+		}
 	}
 
 	// Only if successfully forwarded
 	c.globalSeqNo += 1
 
+	c.mu.Unlock()
 	return nil
 }
 
