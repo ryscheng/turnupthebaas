@@ -12,7 +12,7 @@ func (r *Range) Equals(b Range) bool {
 	if r.start != b.start || r.end != b.end || len(r.aborted) != len(b.aborted) {
 		return false
 	}
-	for i := range r.aborted {
+	for i, _ := range r.aborted {
 		if r.aborted[i] != b.aborted[i] {
 			return false
 		}
