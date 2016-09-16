@@ -7,7 +7,7 @@ import (
 )
 
 type Comparable interface {
-	Equals(other Comparable) bool
+	Equals(other *Comparable) bool
 }
 
 type BucketLocation struct {
@@ -62,21 +62,22 @@ func NewTable(name string, numBuckets int, depth int, randSeed int64) *Table {
  * PUBLIC METHODS
  ********************/
 
-/**
-// Checks if entry exists in the table
-// Returns true if an entry exists where all fields match
-func (t *Table) Contains(bucket1 int, bucket2, value *Comparable) bool {
+// Checks if value exists in specified buckets
+// Returns true if `value.Equals(...)` returns true
+func (t *Table) Contains(bucket1 int, bucket2 int, value *Comparable) bool {
 	result := false
-	if e.Bucket1 < t.numBuckets {
-		result = result || t.isInBucket(e.Bucket1, e)
+	if bucket1 < t.numBuckets {
+		result = result || t.isInBucket(bucket1, value)
 	}
-	if e.Bucket2 < t.numBuckets {
-		result = result || t.isInBucket(e.Bucket2, e)
+	if bucket2 < t.numBuckets {
+		result = result || t.isInBucket(bucket2, value)
 	}
 	return result
 }
 
-// Inserts the entry into the cuckoo table
+/**
+// Inserts the value into the cuckoo table
+//   fails if either bucket already contains value
 // Returns true on success, false if not inserted
 // Even if false is returned, the underlying data structure might be different (e.g. rebuilt)
 func (t *Table) Insert(bucket1, bucket2, value *Comparable) bool {
@@ -104,19 +105,19 @@ func (t *Table) Remove(bucket1 int, bucket2 int, target *Comparable) {
  * PRIVATE METHODS
  ********************/
 
-/**
-// Checks if the `target` is in a specified bucket
-// Returns true if an entry exists where all fields match
-func (t *Table) isInBucket(bucketIndex int, target *Entry) bool {
+// Checks if the `value` is in a specified bucket
+// Returns true if `value.Equals(...)` returns true
+func (t *Table) isInBucket(bucketIndex int, value *Comparable) bool {
 	bucket := t.buckets[bucketIndex]
 	for i := 0; i < t.depth; i++ {
-		if bucket.filled[i] && bucket.entries[i].Equals(target) {
+		if bucket.filled[i] && (*value).Equals(bucket.data[i]) {
 			return true
 		}
 	}
 	return false
 }
 
+/**
 // Tries to inserts `target` into specified bucket
 // bucketIndex must be either `target.Bucket1` or `target.Bucket2` or nothing happens
 // If the bucket is already full, skip
