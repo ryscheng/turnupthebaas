@@ -7,7 +7,7 @@ import (
 )
 
 type Comparable interface {
-	Equals(other *Comparable) bool
+	Compare(other Comparable) int
 }
 
 type BucketLocation struct {
@@ -17,9 +17,9 @@ type BucketLocation struct {
 
 type Bucket struct {
 	// `entries` and `filled` must be the same size
-	data      []*Comparable     // Stores actual data. Validity of an entry determined by `filled`
-	bucketLoc []*BucketLocation // Stores the 2 bucket locations for each entry
-	filled    []bool            // False if cell is empty. Only read `t.entries[i]` if `t.filled[i]==true`
+	data      []Comparable     // Stores actual data. Validity of an entry determined by `filled`
+	bucketLoc []BucketLocation // Stores the 2 bucket locations for each entry
+	filled    []bool           // False if cell is empty. Only read `t.entries[i]` if `t.filled[i]==true`
 }
 
 type Table struct {
@@ -50,8 +50,8 @@ func NewTable(name string, numBuckets int, depth int, randSeed int64) *Table {
 	t.buckets = make([]*Bucket, numBuckets)
 	for i := 0; i < numBuckets; i++ {
 		t.buckets[i] = &Bucket{}
-		t.buckets[i].data = make([]*Comparable, depth)
-		t.buckets[i].bucketLoc = make([]*BucketLocation, depth)
+		t.buckets[i].data = make([]Comparable, depth)
+		t.buckets[i].bucketLoc = make([]BucketLocation, depth)
 		// We assume this will be filled with `false` as per bool's default value
 		t.buckets[i].filled = make([]bool, depth)
 	}
@@ -64,7 +64,7 @@ func NewTable(name string, numBuckets int, depth int, randSeed int64) *Table {
 
 // Checks if value exists in specified buckets
 // Returns true if `value.Equals(...)` returns true
-func (t *Table) Contains(bucket1 int, bucket2 int, value *Comparable) bool {
+func (t *Table) Contains(bucket1 int, bucket2 int, value Comparable) bool {
 	result := false
 	if bucket1 < t.numBuckets {
 		result = result || t.isInBucket(bucket1, value)
@@ -80,7 +80,7 @@ func (t *Table) Contains(bucket1 int, bucket2 int, value *Comparable) bool {
 //   fails if either bucket already contains value
 // Returns true on success, false if not inserted
 // Even if false is returned, the underlying data structure might be different (e.g. rebuilt)
-func (t *Table) Insert(bucket1, bucket2, value *Comparable) bool {
+func (t *Table) Insert(bucket1, bucket2, value Comparable) bool {
 	coin := rand.Int31()
 	ok := t.tryInsertToBucket(e.Bucket1, e)
 	if ok {
@@ -95,7 +95,7 @@ func (t *Table) Insert(bucket1, bucket2, value *Comparable) bool {
 }
 
 // Removes the entry from the cuckoo table
-func (t *Table) Remove(bucket1 int, bucket2 int, target *Comparable) {
+func (t *Table) Remove(bucket1 int, bucket2 int, target Comparable) {
 	t.removeFromBucket(target.Bucket1, target)
 	t.removeFromBucket(target.Bucket2, target)
 }
@@ -107,10 +107,10 @@ func (t *Table) Remove(bucket1 int, bucket2 int, target *Comparable) {
 
 // Checks if the `value` is in a specified bucket
 // Returns true if `value.Equals(...)` returns true
-func (t *Table) isInBucket(bucketIndex int, value *Comparable) bool {
+func (t *Table) isInBucket(bucketIndex int, value Comparable) bool {
 	bucket := t.buckets[bucketIndex]
 	for i := 0; i < t.depth; i++ {
-		if bucket.filled[i] && (*value).Equals(bucket.data[i]) {
+		if bucket.filled[i] && value.Compare(bucket.data[i]) == 0 {
 			return true
 		}
 	}
