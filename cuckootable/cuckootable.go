@@ -4,10 +4,24 @@ import (
 	"math/rand"
 )
 
+type Comparable interface {
+	Equals(other Comparable) bool
+}
+
 type Entry struct {
-	Bucket1 uint32
-	Bucket2 uint32
-	Data    interface{}
+	Bucket1 int
+	Bucket2 int
+	Data    Comparable
+}
+
+func (e *Entry) Equals(other *Entry) bool {
+	if e.Data.Equals(other.Data) &&
+		((e.Bucket1 == other.Bucket1 && e.Bucket2 == other.Bucket2) ||
+			(e.Bucket1 == other.Bucket2 && e.Bucket2 == other.Bucket1)) {
+		return true
+	} else {
+		return false
+	}
 }
 
 type Bucket struct {
@@ -42,7 +56,26 @@ func NewTable(numBuckets int, depth int) *Table {
 // Checks if entry exists in the table
 // Returns true if an entry exists where all fields match
 func (t *Table) Contains(e *Entry) bool {
+	result := false
+	if e.Bucket1 < t.numBuckets {
+		result = result || t.isInBucket(e.Bucket1, e)
+	}
+	if e.Bucket2 < t.numBuckets {
+		result = result || t.isInBucket(e.Bucket2, e)
+	}
+	return result
+}
 
+// Checks if the `target` is in a specified bucket
+// Returns true if an entry exists where all fields match
+func (t *Table) isInBucket(bucketIndex int, target *Entry) bool {
+	bucket := t.buckets[bucketIndex]
+	for i := 0; i < t.depth; i++ {
+		if bucket.filled[i] && bucket.entries[i].Equals(target) {
+			return true
+		}
+	}
+	return false
 }
 
 // Inserts the entry into the cuckoo table
@@ -65,7 +98,7 @@ func (t *Table) Insert(e *Entry) bool {
 // bucketIndex must be either `target.Bucket1` or `target.Bucket2` or nothing happens
 // If the bucket is already full, skip
 // Returns true if success, false if bucket already full
-func (t *Table) tryInsertToBucket(bucketIndex uint32, target *Entry) bool {
+func (t *Table) tryInsertToBucket(bucketIndex int, target *Entry) bool {
 	// Assert bucketIndex is part of `target`
 	if target.Bucket1 != bucketIndex && target.Bucket2 != bucketIndex {
 		return false
@@ -84,7 +117,7 @@ func (t *Table) tryInsertToBucket(bucketIndex uint32, target *Entry) bool {
 	return false
 }
 
-func (t *Table) evictAndInsert(bucketIndex uint32, target *Entry) *Entry {
+func (t *Table) evictAndInsert(bucketIndex int, target *Entry) *Entry {
 }
 
 // Removes the entry from the cuckoo table
@@ -95,6 +128,6 @@ func (t *Table) Remove(target *Entry) {
 
 // Removes all copies of `target` from the specified bucket
 // `target` matches against any entry where all fields match
-func (t *Table) removeFromBucket(bucketIndex uint32, target *Entry) bool {
+func (t *Table) removeFromBucket(bucketIndex int, target *Entry) bool {
 
 }
