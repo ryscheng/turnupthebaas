@@ -2,6 +2,8 @@ package cuckoo
 
 import (
 	"fmt"
+	"math/rand"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -17,8 +19,16 @@ func (v Value) Compare(other Comparable) int {
 	return strings.Compare(string(v), otherStr)
 }
 
+func randBucket(numBuckets int) int {
+	result := rand.Int() % numBuckets
+	if result < 0 {
+		result = result * -1
+	}
+	return result
+}
+
 func TestContains(t *testing.T) {
-	table := NewTable("t", 10, 10, 0)
+	table := NewTable("t", 10, 4, 0)
 
 	fmt.Printf("TestContains: Check empty ...\n")
 	if table.Contains(0, 1, Value("")) == true {
@@ -46,5 +56,23 @@ func TestContains(t *testing.T) {
 		t.Fatalf("contains returned true with out of bound buckets")
 	}
 
+	fmt.Printf("... done\n")
+}
+
+func TestInsert(t *testing.T) {
+	numBuckets := 10
+	depth := 4
+	table := NewTable("t", numBuckets, depth, 0)
+	var b1, b2 int
+	var val Value
+
+	for i := 0; i < 40; i++ {
+		b1 = randBucket(numBuckets)
+		b2 = randBucket(numBuckets)
+		val = Value(strconv.Itoa(rand.Int()))
+		table.Insert(b1, b2, val)
+	}
+
+	fmt.Printf("TestInsert: Check empty ...\n")
 	fmt.Printf("... done\n")
 }

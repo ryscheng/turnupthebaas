@@ -79,8 +79,8 @@ func (t *Table) Contains(bucket1 int, bucket2 int, value Comparable) bool {
 
 // Inserts the value into the cuckoo table
 // Returns true on success, false on failure
-//   fails if insertion cannot complete because reached MAX_EVICTIONS
-//	 failures return an evicted value and must trigger a rebuild by the caller
+// - fails if insertion cannot complete because reached MAX_EVICTIONS
+// - failures return an evicted value and must trigger a rebuild by the caller
 func (t *Table) Insert(bucket1 int, bucket2 int, value Comparable) (int, int, Comparable, bool) {
 	var ok bool
 	var nextBucket int
@@ -104,20 +104,20 @@ func (t *Table) Insert(bucket1 int, bucket2 int, value Comparable) (int, int, Co
 	for i := 0; i < MAX_EVICTIONS; i++ {
 		nextBucket, currBucketLoc, currVal, ok = t.insertAndEvict(nextBucket, currBucketLoc, currVal)
 		if ok {
+			t.log.Printf("Insert: %v evictions\n", i)
 			return -1, -1, nil, true
 		}
 	}
 
+	t.log.Printf("Insert: MAX %v evictions\n", MAX_EVICTIONS)
 	return currBucketLoc.Bucket1, currBucketLoc.Bucket2, currVal, false
 }
 
-/**
 // Removes the entry from the cuckoo table
-func (t *Table) Remove(bucket1 int, bucket2 int, target Comparable) {
-	t.removeFromBucket(target.Bucket1, target)
-	t.removeFromBucket(target.Bucket2, target)
+func (t *Table) Remove(bucket1 int, bucket2 int, value Comparable) {
+	t.removeFromBucket(bucket1, value)
+	t.removeFromBucket(bucket2, value)
 }
-**/
 
 /********************
  * PRIVATE METHODS
@@ -184,10 +184,17 @@ func (t *Table) insertAndEvict(bucketIndex int, bucketLoc BucketLocation, value 
 	}
 }
 
-/**
-// Removes all copies of `target` from the specified bucket
-// `target` matches against any entry where all fields match
-func (t *Table) removeFromBucket(bucketIndex int, target *Entry) bool {
-
+// Removes all copies of `value` from the specified bucket
+func (t *Table) removeFromBucket(bucketIndex int, value Comparable) bool {
+	result := false
+	bucket := t.buckets[bucketIndex]
+	for i := 0; i < t.depth; i++ {
+		if bucket.filled[i] && value.Compare(bucket.data[i]) == 0 {
+			bucket.filled[i] = false
+			bucket.data = nil
+			bucket.bucketLoc[i] = BucketLocation{}
+			result = true
+		}
+	}
+	return result
 }
-**/
