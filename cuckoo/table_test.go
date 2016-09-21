@@ -28,7 +28,7 @@ func randBucket(numBuckets int) int {
 }
 
 func TestContains(t *testing.T) {
-	table := NewTable("t", 10, 4, 0)
+	table := NewTable("t", 10, 2, 0)
 
 	fmt.Printf("TestContains: Check empty ...\n")
 	if table.Contains(0, 1, Value("")) == true {
@@ -59,14 +59,20 @@ func TestContains(t *testing.T) {
 	fmt.Printf("... done\n")
 }
 
-func TestInsert(t *testing.T) {
-	numBuckets := 10
+func TestInsertRemove(t *testing.T) {
+	table := NewTable("t", 10, 2, 0)
+
+	fmt.Printf("TestInsertRemove: \n")
+}
+
+func TestFullTable(t *testing.T) {
+	numBuckets := 100
 	depth := 4
 	table := NewTable("t", numBuckets, depth, 0)
 	var b1, b2 int
 	var val Value
 
-	for i := 0; i < 40; i++ {
+	for i := 0; i < 385; i++ {
 		b1 = randBucket(numBuckets)
 		b2 = randBucket(numBuckets)
 		val = Value(strconv.Itoa(rand.Int()))
@@ -75,4 +81,7 @@ func TestInsert(t *testing.T) {
 
 	fmt.Printf("TestInsert: Check empty ...\n")
 	fmt.Printf("... done\n")
+}
+
+func TestLoadFactor(t *testing.T) {
 }
