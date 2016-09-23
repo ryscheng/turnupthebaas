@@ -100,7 +100,7 @@ func (t *Table) Insert(bucket1 int, bucket2 int, value Comparable) (int, int, Co
 	for i := 0; i < MAX_EVICTIONS; i++ {
 		nextBucket, currBucketLoc, currVal, ok = t.insertAndEvict(nextBucket, currBucketLoc, currVal)
 		if ok {
-			t.log.Printf("Insert: %v evictions\n", i)
+			//t.log.Printf("Insert: %v evictions\n", i)
 			return -1, -1, nil, true
 		}
 	}

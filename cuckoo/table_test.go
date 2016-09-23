@@ -62,7 +62,28 @@ func TestContains(t *testing.T) {
 func TestInsertRemove(t *testing.T) {
 	table := NewTable("t", 10, 2, 0)
 
-	fmt.Printf("TestInsertRemove: \n")
+	fmt.Printf("TestInsertRemove: remove non-existent value ...\n")
+	if table.Remove(0, 1, Value("value1")) == true {
+		t.Fatalf("empty table returned true for Remove()")
+	}
+
+	fmt.Printf("TestInsertRemove: Insert value ...\n")
+	eb1, eb2, v, ok := table.Insert(0, 1, Value("value1"))
+	if eb1 != -1 || eb2 != -1 || v != nil || ok != true {
+		t.Fatalf("error inserting into table (0, 1, value1)")
+	}
+
+	fmt.Printf("TestInsertRemove: remove existing value ...\n")
+	if table.Remove(0, 1, Value("value1")) == false {
+		t.Fatalf("error removing existing value (0, 1, value1)")
+	}
+
+	fmt.Printf("TestInsertRemove: remove recently removed value ...\n")
+	if table.Remove(0, 1, Value("value1")) == true {
+		t.Fatalf("empty table returned true for Remove()")
+	}
+
+	fmt.Printf("... done \n")
 }
 
 func TestFullTable(t *testing.T) {
