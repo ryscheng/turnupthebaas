@@ -12,6 +12,12 @@ import (
 // Test contains after insert/remove sequence
 // Test insert same value twice
 
+type Entry struct {
+	Bucket1 int
+	Bucket2 int
+	Data    Value
+}
+
 type Value string
 
 func (v Value) Compare(other Comparable) int {
@@ -27,60 +33,114 @@ func randBucket(numBuckets int) int {
 	return result
 }
 
-func TestContains(t *testing.T) {
+func TestGetCapacity(t *testing.T) {
+	fmt.Printf("TestGetCapacity: ...\n")
+
 	table := NewTable("t", 10, 2, 0)
-
-	fmt.Printf("TestContains: Check empty ...\n")
-	if table.Contains(0, 1, Value("")) == true {
-		t.Fatalf("empty table returned true for Contains()")
+	if table.GetCapacity() != 20 {
+		t.Fatalf("table returned wrong value for GetCapacity=%v. Expecting 20\n")
 	}
 
-	fmt.Printf("TestContains: Insert value ...\n")
-	eb1, eb2, v, ok := table.Insert(0, 1, Value("value1"))
-	if eb1 != -1 || eb2 != -1 || v != nil || ok != true {
-		t.Fatalf("error inserting into table (0, 1, value1)")
+	table = NewTable("t", 1, 1, 0)
+	if table.GetCapacity() != 1 {
+		t.Fatalf("table returned wrong value for GetCapacity=%v. Expecting 1\n")
 	}
 
-	fmt.Printf("TestContains: Check inserted value...\n")
-	if table.Contains(0, 1, Value("value1")) == false {
-		t.Fatalf("cannot find recently inserted value")
+	table = NewTable("t", 0, 0, 0)
+	if table.GetCapacity() != 0 {
+		t.Fatalf("table returned wrong value for GetCapacity=%v. Expecting 0\n")
 	}
 
-	fmt.Printf("TestContains: Check non-existent value...\n")
-	if table.Contains(0, 1, Value("value2")) == true {
-		t.Fatalf("contains a non-existent value")
-	}
-
-	fmt.Printf("TestContains: Check out of bounds...\n")
-	if table.Contains(100, 100, Value("value1")) == true {
-		t.Fatalf("contains returned true with out of bound buckets")
-	}
-
-	fmt.Printf("... done\n")
+	fmt.Printf("... done \n")
 }
 
-func TestInsertRemove(t *testing.T) {
+func TestBasic(t *testing.T) {
 	table := NewTable("t", 10, 2, 0)
 
-	fmt.Printf("TestInsertRemove: remove non-existent value ...\n")
-	if table.Remove(0, 1, Value("value1")) == true {
-		t.Fatalf("empty table returned true for Remove()")
+	fmt.Printf("TestBasic: check empty...\n")
+	if table.GetNumElements() != 0 {
+		t.Fatalf("empty table returned %v for GetNumElements()\n", table.GetNumElements())
 	}
 
-	fmt.Printf("TestInsertRemove: Insert value ...\n")
+	fmt.Printf("TestBasic: Check contains non-existent value...\n")
+	if table.Contains(0, 1, Value("")) == true {
+		t.Fatalf("empty table returned true for Contains()\n")
+	}
+
+	fmt.Printf("TestBasic: remove non-existent value ...\n")
+	if table.Remove(0, 1, Value("value1")) == true {
+		t.Fatalf("empty table returned true for Remove()\n")
+	}
+
+	fmt.Printf("TestBasic: check empty...\n")
+	if table.GetNumElements() != 0 {
+		t.Fatalf("empty table returned %v for GetNumElements()\n", table.GetNumElements())
+	}
+
+	fmt.Printf("TestBasic: Insert value ...\n")
 	eb1, eb2, v, ok := table.Insert(0, 1, Value("value1"))
 	if eb1 != -1 || eb2 != -1 || v != nil || ok != true {
-		t.Fatalf("error inserting into table (0, 1, value1)")
+		t.Fatalf("error inserting into table (0, 1, value1)\n")
 	}
 
-	fmt.Printf("TestInsertRemove: remove existing value ...\n")
+	fmt.Printf("TestBasic: Check inserted value...\n")
+	if table.Contains(0, 1, Value("value1")) == false {
+		t.Fatalf("cannot find recently inserted value\n")
+	}
+
+	fmt.Printf("TestBasic: Check non-existent value...\n")
+	if table.Contains(0, 1, Value("value2")) == true {
+		t.Fatalf("contains a non-existent value\n")
+	}
+
+	fmt.Printf("TestBasic: check 1 element...\n")
+	if table.GetNumElements() != 1 {
+		t.Fatalf("empty table returned %v for GetNumElements()\n", table.GetNumElements())
+	}
+
+	fmt.Printf("TestBasic: remove existing value ...\n")
 	if table.Remove(0, 1, Value("value1")) == false {
-		t.Fatalf("error removing existing value (0, 1, value1)")
+		t.Fatalf("error removing existing value (0, 1, value1)\n")
 	}
 
-	fmt.Printf("TestInsertRemove: remove recently removed value ...\n")
+	fmt.Printf("TestBasic: check 0 element...\n")
+	if table.GetNumElements() != 0 {
+		t.Fatalf("empty table returned %v for GetNumElements()\n", table.GetNumElements())
+	}
+
+	fmt.Printf("TestBasic: remove recently removed value ...\n")
 	if table.Remove(0, 1, Value("value1")) == true {
-		t.Fatalf("empty table returned true for Remove()")
+		t.Fatalf("empty table returned true for Remove()\n")
+	}
+
+	fmt.Printf("TestBasic: check 0 element...\n")
+	if table.GetNumElements() != 0 {
+		t.Fatalf("empty table returned %v for GetNumElements()\n", table.GetNumElements())
+	}
+
+	fmt.Printf("... done \n")
+}
+
+func TestOutOfBounds(t *testing.T) {
+	table := NewTable("t", 10, 2, 0)
+
+	fmt.Printf("TestOutOfBounds: Insert() out of bounds...\n")
+	eb1, eb2, v, ok := table.Insert(100, 100, Value("value1"))
+	if ok == true {
+		t.Fatalf("Insert returned true with out of bound buckets\n")
+	}
+	if eb1 != -1 || eb2 != -1 || v != nil {
+		t.Fatalf("Insert returned wrong values\n")
+	}
+
+	fmt.Printf("TestOutOfBounds: Contains() out of bounds...\n")
+	if table.Contains(100, 100, Value("value1")) == true {
+		t.Fatalf("Contains returned true with out of bound buckets\n")
+	}
+
+	fmt.Printf("TestOutOfBounds: Remove() out of bounds...\n")
+	if table.Remove(100, 100, Value("value1")) == true {
+		t.Fatalf("Remove() returned true with out of bound buckets\n")
 	}
 
 	fmt.Printf("... done \n")
@@ -89,17 +149,27 @@ func TestInsertRemove(t *testing.T) {
 func TestFullTable(t *testing.T) {
 	numBuckets := 100
 	depth := 4
+
+	capacity := numBuckets * depth
+	entries := make([]Entry, 0, capacity)
 	table := NewTable("t", numBuckets, depth, 0)
+	ok := true
+	count := 0
 	var b1, b2 int
+	var compVal Comparable
 	var val Value
 
-	for i := 0; i < 385; i++ {
+	for ok {
 		b1 = randBucket(numBuckets)
 		b2 = randBucket(numBuckets)
 		val = Value(strconv.Itoa(rand.Int()))
-		table.Insert(b1, b2, val)
+		entries = append(entries, Entry{b1, b2, val})
+		b1, b2, compVal, ok = table.Insert(b1, b2, val)
+		count += 1
 	}
 
+	fmt.Println(compVal)
+	fmt.Println(count)
 	fmt.Printf("TestInsert: Check empty ...\n")
 	fmt.Printf("... done\n")
 }

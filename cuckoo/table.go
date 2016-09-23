@@ -64,9 +64,37 @@ func NewTable(name string, numBuckets int, depth int, randSeed int64) *Table {
  * PUBLIC METHODS
  ********************/
 
+/**
+ * Returns the total capacity of the table (numBuckets * depth)
+ **/
+func (t *Table) GetCapacity() int {
+	return t.numBuckets * t.depth
+}
+
+/**
+ * Returns the number of elements stored in the table
+ * Load factor = GetNumElements() / GetCapacity()
+ **/
+func (t *Table) GetNumElements() int {
+	result := 0
+	for _, bucket := range t.buckets {
+		for _, hasItem := range bucket.filled {
+			if hasItem {
+				result += 1
+			}
+		}
+	}
+
+	return result
+}
+
 // Checks if value exists in specified buckets
 // Returns true if `value.Equals(...)` returns true
 func (t *Table) Contains(bucket1 int, bucket2 int, value Comparable) bool {
+	if bucket1 >= t.numBuckets || bucket2 >= t.numBuckets {
+		return false
+	}
+
 	result := false
 	result = result || t.isInBucket(bucket1, value)
 	result = result || t.isInBucket(bucket2, value)
@@ -82,6 +110,10 @@ func (t *Table) Insert(bucket1 int, bucket2 int, value Comparable) (int, int, Co
 	var nextBucket int
 	currBucketLoc := BucketLocation{bucket1, bucket2}
 	currVal := value
+
+	if bucket1 >= t.numBuckets || bucket2 >= t.numBuckets {
+		return -1, -1, nil, false
+	}
 
 	// Randomly select 1 bucket first
 	coin := t.rand.Int() % 2 // Coin could be -1, 0 or 1
@@ -112,6 +144,10 @@ func (t *Table) Insert(bucket1 int, bucket2 int, value Comparable) (int, int, Co
 // Removes the entry from the cuckoo table
 // Returns true if a value was removed, false if not
 func (t *Table) Remove(bucket1 int, bucket2 int, value Comparable) bool {
+	if bucket1 >= t.numBuckets || bucket2 >= t.numBuckets {
+		return false
+	}
+
 	result := false
 	result = result || t.removeFromBucket(bucket1, value)
 	result = result || t.removeFromBucket(bucket2, value)
@@ -123,11 +159,9 @@ func (t *Table) Remove(bucket1 int, bucket2 int, value Comparable) bool {
  ********************/
 
 // Checks if the `value` is in a specified bucket
+// - bucket MUST be within bounds
 // Returns true if `value.Equals(...)` returns true
 func (t *Table) isInBucket(bucketIndex int, value Comparable) bool {
-	if bucketIndex >= t.numBuckets {
-		return false
-	}
 	bucket := t.buckets[bucketIndex]
 	for i := 0; i < t.depth; i++ {
 		if bucket.filled[i] && value.Compare(bucket.data[i]) == 0 {
@@ -138,6 +172,7 @@ func (t *Table) isInBucket(bucketIndex int, value Comparable) bool {
 }
 
 // Tries to inserts `bucketLoc, value` into specified bucket
+// - bucket MUST be within bounds
 // If the bucket is already full, skip
 // Returns true if success, false if bucket already full
 func (t *Table) tryInsertToBucket(bucketIndex int, bucketLoc BucketLocation, value Comparable) bool {
@@ -156,6 +191,7 @@ func (t *Table) tryInsertToBucket(bucketIndex int, bucketLoc BucketLocation, val
 }
 
 // Tries to insert `bucketLoc, value` into specified bucket
+// - bucket MUST be within bounds
 // Returns -1, BucketLocation{}, nil, true if there's empty space and succeeds
 // Returns false if insertion triggered an eviction
 //   other values contain the evicted item's alternate bucket, BucketLocation pair, and value
@@ -166,10 +202,8 @@ func (t *Table) insertAndEvict(bucketIndex int, bucketLoc BucketLocation, value 
 	}
 
 	// Eviction
+	// t.rand.Int() provides non-negative values
 	randIndex := t.rand.Int() % t.depth
-	if randIndex < 0 {
-		randIndex *= -1
-	}
 	bucket := t.buckets[bucketIndex]
 	evictedBucketLoc := bucket.bucketLoc[randIndex]
 	evictedValue := bucket.data[randIndex]
@@ -187,10 +221,8 @@ func (t *Table) insertAndEvict(bucketIndex int, bucketLoc BucketLocation, value 
 }
 
 // Removes all copies of `value` from the specified bucket
+// - bucket MUST be within bounds
 func (t *Table) removeFromBucket(bucketIndex int, value Comparable) bool {
-	if bucketIndex >= t.numBuckets {
-		return false
-	}
 	result := false
 	bucket := t.buckets[bucketIndex]
 	for i := 0; i < t.depth; i++ {
