@@ -155,23 +155,63 @@ func TestFullTable(t *testing.T) {
 	table := NewTable("t", numBuckets, depth, 0)
 	ok := true
 	count := 0
-	var b1, b2 int
-	var compVal Comparable
+	var b1, b2, evictb1, evictb2 int
+	var evictVal Comparable
 	var val Value
 
+	// Insert random values until we've reached a limit
+	fmt.Printf("TestFullTable: Insert until reach capacity...\n")
 	for ok {
 		b1 = randBucket(numBuckets)
 		b2 = randBucket(numBuckets)
 		val = Value(strconv.Itoa(rand.Int()))
 		entries = append(entries, Entry{b1, b2, val})
-		b1, b2, compVal, ok = table.Insert(b1, b2, val)
-		count += 1
+		evictb1, evictb2, evictVal, ok = table.Insert(b1, b2, val)
+
+		if ok {
+			count += 1
+			if table.Contains(b1, b2, val) == false {
+				t.Fatalf("Insert() succeeded, but Contains failed\n")
+			}
+			if count != table.GetNumElements() {
+				t.Fatalf("Number of successful Inserts(), %v, does not match GetNumElements(), %v \n", count, table.GetNumElements())
+			}
+		}
 	}
 
-	fmt.Println(compVal)
-	fmt.Println(count)
+	// Middle count check
+	fmt.Printf("TestFullTable: Mid-count check...\n")
+	if count != table.GetNumElements() {
+		t.Fatalf("Number of successful Inserts(), %v, does not match GetNumElements(), %v \n", count, table.GetNumElements())
+	}
+
+	// Remove elements one by one
+	fmt.Printf("TestFullTable: Remove each element...\n")
+	for _, entry := range entries {
+		if entry.Bucket1 != evictb1 || entry.Bucket2 != evictb2 || entry.Data.Compare(evictVal) != 0 {
+			ok = table.Remove(entry.Bucket1, entry.Bucket2, entry.Data)
+			if ok == false {
+				t.Fatalf("Cannot Remove and element believed to be in the table")
+			} else {
+				count -= 1
+				if count != table.GetNumElements() {
+					t.Fatalf("GetNumElements()=%v returned a value that didn't match what was expected=%v \n", table.GetNumElements(), count)
+				}
+			}
+		}
+	}
+
+	// Final count check
+	fmt.Printf("TestFullTable: Final count check...\n")
+	if table.GetNumElements() != 0 {
+		t.Fatalf("GetNumElements() returns %v when table should be empty \n", table.GetNumElements())
+	}
+
 	fmt.Printf("TestInsert: Check empty ...\n")
 	fmt.Printf("... done\n")
+}
+
+func TestDuplicateValues(t *testing.T) {
 }
 
 func TestLoadFactor(t *testing.T) {

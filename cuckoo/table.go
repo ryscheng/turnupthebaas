@@ -228,7 +228,7 @@ func (t *Table) removeFromBucket(bucketIndex int, value Comparable) bool {
 	for i := 0; i < t.depth; i++ {
 		if bucket.filled[i] && value.Compare(bucket.data[i]) == 0 {
 			bucket.filled[i] = false
-			bucket.data = nil
+			bucket.data[i] = nil
 			bucket.bucketLoc[i] = BucketLocation{}
 			result = true
 		}
