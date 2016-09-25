@@ -89,7 +89,10 @@ func (t *Table) GetNumElements() int {
 }
 
 // Checks if value exists in specified buckets
-// Returns true if `value.Equals(...)` returns true
+// Returns:
+// - true if `value.Equals(...)` returns true for any value in buckets
+// - fails if either bucket is out of range
+// - fails if value not in either bucket
 func (t *Table) Contains(bucket1 int, bucket2 int, value Comparable) bool {
 	if bucket1 >= t.numBuckets || bucket2 >= t.numBuckets {
 		return false
@@ -101,8 +104,10 @@ func (t *Table) Contains(bucket1 int, bucket2 int, value Comparable) bool {
 	return result
 }
 
-// Inserts the value into the cuckoo table
-// Returns true on success, false on failure
+// Inserts the value into the cuckoo table, even if duplicate value already exists in table.
+// Returns:
+// - true on success, false on failure
+// - fails if either bucket is out of range
 // - fails if insertion cannot complete because reached MAX_EVICTIONS
 // - failures return an evicted value and must trigger a rebuild by the caller
 func (t *Table) Insert(bucket1 int, bucket2 int, value Comparable) (int, int, Comparable, bool) {
@@ -116,7 +121,7 @@ func (t *Table) Insert(bucket1 int, bucket2 int, value Comparable) (int, int, Co
 	}
 
 	// Randomly select 1 bucket first
-	coin := t.rand.Int() % 2 // Coin could be -1, 0 or 1
+	coin := t.rand.Int() % 2 // Coin can be 0 or 1
 	if coin == 0 {
 		ok = t.tryInsertToBucket(bucket1, currBucketLoc, currVal)
 		nextBucket = bucket2
@@ -141,17 +146,32 @@ func (t *Table) Insert(bucket1 int, bucket2 int, value Comparable) (int, int, Co
 	return currBucketLoc.Bucket1, currBucketLoc.Bucket2, currVal, false
 }
 
-// Removes the entry from the cuckoo table
-// Returns true if a value was removed, false if not
+// Removes the value from the cuckoo table, looking in only 2 specified buckets
+// If the incorrect buckets were specified, it won't go searching for you
+// If the value exists in the table multiple times, it will only remove one
+// Returns:
+// - true if a value was removed from either bucket, false if not
+// - fails if either bucket is out of range
 func (t *Table) Remove(bucket1 int, bucket2 int, value Comparable) bool {
 	if bucket1 >= t.numBuckets || bucket2 >= t.numBuckets {
 		return false
 	}
 
-	result := false
-	result = result || t.removeFromBucket(bucket1, value)
-	result = result || t.removeFromBucket(bucket2, value)
-	return result
+	var result bool
+	var nextBucket int
+	coin := t.rand.Int() % 2 // Coin can be 0 or 1
+	if coin == 0 {
+		result = t.removeFromBucket(bucket1, value)
+		nextBucket = bucket2
+	} else {
+		result = t.removeFromBucket(bucket2, value)
+		nextBucket = bucket1
+	}
+
+	if result == true {
+		return true
+	}
+	return t.removeFromBucket(nextBucket, value)
 }
 
 /********************
@@ -160,7 +180,7 @@ func (t *Table) Remove(bucket1 int, bucket2 int, value Comparable) bool {
 
 // Checks if the `value` is in a specified bucket
 // - bucket MUST be within bounds
-// Returns true if `value.Equals(...)` returns true
+// Returns: true if `value.Equals(...)` returns true for any value in bucket
 func (t *Table) isInBucket(bucketIndex int, value Comparable) bool {
 	bucket := t.buckets[bucketIndex]
 	for i := 0; i < t.depth; i++ {
@@ -172,9 +192,10 @@ func (t *Table) isInBucket(bucketIndex int, value Comparable) bool {
 }
 
 // Tries to inserts `bucketLoc, value` into specified bucket
-// - bucket MUST be within bounds
 // If the bucket is already full, skip
-// Returns true if success, false if bucket already full
+// Preconditions:
+// - bucket MUST be within bounds
+// Returns: true if success, false if bucket already full
 func (t *Table) tryInsertToBucket(bucketIndex int, bucketLoc BucketLocation, value Comparable) bool {
 	// Search for an empty slot
 	bucket := t.buckets[bucketIndex]
@@ -191,9 +212,11 @@ func (t *Table) tryInsertToBucket(bucketIndex int, bucketLoc BucketLocation, val
 }
 
 // Tries to insert `bucketLoc, value` into specified bucket
+// Preconditions:
 // - bucket MUST be within bounds
-// Returns -1, BucketLocation{}, nil, true if there's empty space and succeeds
-// Returns false if insertion triggered an eviction
+// Returns:
+// - (-1, BucketLocation{}, nil, true) if there's empty space and succeeds
+// - false if insertion triggered an eviction
 //   other values contain the evicted item's alternate bucket, BucketLocation pair, and value
 func (t *Table) insertAndEvict(bucketIndex int, bucketLoc BucketLocation, value Comparable) (int, BucketLocation, Comparable, bool) {
 	ok := t.tryInsertToBucket(bucketIndex, bucketLoc, value)
@@ -220,18 +243,19 @@ func (t *Table) insertAndEvict(bucketIndex int, bucketLoc BucketLocation, value 
 	}
 }
 
-// Removes all copies of `value` from the specified bucket
+// Removes a single copy of `value` from the specified bucket
+// Preconditions:
 // - bucket MUST be within bounds
+// Returns: true if succeeds, false if value not in bucket
 func (t *Table) removeFromBucket(bucketIndex int, value Comparable) bool {
-	result := false
 	bucket := t.buckets[bucketIndex]
 	for i := 0; i < t.depth; i++ {
 		if bucket.filled[i] && value.Compare(bucket.data[i]) == 0 {
 			bucket.filled[i] = false
 			bucket.data[i] = nil
 			bucket.bucketLoc[i] = BucketLocation{}
-			result = true
+			return true
 		}
 	}
-	return result
+	return false
 }

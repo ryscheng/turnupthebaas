@@ -191,7 +191,7 @@ func TestFullTable(t *testing.T) {
 		if entry.Bucket1 != evictb1 || entry.Bucket2 != evictb2 || entry.Data.Compare(evictVal) != 0 {
 			ok = table.Remove(entry.Bucket1, entry.Bucket2, entry.Data)
 			if ok == false {
-				t.Fatalf("Cannot Remove and element believed to be in the table")
+				t.Fatalf("Cannot Remove() an element believed to be in the table")
 			} else {
 				count -= 1
 				if count != table.GetNumElements() {
@@ -207,12 +207,44 @@ func TestFullTable(t *testing.T) {
 		t.Fatalf("GetNumElements() returns %v when table should be empty \n", table.GetNumElements())
 	}
 
-	fmt.Printf("TestInsert: Check empty ...\n")
 	fmt.Printf("... done\n")
 }
 
 func TestDuplicateValues(t *testing.T) {
+	fmt.Printf("TestDuplicateValues: ...\n")
+	table := NewTable("t", 10, 2, 0)
+
+	eb1, eb2, ev, ok := table.Insert(0, 1, Value("v"))
+	if eb1 != -1 || eb2 != -1 || ev != nil || ok == false {
+		t.Fatalf("Error inserting value \n")
+	}
+
+	eb1, eb2, ev, ok = table.Insert(0, 1, Value("v"))
+	if eb1 != -1 || eb2 != -1 || ev != nil || ok == false {
+		t.Fatalf("Error inserting value again \n")
+	}
+
+	eb1, eb2, ev, ok = table.Insert(1, 2, Value("v"))
+	if eb1 != -1 || eb2 != -1 || ev != nil || ok == false {
+		t.Fatalf("Error inserting value in shifted buckets\n")
+	}
+
+	if table.Remove(0, 1, Value("v")) == false {
+		t.Fatalf("Error removing value 1st time\n")
+	}
+
+	if table.Remove(0, 1, Value("v")) == false {
+		t.Fatalf("Error removing value 2nd time\n")
+	}
+
+	if table.Remove(1, 2, Value("v")) == false {
+		t.Fatalf("Error removing value 3rd time\n")
+	}
+
+	fmt.Printf("... done\n")
 }
 
 func TestLoadFactor(t *testing.T) {
+	fmt.Printf("TestLoadFactor: ...\n")
+	fmt.Printf("... done\n")
 }
