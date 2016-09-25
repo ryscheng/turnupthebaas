@@ -17,6 +17,15 @@ type BucketLocation struct {
 	Bucket2 int
 }
 
+func (b *BucketLocation) Equals(other BucketLocation) bool {
+	if b.Bucket1 == other.Bucket1 &&
+		b.Bucket2 == other.Bucket2 {
+		return true
+	} else {
+		return false
+	}
+}
+
 type Bucket struct {
 	// `entries` and `filled` must be the same size
 	data      []Comparable     // Stores actual data. Validity of an entry determined by `filled`
@@ -89,6 +98,7 @@ func (t *Table) GetNumElements() int {
 }
 
 // Checks if value exists in specified buckets
+// the value must have been inserted with the same bucket1 and bucket2 values
 // Returns:
 // - true if `value.Equals(...)` returns true for any value in buckets
 // - fails if either bucket is out of range
@@ -98,9 +108,10 @@ func (t *Table) Contains(bucket1 int, bucket2 int, value Comparable) bool {
 		return false
 	}
 
+	bucketLoc := BucketLocation{bucket1, bucket2}
 	result := false
-	result = result || t.isInBucket(bucket1, value)
-	result = result || t.isInBucket(bucket2, value)
+	result = result || t.isInBucket(bucket1, bucketLoc, value)
+	result = result || t.isInBucket(bucket2, bucketLoc, value)
 	return result
 }
 
@@ -147,6 +158,7 @@ func (t *Table) Insert(bucket1 int, bucket2 int, value Comparable) (int, int, Co
 }
 
 // Removes the value from the cuckoo table, looking in only 2 specified buckets
+// Only matches if the value was previously inserted with the same {bucket1, bucket2} values
 // If the incorrect buckets were specified, it won't go searching for you
 // If the value exists in the table multiple times, it will only remove one
 // Returns:
@@ -157,21 +169,22 @@ func (t *Table) Remove(bucket1 int, bucket2 int, value Comparable) bool {
 		return false
 	}
 
+	bucketLoc := BucketLocation{bucket1, bucket2}
 	var result bool
 	var nextBucket int
 	coin := t.rand.Int() % 2 // Coin can be 0 or 1
 	if coin == 0 {
-		result = t.removeFromBucket(bucket1, value)
+		result = t.removeFromBucket(bucket1, bucketLoc, value)
 		nextBucket = bucket2
 	} else {
-		result = t.removeFromBucket(bucket2, value)
+		result = t.removeFromBucket(bucket2, bucketLoc, value)
 		nextBucket = bucket1
 	}
 
 	if result == true {
 		return true
 	}
-	return t.removeFromBucket(nextBucket, value)
+	return t.removeFromBucket(nextBucket, bucketLoc, value)
 }
 
 /********************
@@ -181,10 +194,10 @@ func (t *Table) Remove(bucket1 int, bucket2 int, value Comparable) bool {
 // Checks if the `value` is in a specified bucket
 // - bucket MUST be within bounds
 // Returns: true if `value.Equals(...)` returns true for any value in bucket
-func (t *Table) isInBucket(bucketIndex int, value Comparable) bool {
+func (t *Table) isInBucket(bucketIndex int, bucketLoc BucketLocation, value Comparable) bool {
 	bucket := t.buckets[bucketIndex]
 	for i := 0; i < t.depth; i++ {
-		if bucket.filled[i] && value.Compare(bucket.data[i]) == 0 {
+		if bucket.filled[i] && bucketLoc.Equals(bucket.bucketLoc[i]) && value.Compare(bucket.data[i]) == 0 {
 			return true
 		}
 	}
@@ -244,13 +257,14 @@ func (t *Table) insertAndEvict(bucketIndex int, bucketLoc BucketLocation, value 
 }
 
 // Removes a single copy of `value` from the specified bucket
+// bucketLoc and value must both match
 // Preconditions:
 // - bucket MUST be within bounds
 // Returns: true if succeeds, false if value not in bucket
-func (t *Table) removeFromBucket(bucketIndex int, value Comparable) bool {
+func (t *Table) removeFromBucket(bucketIndex int, bucketLoc BucketLocation, value Comparable) bool {
 	bucket := t.buckets[bucketIndex]
 	for i := 0; i < t.depth; i++ {
-		if bucket.filled[i] && value.Compare(bucket.data[i]) == 0 {
+		if bucket.filled[i] && bucketLoc.Equals(bucket.bucketLoc[i]) && value.Compare(bucket.data[i]) == 0 {
 			bucket.filled[i] = false
 			bucket.data[i] = nil
 			bucket.bucketLoc[i] = BucketLocation{}
