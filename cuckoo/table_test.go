@@ -246,5 +246,25 @@ func TestDuplicateValues(t *testing.T) {
 
 func TestLoadFactor(t *testing.T) {
 	fmt.Printf("TestLoadFactor: ...\n")
+	numBuckets := 1000
+	var table *Table
+	var val Value
+
+	for depth := 1; depth < 32; depth *= 2 {
+		count := -1
+		ok := true
+		table = NewTable("t", numBuckets, depth, int64(depth))
+		for ok {
+			count += 1
+			val = Value(strconv.Itoa(rand.Int()))
+			_, _, _, ok = table.Insert(randBucket(numBuckets), randBucket(numBuckets), val)
+		}
+
+		if table.GetNumElements() != count {
+			t.Fatalf("Mismatch count=%v with GetNumElements()=%v \n", count, table.GetNumElements())
+		}
+		fmt.Printf("count=%v, capacity=%v, loadfactor=%v \n", count, table.GetCapacity(), (float64(count) / float64(table.GetCapacity())))
+	}
+
 	fmt.Printf("... done\n")
 }

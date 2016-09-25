@@ -142,7 +142,7 @@ func (t *Table) Insert(bucket1 int, bucket2 int, value Comparable) (int, int, Co
 		}
 	}
 
-	t.log.Printf("Insert: MAX %v evictions\n", MAX_EVICTIONS)
+	//t.log.Printf("Insert: MAX %v evictions\n", MAX_EVICTIONS)
 	return currBucketLoc.Bucket1, currBucketLoc.Bucket2, currVal, false
 }
 
