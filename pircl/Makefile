@@ -7,4 +7,4 @@ ifeq ($(UNAME_S),Darwin)
 endif
 
 pir: pir.c
-	gcc -o $@ $^ $(CCFLAGS)
+	gcc -g -o $@ $^ $(CCFLAGS)

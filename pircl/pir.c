@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -13,19 +14,20 @@
 #include <CL/cl.h>
 #endif
 
-#define BLOCK_COUNT (1024)
-#define BLOCK_SIZE (1024)
+#define CELL_COUNT (1024)
+#define CELL_LENGTH (1024)
+#define NUMBER_GROUPS (8)
 
 #define DATA_TYPE unsigned long
 
 ////////////////////////////////////////////////////////////////////////////////
-int main(int argc, char** argv)
+int main()
 {
     int err;                            // error code returned from api calls
 
-    DATA_TYPE database[BLOCK_COUNT * BLOCK_SIZE];
-    char invector[BLOCK_COUNT]; // input vector given to device
-    DATA_TYPE outdata[BLOCK_SIZE];   // results returned from device
+    DATA_TYPE* database = malloc(CELL_COUNT * CELL_LENGTH * sizeof(DATA_TYPE));
+    char invector[CELL_COUNT * NUMBER_GROUPS]; // input vector given to device
+    DATA_TYPE outdata[CELL_LENGTH * NUMBER_GROUPS];   // results returned from device
     unsigned int correct;               // number of correct results returned
 
     size_t global;                      // global domain size for our calculation
@@ -44,19 +46,24 @@ int main(int argc, char** argv)
     cl_ulong buf_max_size;
     cl_ulong dev_mem_size;
 
-    // Fill our input vectors
     int i = 0;
     int j = 0;
-    unsigned int count = BLOCK_COUNT;
-    unsigned int dbsize = BLOCK_COUNT * BLOCK_SIZE;
-    unsigned int block_size = BLOCK_SIZE;
-    for(i = 0; i < count; i++)
-        invector[i] = rand();
+    unsigned int count = CELL_COUNT;
+    unsigned int dbsize = CELL_COUNT * CELL_LENGTH;
+    unsigned int block_size = CELL_LENGTH;
+
+    // Randomize input vectors.
+    for (i = 0; i < CELL_COUNT * NUMBER_GROUPS; i++) {
+      invector[i] = (rand() % 2 == 1);
+    }
 
     // Connect to a compute device
     //
+    cl_platform_id cl_platform;
+    err = clGetPlatformIDs(1, &cl_platform, NULL);
+
     int gpu = 1;
-    err = clGetDeviceIDs(NULL, gpu ? CL_DEVICE_TYPE_GPU : CL_DEVICE_TYPE_CPU, 1, &device_id, NULL);
+    err = clGetDeviceIDs(cl_platform, gpu ? CL_DEVICE_TYPE_GPU : CL_DEVICE_TYPE_CPU, 1, &device_id, NULL);
     if (err != CL_SUCCESS)
     {
         printf("Error: Failed to create a device group!\n");
@@ -121,16 +128,23 @@ int main(int argc, char** argv)
 
     // learn about the device memory size:
     err = clGetDeviceInfo(device_id, CL_DEVICE_MAX_MEM_ALLOC_SIZE, sizeof(cl_ulong), &buf_max_size, NULL);
-    printf("Max Alloc size is %llu. Allocated size will be %d.\n", buf_max_size, BLOCK_COUNT * BLOCK_SIZE);
     err = clGetDeviceInfo(device_id, CL_DEVICE_GLOBAL_MEM_SIZE, sizeof(cl_ulong), &dev_mem_size, NULL);
-    printf("Global size is %llu.\n", dev_mem_size);
+    printf("Global size is %lu. Maximum buffer on device can be %lu.\n", dev_mem_size, buf_max_size);
 
+    // Get the maximum work group size for executing the kernel on the device
+    //
+    err = clGetKernelWorkGroupInfo(kernel, device_id, CL_KERNEL_WORK_GROUP_SIZE, sizeof(local), &local, NULL);
+    if (err != CL_SUCCESS)
+    {
+        printf("Error: Failed to retrieve kernel work group info! %d\n", err);
+        exit(1);
+    }
 
     // Create the arrays in device memory for our calculation
     //
-    db = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(DATA_TYPE) * BLOCK_COUNT * BLOCK_SIZE, NULL, NULL);
-    input = clCreateBuffer(context,  CL_MEM_READ_ONLY, count, NULL, NULL);
-    output = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(DATA_TYPE) * BLOCK_SIZE, NULL, NULL);
+    db = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(DATA_TYPE) * CELL_COUNT * CELL_LENGTH, NULL, NULL);
+    input = clCreateBuffer(context,  CL_MEM_READ_ONLY, CELL_COUNT * NUMBER_GROUPS, NULL, NULL);
+    output = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(DATA_TYPE) * CELL_LENGTH * NUMBER_GROUPS, NULL, NULL);
     if (!input || !output || !db)
     {
         printf("Error: Failed to allocate device memory!\n");
@@ -142,7 +156,7 @@ int main(int argc, char** argv)
     for(i = 0; i < dbsize; i++)
         database[i] = rand();
 
-    err = clEnqueueWriteBuffer(commands, db, CL_TRUE, 0, dbsize, database, 0, NULL, NULL);
+    err = clEnqueueWriteBuffer(commands, db, CL_TRUE, 0, sizeof(DATA_TYPE) * dbsize, database, 0, NULL, NULL);
     if (err != CL_SUCCESS)
     {
         printf("Error: Failed to write db to device!\n");
@@ -152,7 +166,7 @@ int main(int argc, char** argv)
     printf("Done.\n");
 
     // Write our data set into the input array in device memory
-    err = clEnqueueWriteBuffer(commands, input, CL_TRUE, 0,  count, invector, 0, NULL, NULL);
+    err = clEnqueueWriteBuffer(commands, input, CL_TRUE, 0,  CELL_COUNT * NUMBER_GROUPS, invector, 0, NULL, NULL);
     if (err != CL_SUCCESS)
     {
         printf("Error: Failed to write to source array!\n");
@@ -164,7 +178,7 @@ int main(int argc, char** argv)
     err = 0;
     err  = clSetKernelArg(kernel, 0, sizeof(cl_mem), &db);
     err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &input);
-    err |= clSetKernelArg(kernel, 2, sizeof(unsigned long) * BLOCK_SIZE, NULL);
+    err |= clSetKernelArg(kernel, 2, sizeof(unsigned long) * CELL_LENGTH, NULL);
     err |= clSetKernelArg(kernel, 3, sizeof(unsigned int), &dbsize);
     err |= clSetKernelArg(kernel, 4, sizeof(unsigned int), &block_size);
     err |= clSetKernelArg(kernel, 5, sizeof(cl_mem), &output);
@@ -174,19 +188,10 @@ int main(int argc, char** argv)
         exit(1);
     }
 
-    // Get the maximum work group size for executing the kernel on the device
-    //
-    err = clGetKernelWorkGroupInfo(kernel, device_id, CL_KERNEL_WORK_GROUP_SIZE, sizeof(local), &local, NULL);
-    if (err != CL_SUCCESS)
-    {
-        printf("Error: Failed to retrieve kernel work group info! %d\n", err);
-        exit(1);
-    }
-
     // Execute the kernel over the entire range of our 1d input data set
     // using the maximum number of work group items for this device
     //
-    global = count;
+    global = local * NUMBER_GROUPS;
     err = clEnqueueNDRangeKernel(commands, kernel, 1, NULL, &global, &local, 0, NULL, NULL);
     if (err)
     {
@@ -199,7 +204,7 @@ int main(int argc, char** argv)
 
     // Read back the results from the device to verify the output
     //
-    err = clEnqueueReadBuffer( commands, output, CL_TRUE, 0, sizeof(DATA_TYPE) * BLOCK_SIZE, outdata, 0, NULL, NULL );
+    err = clEnqueueReadBuffer( commands, output, CL_TRUE, 0, sizeof(DATA_TYPE) * CELL_LENGTH * NUMBER_GROUPS, outdata, 0, NULL, NULL );
     if (err != CL_SUCCESS)
     {
         printf("Error: Failed to read output array! %d\n", err);
@@ -211,23 +216,22 @@ int main(int argc, char** argv)
     // Validate our results
     //
     correct = 0;
-    DATA_TYPE acc[BLOCK_SIZE];
-    int bit;
-    for(i = 0; i < 1; i++)
-    {
-        for (j = 0; j < BLOCK_SIZE; j++)
-            acc[j] = 0;
-        for (j = 0; j < dbsize; j++) {
-          bit = j / BLOCK_SIZE;
-          if (invector[bit] != 0)
-              acc[j % BLOCK_SIZE] ^= database[j];
-        }
-        for (j = 0; j < BLOCK_SIZE; j++)
-            if(outdata[j] != acc[j])
-              goto OUTERCONTINUE;
-        correct++;
-        OUTERCONTINUE:
-        ;
+    for(i = 0; i < NUMBER_GROUPS; i += 1) {
+      DATA_TYPE acc[CELL_LENGTH];
+      int bit;
+      for (j = 0; j < CELL_LENGTH; j++)
+        acc[j] = 0;
+      for (j = 0; j < dbsize; j++) {
+        bit = j / CELL_LENGTH;
+        if (invector[(CELL_COUNT * i) + bit] != 0)
+          acc[j % CELL_LENGTH] ^= database[j];
+      }
+      for (j = 0; j < CELL_LENGTH; j++)
+        if(outdata[(CELL_COUNT * i) + j] != acc[j])
+          goto OUTERCONTINUE;
+      correct++;
+      OUTERCONTINUE:
+      ;
     }
 
     // Print a brief summary detailing the results
