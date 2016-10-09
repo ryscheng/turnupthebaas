@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,6 +8,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/types.h>
+#include <sys/shm.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -80,6 +82,7 @@ int main()
 
     char next_command;
     int ret;
+    int dbhndl;
     int configuration_params[3];
     for (;;) {
       client_sock = accept(socket_fd, NULL, NULL);
@@ -90,7 +93,7 @@ int main()
       for(;;) {
         /* Wait for next data packet. */
         ret = read(client_sock, &next_command, 1);
-        if (ret == -1) {
+        if (ret == -1 || ret == 0) {
           printf("Client disconnected.\n");
           break;
         }
@@ -114,20 +117,23 @@ int main()
           }
           configure(configuration_params[0], configuration_params[1], configuration_params[2]);
         } else if (next_command == '3') { // write
-          int nread = 0;
-          if (database != NULL) {
-            free(database);
+          if (dbhndl != 0) {
+            shmdt(database);
           }
-          database = malloc(cell_length * cell_count);
-          while(nread < cell_length * cell_count) {
-            ret = read(client_sock, database + nread, (cell_length * cell_count - nread));
-            if (ret == -1) {
-              printf("failed to read new DB.\n");
-              exit(1);
-            }
-            nread += ret;
+          ret = read(client_sock, &dbhndl, sizeof(dbhndl));
+          if (ret == -1) {
+            printf("Failed to learn shm id.\n");
+            break;
+          }
+          database = shmat(dbhndl, NULL, SHM_RDONLY);
+          if (database == -1) {
+            printf("Failed to open shm ptr: %d.\n", errno);
+            break;
           }
           do_write(database);
+        } else {
+          printf("Unexpected command: %c\n", next_command);
+          break;
         }
       }
     }
@@ -187,7 +193,7 @@ int configure(int n_cell_length, int n_cell_count, int n_batch_size) {
 
   // Map in kernel source code
   struct stat kernelStat;
-  int kernelHandle = open("kernel.c", O_RDONLY);
+  int kernelHandle = open("pir_kernel.c", O_RDONLY);
   int status = fstat (kernelHandle, &kernelStat);
   char* kernelSource = (char *) mmap(NULL, kernelStat.st_size, PROT_READ, MAP_PRIVATE, kernelHandle, 0);
 

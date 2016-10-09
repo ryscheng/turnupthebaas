@@ -6,5 +6,5 @@ ifeq ($(UNAME_S),Darwin)
   CCFLAGS += -framework OpenCL
 endif
 
-pir: pir.c
+pird: pird.c
 	gcc -g -o $@ $^ $(CCFLAGS)
