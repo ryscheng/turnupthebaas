@@ -98,7 +98,7 @@ int main()
           break;
         }
         if (next_command == '1') { //read
-          ret = read(client_sock, invector, cell_count * batch_size);
+          ret = read(client_sock, invector, cell_count * batch_size / 8);
           if (ret == -1) {
             printf("Failed to read configuration.\n");
             break;
@@ -249,7 +249,7 @@ int configure(int n_cell_length, int n_cell_count, int n_batch_size) {
     clReleaseMemObject(gpu_output);
   }
   gpu_db = clCreateBuffer(context, CL_MEM_READ_ONLY, cell_length * cell_count, NULL, NULL);
-  gpu_input = clCreateBuffer(context,  CL_MEM_READ_ONLY, cell_count * batch_size, NULL, NULL);
+  gpu_input = clCreateBuffer(context,  CL_MEM_READ_ONLY, cell_count * batch_size / 8, NULL, NULL);
   gpu_output = clCreateBuffer(context, CL_MEM_WRITE_ONLY, cell_length * batch_size, NULL, NULL);
 
   if (!gpu_db || !gpu_input || !gpu_output) {
@@ -289,7 +289,7 @@ DATA_TYPE* do_read(char* invector) {
   int err;
 
   // Write input vector.
-  err = clEnqueueWriteBuffer(commands, gpu_input, CL_TRUE, 0, cell_count * batch_size, invector, 0, NULL, NULL);
+  err = clEnqueueWriteBuffer(commands, gpu_input, CL_TRUE, 0, cell_count * batch_size / 8, invector, 0, NULL, NULL);
   if (err != CL_SUCCESS)
   {
       printf("Error: Failed to write to source array!\n");

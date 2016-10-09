@@ -69,7 +69,7 @@ func main() {
     copy(dbslice[int(cell_length)*i:], cell)
   }
 
-  _, err = sock.Write([]byte{commands[2]});
+  _, err = sock.Write([]byte{commands[2]})
   buf = new(bytes.Buffer)
   binary.Write(buf, binary.LittleEndian, int32(db_fp))
   _, err = sock.Write(buf.Bytes())
@@ -77,4 +77,23 @@ func main() {
     panic("Failed to set database.")
   }
   fmt.Println("PIR Database set.\n")
+
+
+  masks := make([]byte, cell_count * batch_size / 8)
+  rand.Read(masks)
+
+  _, err = sock.Write([]byte{commands[0]})
+  _, err = sock.Write(masks)
+  if err != nil {
+    panic("Failed to ask for read.")
+  }
+  fmt.Println("Requested Read.\n")
+
+  responses := make([]byte, cell_length * batch_size)
+  readNum := 0
+  for ; readNum < len(responses); {
+    count, _ := sock.Read(responses[readNum:])
+    readNum += count
+  }
+  fmt.Println("Received Response.\n")
 }

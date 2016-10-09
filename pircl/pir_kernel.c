@@ -9,7 +9,7 @@ void pir(__global unsigned long* buffer,
   int workgroup_size = get_local_size(0);
   int workgroup_index = get_local_id(0);
   int workgroup_num = get_group_id(0);
-  int mask_offset = workgroup_num * (length / cell_length);
+  int mask_offset = workgroup_num * (length / cell_length) / 8;
 
   // zero scratch
   for (int offset = workgroup_index; offset < cell_length; offset += workgroup_size) {
@@ -19,7 +19,7 @@ void pir(__global unsigned long* buffer,
 
   // Accumulate in parallel.
   for (int offset = workgroup_index; offset < length; offset += workgroup_size) {
-    if (mask[mask_offset + offset / cell_length]) {
+    if (mask[mask_offset + offset / cell_length / 8] & (1 << (offset / cell_length % 8))) {
       scratch[offset % cell_length] ^= buffer[offset];
     }
   }
