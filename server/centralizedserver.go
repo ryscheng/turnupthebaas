@@ -29,6 +29,6 @@ func NewCentralizedServer(name string, rpcPort int, follower *common.TrustDomain
 	return cs
 }
 
-func (fe *FrontendServer) Kill() {
-	fe.netRpc.Kill()
+func (cs *CentralizedServer) Kill() {
+	cs.netRpc.Kill()
 }

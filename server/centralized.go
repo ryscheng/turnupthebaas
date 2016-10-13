@@ -71,9 +71,9 @@ func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) er
 	}
 
 	c.shard.Write(args, &common.WriteReply{})
-	fName, haveFollower := c.followerConfig.GetName()
+	_, haveFollower := c.followerConfig.GetName()
 	if haveFollower {
-		fReply, fErr := c.followerRef.Write(args)
+		_, fErr := c.followerRef.Write(args)
 		if fErr != nil {
 			// Assume all servers always available
 			c.log.Fatalf("Error forwarding to follower %v", c.followerConfig)

@@ -41,7 +41,7 @@ func (c *Client) SetGlobalConfig(globalConfig common.GlobalConfig) {
 }
 
 func (c *Client) Ping() bool {
-	err, reply := c.leaderRef.Ping()
+	reply, err := c.leaderRef.Ping()
 	if err == nil && reply.Err == "" {
 		return true
 	} else {

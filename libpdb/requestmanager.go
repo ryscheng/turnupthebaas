@@ -120,8 +120,9 @@ func (rm *RequestManager) generateRandomRead(globalConfig common.GlobalConfig, r
 	if lastNumBits > 0 {
 		numBytes = numBytes + 1
 	}
-	args.RequestVector = make([]byte, numBytes, numBytes)
-	rand.FillBytes(&args.RequestVector)
+	args.ForTd = make([]common.PIRArgs, 0, 0)
+	//args.RequestVector = make([]byte, numBytes, numBytes)
+	//rand.FillBytes(&args.RequestVector)
 	//@todo Trim last byte to expected number of bits
 
 }
