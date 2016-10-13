@@ -23,10 +23,12 @@ func main() {
 	globalConfig := common.GlobalConfig{100, 1024, time.Second, time.Second, []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1}}
 
 	// Trust Domain 1
-	s["t1"] = server.NewCentralizedFollowerServer("t1", 9001, emptyTrustDomainConfig, false)
+	t1 := server.NewCentralizedFollower("t1", emptyTrustDomainConfig, false)
+	s["t1"] = NewNetworkRpc(t1, 9001)
 
 	// Trust Domain 0
-	s["t0"] = server.NewCentralizedLeaderServer("t0", 9000, trustDomainConfig1, true)
+	t0 := server.NewCentralizedLeader("t0", trustDomainConfig1, true)
+	s["t0"] = NewNetworkRpc(t0, 9000)
 
 	// Client
 	c := libpdb.NewClient("c0", globalConfig)

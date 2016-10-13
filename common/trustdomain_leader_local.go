@@ -2,20 +2,20 @@ package common
 
 import (
 	"fmt"
+	"github.com/ryscheng/pdb/server"
 	"log"
-	"net/rpc"
 	"os"
 )
 
-type TrustDomainRef struct {
+type TrustDomainRpc struct {
 	log          *log.Logger
-	config       *TrustDomainConfig
+	leader       *LeaderInterface
 	methodPrefix string
 }
 
-func NewTrustDomainRef(name string, config *TrustDomainConfig) *TrustDomainRef {
-	t := &TrustDomainRef{}
-	t.log = log.New(os.Stdout, "[TrustDomainRef:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
+func NewTrustDomainRpc(name string, config *TrustDomainConfig) *TrustDomainRpc {
+	t := &TrustDomainRpc{}
+	t.log = log.New(os.Stdout, "[TrustDomainRpc:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	t.config = config
 	if t.config.IsDistributed() {
 		t.methodPrefix = "Frontend"
@@ -26,7 +26,7 @@ func NewTrustDomainRef(name string, config *TrustDomainConfig) *TrustDomainRef {
 	return t
 }
 
-func (t *TrustDomainRef) Call(methodName string, args interface{}, reply interface{}) error {
+func (t *TrustDomainRpc) Call(methodName string, args interface{}, reply interface{}) error {
 	// Get address
 	addr, okAddr := t.config.GetAddress()
 	if !okAddr {
@@ -52,7 +52,7 @@ func (t *TrustDomainRef) Call(methodName string, args interface{}, reply interfa
 	return nil
 }
 
-func (t *TrustDomainRef) Ping() (*PingReply, error) {
+func (t *TrustDomainRpc) Ping() (*PingReply, error) {
 	t.log.Printf("Ping: enter\n")
 	args := &PingArgs{"PING"}
 	var reply PingReply
@@ -60,7 +60,7 @@ func (t *TrustDomainRef) Ping() (*PingReply, error) {
 	return &reply, err
 }
 
-func (t *TrustDomainRef) Write(args *WriteArgs) (*WriteReply, error) {
+func (t *TrustDomainRpc) Write(args *WriteArgs) (*WriteReply, error) {
 	t.log.Printf("Write: enter\n")
 	var reply WriteReply
 	err := t.Call(t.methodPrefix+".Write", args, &reply)
