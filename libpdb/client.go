@@ -44,8 +44,10 @@ func (c *Client) Ping() bool {
 	var reply common.PingReply
 	err := c.leader.Ping(&common.PingArgs{"PING"}, &reply)
 	if err == nil && reply.Err == "" {
+		c.log.Printf("Ping success\n")
 		return true
 	} else {
+		c.log.Printf("Ping fail: err=%v, reply=%v\n", err, reply)
 		return false
 	}
 }

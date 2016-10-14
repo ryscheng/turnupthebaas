@@ -87,6 +87,7 @@ func (s *Shard) processRequests() {
 
 func (s *Shard) processWrite(req *common.WriteArgs) {
 	s.WriteLog[req.GlobalSeqNo] = req
+	s.log.Printf("%v\n", s.WriteLog)
 }
 
 func (s *Shard) processRead(req *ReadRequest) {
@@ -94,6 +95,7 @@ func (s *Shard) processRead(req *ReadRequest) {
 }
 
 func (s *Shard) batchRead(dataRange *common.Range) {
+	// @todo --- garbage collection
 	// build a database
 	for len(s.ReadBatch) > 0 {
 		// Take batch size and PIR it

@@ -4,7 +4,7 @@ import (
 	"github.com/ryscheng/pdb/common"
 	"log"
 	"os"
-	"sync"
+	"sync/atomic"
 )
 
 type Centralized struct {
@@ -16,11 +16,10 @@ type Centralized struct {
 	isLeader        bool
 
 	// Thread-safe
-	shard *Shard
+	shard       *Shard
+	globalSeqNo uint64 // Use atomic.AddUint64
 
 	// Unsafe
-	mu          sync.Mutex
-	globalSeqNo uint64
 }
 
 func NewCentralized(name string, follower common.FollowerInterface, isLeader bool) *Centralized {
@@ -31,9 +30,7 @@ func NewCentralized(name string, follower common.FollowerInterface, isLeader boo
 	c.isLeader = isLeader
 
 	c.shard = NewShard(name)
-
-	c.mu = sync.Mutex{}
-	c.globalSeqNo = 1
+	c.globalSeqNo = 0
 
 	return c
 }
@@ -67,9 +64,9 @@ func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) er
 	c.log.Println("Write: ")
 
 	// @todo --- parallelize writes.
-	c.mu.Lock()
 	if c.isLeader {
-		args.GlobalSeqNo = c.globalSeqNo
+		seqNo := atomic.AddUint64(&c.globalSeqNo, 1)
+		args.GlobalSeqNo = seqNo
 	}
 
 	c.shard.Write(args, &common.WriteReply{})
@@ -78,22 +75,26 @@ func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) er
 		fErr := c.follower.Write(args, &fReply)
 		if fErr != nil {
 			// Assume all servers always available
+			reply.Err = fErr.Error()
 			c.log.Fatalf("Error forwarding to follower %v", c.follower.GetName())
-			c.mu.Unlock()
 			return fErr
+		} else {
+			reply.Err = fReply.Err
 		}
+	} else {
+		reply.Err = ""
 	}
 
-	// Only if successfully forwarded
-	c.globalSeqNo += 1
-
-	c.mu.Unlock()
 	return nil
 }
 
 func (c *Centralized) Read(args *common.ReadArgs, reply *common.ReadReply) error {
 	c.log.Println("Read: ")
 	c.shard.Read(args, reply)
+	return nil
+}
+
+func (c *Centralized) BatchRead(args *common.BatchReadArgs, reply *common.BatchReadReply) error {
 	return nil
 }
 

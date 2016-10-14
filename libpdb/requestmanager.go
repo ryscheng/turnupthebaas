@@ -78,7 +78,7 @@ func (rm *RequestManager) writePeriodic() {
 				rm.log.Printf("writePeriodic: Dummy request to %v, %v \n", args.Bucket1, args.Bucket2)
 			}
 			err := rm.leader.Write(args, &reply)
-			if err != nil {
+			if err != nil || reply.Err != "" {
 				rm.log.Printf("Error: %v, reply=%v\n", err, reply)
 			}
 			time.Sleep(globalConfig.WriteInterval)
