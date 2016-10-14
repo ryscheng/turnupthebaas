@@ -12,9 +12,8 @@ type Centralized struct {
 	log             *log.Logger
 	name            string
 	dataLayerConfig *DataLayerConfig
-	followerConfig  *common.TrustDomainConfig
+	follower        common.FollowerInterface
 	isLeader        bool
-	followerRef     *common.TrustDomainRef
 
 	// Thread-safe
 	shard *Shard
@@ -24,13 +23,12 @@ type Centralized struct {
 	globalSeqNo uint64
 }
 
-func NewCentralized(name string, followerConfig *common.TrustDomainConfig, isLeader bool) *Centralized {
+func NewCentralized(name string, follower common.FollowerInterface, isLeader bool) *Centralized {
 	c := &Centralized{}
 	c.log = log.New(os.Stdout, "[Frontend:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	c.name = name
-	c.followerConfig = followerConfig
+	c.follower = follower
 	c.isLeader = isLeader
-	c.followerRef = common.NewTrustDomainRef(name, followerConfig)
 
 	c.shard = NewShard(name)
 
@@ -41,15 +39,19 @@ func NewCentralized(name string, followerConfig *common.TrustDomainConfig, isLea
 }
 
 /** PUBLIC METHODS (threadsafe) **/
+func (c *Centralized) GetName() string {
+	return c.name
+}
+
 func (c *Centralized) Ping(args *common.PingArgs, reply *common.PingReply) error {
 	c.log.Println("Ping: " + args.Msg + ", ... Pong")
 
 	// Try to ping the follower if one exists
-	fName, haveFollower := c.followerConfig.GetName()
-	if haveFollower {
-		fReply, fErr := c.followerRef.Ping()
+	if c.follower != nil {
+		var fReply common.PingReply
+		fErr := c.follower.Ping(&common.PingArgs{"PING"}, &fReply)
 		if fErr != nil {
-			reply.Err = fName + " Ping failed"
+			reply.Err = c.follower.GetName() + " Ping failed"
 		} else {
 			reply.Err = fReply.Err
 		}
@@ -71,12 +73,12 @@ func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) er
 	}
 
 	c.shard.Write(args, &common.WriteReply{})
-	_, haveFollower := c.followerConfig.GetName()
-	if haveFollower {
-		_, fErr := c.followerRef.Write(args)
+	if c.follower != nil {
+		var fReply common.WriteReply
+		fErr := c.follower.Write(args, &fReply)
 		if fErr != nil {
 			// Assume all servers always available
-			c.log.Fatalf("Error forwarding to follower %v", c.followerConfig)
+			c.log.Fatalf("Error forwarding to follower %v", c.follower.GetName())
 			c.mu.Unlock()
 			return fErr
 		}

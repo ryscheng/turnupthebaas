@@ -22,7 +22,7 @@ func NewFrontendServer(name string, rpcPort int, dataLayerConfig *DataLayerConfi
 	fe.name = name
 	fe.rpcPort = rpcPort
 
-	fe.frontend = NewFrontend(name, dataLayerConfig, follower, isLeader)
+	//fe.frontend = NewFrontend(name, dataLayerConfig, follower, isLeader)
 	if rpcPort != 0 {
 		fe.netRpc = NewNetworkRpc(fe.frontend, rpcPort)
 	}

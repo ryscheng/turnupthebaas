@@ -1,6 +1,6 @@
 package common
 
-type LeaderInterface interface {
+type FollowerInterface interface {
 	GetName() string
 	Ping(args *PingArgs, reply *PingReply) error
 	Write(args *WriteArgs, reply *WriteReply) error

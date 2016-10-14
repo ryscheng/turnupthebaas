@@ -18,13 +18,13 @@ import (
 type NetworkRpc struct {
 	log      *log.Logger
 	dead     int32
-	handler  LeaderInterface
+	handler  interface{}
 	port     int
 	server   *rpc.Server
 	listener net.Listener
 }
 
-func NewNetworkRpc(handler LeaderInterface, port int) *NetworkRpc {
+func NewNetworkRpc(handler interface{}, port int) *NetworkRpc {
 	n := &NetworkRpc{}
 	n.log = log.New(os.Stdout, "[NetworkRpc] ", log.Ldate|log.Ltime|log.Lshortfile)
 	n.dead = 0

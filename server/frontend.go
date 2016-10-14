@@ -11,22 +11,19 @@ type Frontend struct {
 	log             *log.Logger
 	name            string
 	dataLayerConfig *DataLayerConfig
-	followerConfig  *common.TrustDomainConfig
+	follower        common.FollowerInterface
 	isLeader        bool
 
 	//dataLayerRef *DataLayerRef
-	followerRef *common.TrustDomainRef
 }
 
-func NewFrontend(name string, dataLayerConfig *DataLayerConfig, followerConfig *common.TrustDomainConfig, isLeader bool) *Frontend {
+func NewFrontend(name string, dataLayerConfig *DataLayerConfig, follower common.FollowerInterface, isLeader bool) *Frontend {
 	fe := &Frontend{}
 	fe.log = log.New(os.Stdout, "[Frontend:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	fe.name = name
 	fe.dataLayerConfig = dataLayerConfig
-	fe.followerConfig = followerConfig
+	fe.follower = follower
 	fe.isLeader = isLeader
-
-	fe.followerRef = common.NewTrustDomainRef(name, followerConfig)
 
 	return fe
 }
@@ -36,11 +33,11 @@ func (fe *Frontend) Ping(args *common.PingArgs, reply *common.PingReply) error {
 	fe.log.Println("Ping: " + args.Msg + ", ... Pong")
 
 	// Try to ping the follower if one exists
-	fName, haveFollower := fe.followerConfig.GetName()
-	if haveFollower {
-		fReply, fErr := fe.followerRef.Ping()
+	if fe.follower != nil {
+		var fReply common.PingReply
+		fErr := fe.follower.Ping(&common.PingArgs{"PING"}, &fReply)
 		if fErr != nil {
-			reply.Err = fName + " Ping failed"
+			reply.Err = fe.follower.GetName() + " Ping failed"
 		} else {
 			reply.Err = fReply.Err
 		}

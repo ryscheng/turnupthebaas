@@ -19,15 +19,14 @@ func main() {
 	// Config
 	trustDomainConfig0 := common.NewTrustDomainConfig("t0", "localhost:9000", true, false)
 	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9100", true, false)
-	emptyTrustDomainConfig := common.NewTrustDomainConfig("", "", false, false)
 	globalConfig := common.GlobalConfig{100, 1024, time.Second, time.Second, []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1}}
 
 	// Trust Domain 1
-	t1 := server.NewCentralizedFollower("t1", emptyTrustDomainConfig, false)
+	t1 := server.NewCentralized("t1", nil, false)
 	//s["t1"] = NewNetworkRpc(t1, 9001)
 
 	// Trust Domain 0
-	t0 := server.NewCentralizedLeader("t0", trustDomainConfig1, true)
+	t0 := server.NewCentralized("t0", t1, true)
 	//s["t0"] = NewNetworkRpc(t0, 9000)
 
 	// Client
