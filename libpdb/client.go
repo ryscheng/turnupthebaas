@@ -59,11 +59,11 @@ func (c *Client) CreateTopic() *TopicHandle {
 }
 
 func (c *Client) Publish(handle *TopicHandle, data []byte) bool {
-	//@todo
+	//@todo using EnqueueWrite
 	return true
 }
 
 func (c *Client) Subscribe(handle *TopicHandle) bool {
-	//@todo
+	//@todo using EnqueueRead
 	return true
 }

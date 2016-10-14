@@ -22,8 +22,8 @@ func NewHashDrbg(seed *Seed) *HashDrbg {
 		d.seed = seed
 	}
 	//d.ctr = 0
-	d.sip = siphash.New(seed.Key)
-	copy(d.ofb[:], seed.InitVec)
+	d.sip = siphash.New(seed.Key())
+	copy(d.ofb[:], seed.InitVec())
 
 	return d
 }
@@ -49,11 +49,11 @@ func (d *HashDrbg) RandomUint64() uint64 {
 	return ret
 }
 
-func (d *HashDrbg) FillBytes(b *[]byte) {
+func (d *HashDrbg) FillBytes(b []byte) {
 	randBytes := d.Next()
 
-	for i := 0; i < len(*b); i++ {
-		(*b)[i] = randBytes[0]
+	for i := 0; i < len(b); i++ {
+		b[i] = randBytes[0]
 		if len(randBytes) < 2 {
 			randBytes = d.Next()
 		} else {

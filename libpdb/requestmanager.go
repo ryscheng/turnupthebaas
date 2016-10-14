@@ -1,6 +1,7 @@
 package libpdb
 
 import (
+	"fmt"
 	"github.com/ryscheng/pdb/common"
 	"github.com/ryscheng/pdb/drbg"
 	"log"
@@ -33,7 +34,7 @@ func NewRequestManager(name string, leader common.LeaderInterface, globalConfig 
 	rm.dead = 0
 
 	rm.log.Printf("NewRequestManager \n")
-	//go rm.readPeriodic()
+	go rm.readPeriodic()
 	go rm.writePeriodic()
 	return rm
 }
@@ -79,7 +80,7 @@ func (rm *RequestManager) writePeriodic() {
 			}
 			err := rm.leader.Write(args, &reply)
 			if err != nil || reply.Err != "" {
-				rm.log.Printf("Error: %v, reply=%v\n", err, reply)
+				rm.log.Printf("writePeriodic error: %v, reply=%v\n", err, reply)
 			}
 			time.Sleep(globalConfig.WriteInterval)
 			//time.Sleep(time.Duration(atomic.LoadInt64(&rm.writeInterval)))
@@ -97,15 +98,21 @@ func (rm *RequestManager) readPeriodic() {
 		default:
 			globalConfig := rm.globalConfig.Load().(common.GlobalConfig)
 			var args *common.ReadArgs
+			var reply common.ReadReply
 			if len(rm.readQueue) > 0 {
 				args = rm.readQueue[0]
 				rm.readQueue = rm.readQueue[1:]
+				rm.log.Printf("readPeriodic: Real request \n")
 			} else {
 				args = &common.ReadArgs{}
 				rm.generateRandomRead(globalConfig, rand, args)
 				rm.log.Printf("readPeriodic: Dummy request \n")
 			}
 			//@todo Send request
+			err := rm.leader.Read(args, &reply)
+			if err != nil || reply.Err != "" {
+				rm.log.Printf("readPeriodic error: %v, reply=%v\n", err, reply)
+			}
 			time.Sleep(globalConfig.ReadInterval)
 			//time.Sleep(time.Duration(atomic.LoadInt64(&rm.readInterval)))
 		}
@@ -116,16 +123,22 @@ func (rm *RequestManager) generateRandomWrite(globalConfig common.GlobalConfig, 
 	args.Bucket1 = rand.RandomUint32() % globalConfig.NumBuckets
 	args.Bucket2 = rand.RandomUint32() % globalConfig.NumBuckets
 	args.Data = make([]byte, globalConfig.DataSize, globalConfig.DataSize)
-	rand.FillBytes(&args.Data)
+	rand.FillBytes(args.Data)
 }
 
 func (rm *RequestManager) generateRandomRead(globalConfig common.GlobalConfig, rand *drbg.HashDrbg, args *common.ReadArgs) {
-	numBytes := (globalConfig.NumBuckets / uint32(8))
-	lastNumBits := (globalConfig.NumBuckets % uint32(8))
-	if lastNumBits > 0 {
+	numTds := len(globalConfig.TrustDomains)
+	numBytes := (globalConfig.NumBuckets / uint32(8)) + 1
+	if (globalConfig.NumBuckets % uint32(8)) > 0 {
 		numBytes = numBytes + 1
 	}
-	args.ForTd = make([]common.PIRArgs, 0, 0)
+	args.ForTd = make([]common.PIRArgs, numTds, numTds)
+	for i := 0; i < numTds; i++ {
+		args.ForTd[i].RequestVector = make([]byte, numBytes, numBytes)
+		rand.FillBytes(args.ForTd[i].RequestVector)
+		seed, _ := drbg.NewSeed()
+		args.ForTd[i].PadSeed = seed.Export()
+	}
 	//args.RequestVector = make([]byte, numBytes, numBytes)
 	//rand.FillBytes(&args.RequestVector)
 	//@todo Trim last byte to expected number of bits
