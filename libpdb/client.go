@@ -17,18 +17,18 @@ type Client struct {
 	log          *log.Logger
 	name         string
 	globalConfig atomic.Value //common.GlobalConfig
-	leaderRef    *common.TrustDomainRef
+	leader       common.LeaderInterface
 	msgReqMan    *RequestManager
 }
 
-func NewClient(name string, globalConfig common.GlobalConfig) *Client {
+func NewClient(name string, globalConfig common.GlobalConfig, leader common.LeaderInterface) *Client {
 	c := &Client{}
 	c.log = log.New(os.Stdout, "[Client:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	c.name = name
 	c.globalConfig.Store(globalConfig)
-	c.leaderRef = common.NewTrustDomainRef(name, globalConfig.TrustDomains[0])
+	c.leader = leader
 
-	c.msgReqMan = NewRequestManager(name, c.leaderRef, &c.globalConfig)
+	c.msgReqMan = NewRequestManager(name, c.leader, &c.globalConfig)
 
 	c.log.Println("NewClient: starting new client - " + name)
 	return c
@@ -41,7 +41,8 @@ func (c *Client) SetGlobalConfig(globalConfig common.GlobalConfig) {
 }
 
 func (c *Client) Ping() bool {
-	reply, err := c.leaderRef.Ping()
+	var reply common.PingReply
+	err := c.leader.Ping(&common.PingArgs{"PING"}, &reply)
 	if err == nil && reply.Err == "" {
 		return true
 	} else {

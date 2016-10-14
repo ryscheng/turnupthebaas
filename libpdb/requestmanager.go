@@ -13,8 +13,8 @@ import (
 //const defaultWriteInterval = int64(time.Second)
 
 type RequestManager struct {
-	log       *log.Logger
-	serverRef *common.TrustDomainRef
+	log    *log.Logger
+	leader common.LeaderInterface
 	// Protected by `atomic`
 	globalConfig *atomic.Value //*common.GlobalConfig
 	dead         int32
@@ -25,10 +25,10 @@ type RequestManager struct {
 	readQueue  []*common.ReadArgs
 }
 
-func NewRequestManager(name string, serverRef *common.TrustDomainRef, globalConfig *atomic.Value) *RequestManager {
+func NewRequestManager(name string, leader common.LeaderInterface, globalConfig *atomic.Value) *RequestManager {
 	rm := &RequestManager{}
 	rm.log = log.New(os.Stdout, "[RequestManager:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
-	rm.serverRef = serverRef
+	rm.leader = leader
 	rm.globalConfig = globalConfig
 	rm.dead = 0
 
