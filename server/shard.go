@@ -25,7 +25,7 @@ type Shard struct {
 
 func NewShard(name string) *Shard {
 	s := &Shard{}
-	s.log = log.New(os.Stdout, "[Shard:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
+	s.log = log.New(os.Stdout, "["+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	s.name = name
 	s.WriteLog = make(map[uint64]*common.WriteArgs)
 	s.ReadBatch = make([]*ReadRequest, 0)

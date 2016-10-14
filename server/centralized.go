@@ -25,7 +25,7 @@ type Centralized struct {
 
 func NewCentralized(name string, follower common.FollowerInterface, isLeader bool) *Centralized {
 	c := &Centralized{}
-	c.log = log.New(os.Stdout, "[Frontend:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
+	c.log = log.New(os.Stdout, "["+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	c.name = name
 	c.follower = follower
 	c.isLeader = isLeader

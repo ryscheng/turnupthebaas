@@ -27,7 +27,7 @@ type RequestManager struct {
 
 func NewRequestManager(name string, leader common.LeaderInterface, globalConfig *atomic.Value) *RequestManager {
 	rm := &RequestManager{}
-	rm.log = log.New(os.Stdout, "[RequestManager:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
+	rm.log = log.New(os.Stdout, "["+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	rm.leader = leader
 	rm.globalConfig = globalConfig
 	rm.dead = 0
@@ -67,15 +67,20 @@ func (rm *RequestManager) writePeriodic() {
 		default:
 			globalConfig := rm.globalConfig.Load().(common.GlobalConfig)
 			var args *common.WriteArgs
+			var reply common.WriteReply
 			if len(rm.writeQueue) > 0 {
 				args = rm.writeQueue[0]
 				rm.writeQueue = rm.writeQueue[1:]
+				rm.log.Printf("writePeriodic: Real request to %v, %v \n", args.Bucket1, args.Bucket2)
 			} else {
 				args = &common.WriteArgs{}
 				rm.generateRandomWrite(globalConfig, rand, args)
 				rm.log.Printf("writePeriodic: Dummy request to %v, %v \n", args.Bucket1, args.Bucket2)
 			}
-			//@todo Send request
+			err := rm.leader.Write(args, &reply)
+			if err != nil {
+				rm.log.Printf("Error: %v, reply=%v\n", err, reply)
+			}
 			time.Sleep(globalConfig.WriteInterval)
 			//time.Sleep(time.Duration(atomic.LoadInt64(&rm.writeInterval)))
 		}

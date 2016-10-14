@@ -27,10 +27,12 @@ func main() {
 
 	// Trust Domain 0
 	t0 := server.NewCentralized("t0", t1, true)
+	//t0 := server.NewCentralized("t0", common.NewLeaderRpc("t0->t1", trustDomainConfig1), true)
 	//s["t0"] = NewNetworkRpc(t0, 9000)
 
 	// Client
 	c := libpdb.NewClient("c0", globalConfig, t0)
+	//c := libpdb.NewClient("c0", globalConfig, common.NewLeaderRpc("c0->t0", trustDomainConfig0))
 	c.Ping()
 	time.Sleep(10 * time.Second)
 

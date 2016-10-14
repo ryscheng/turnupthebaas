@@ -23,7 +23,7 @@ type Client struct {
 
 func NewClient(name string, globalConfig common.GlobalConfig, leader common.LeaderInterface) *Client {
 	c := &Client{}
-	c.log = log.New(os.Stdout, "[Client:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
+	c.log = log.New(os.Stdout, "["+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	c.name = name
 	c.globalConfig.Store(globalConfig)
 	c.leader = leader
@@ -52,13 +52,16 @@ func (c *Client) Ping() bool {
 
 func (c *Client) CreateTopic() *TopicHandle {
 	handle := &TopicHandle{}
+	//@todo
 	return handle
 }
 
 func (c *Client) Publish(handle *TopicHandle, data []byte) bool {
+	//@todo
 	return true
 }
 
 func (c *Client) Subscribe(handle *TopicHandle) bool {
+	//@todo
 	return true
 }
