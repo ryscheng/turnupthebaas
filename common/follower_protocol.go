@@ -15,17 +15,17 @@ type BatchReadReply struct {
  *************/
 
 type Range struct {
-	start   uint64 //inclusive
-	end     uint64 //exclusive
-	aborted []uint64
+	Start   uint64 //inclusive
+	End     uint64 //exclusive
+	Aborted []uint64
 }
 
 func (r *Range) Equals(b Range) bool {
-	if r.start != b.start || r.end != b.end || len(r.aborted) != len(b.aborted) {
+	if r.Start != b.Start || r.End != b.End || len(r.Aborted) != len(b.Aborted) {
 		return false
 	}
-	for i, _ := range r.aborted {
-		if r.aborted[i] != b.aborted[i] {
+	for i, _ := range r.Aborted {
+		if r.Aborted[i] != b.Aborted[i] {
 			return false
 		}
 	}

@@ -19,14 +19,14 @@ func main() {
 	// Config
 	trustDomainConfig0 := common.NewTrustDomainConfig("t0", "localhost:9000", true, false)
 	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9100", true, false)
-	globalConfig := common.GlobalConfig{100, 1024, time.Second, time.Second, []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1}}
+	globalConfig := common.GlobalConfig{100, 2, 100, 1024, time.Second, time.Second, []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1}}
 
 	// Trust Domain 1
-	t1 := server.NewCentralized("t1", nil, false)
+	t1 := server.NewCentralized("t1", globalConfig, nil, false)
 	//s["t1"] = NewNetworkRpc(t1, 9001)
 
 	// Trust Domain 0
-	t0 := server.NewCentralized("t0", t1, true)
+	t0 := server.NewCentralized("t0", globalConfig, t1, true)
 	//t0 := server.NewCentralized("t0", common.NewLeaderRpc("t0->t1", trustDomainConfig1), true)
 	//s["t0"] = NewNetworkRpc(t0, 9000)
 

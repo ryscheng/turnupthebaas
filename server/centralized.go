@@ -10,28 +10,30 @@ import (
 const BATCH_SIZE = 1
 
 type Centralized struct {
-	// Private State
-	log             *log.Logger
-	name            string
-	dataLayerConfig *DataLayerConfig
-	follower        common.FollowerInterface
-	isLeader        bool
+	/** Private State **/
+	// Static
+	log      *log.Logger
+	name     string
+	follower common.FollowerInterface
+	isLeader bool
 
 	// Thread-safe
-	shard       *Shard
-	globalSeqNo uint64 // Use atomic.AddUint64
+	globalConfig atomic.Value //common.GlobalConfig
+	shard        *Shard
+	globalSeqNo  uint64 // Use atomic.AddUint64, atomic.LoadUint64
 	// Channels
 	ReadBatch []*ReadRequest
 	ReadChan  chan *ReadRequest
 }
 
-func NewCentralized(name string, follower common.FollowerInterface, isLeader bool) *Centralized {
+func NewCentralized(name string, globalConfig common.GlobalConfig, follower common.FollowerInterface, isLeader bool) *Centralized {
 	c := &Centralized{}
 	c.log = log.New(os.Stdout, "["+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	c.name = name
 	c.follower = follower
 	c.isLeader = isLeader
 
+	c.globalConfig.Store(globalConfig)
 	c.shard = NewShard(name)
 	c.globalSeqNo = 0
 	c.ReadBatch = make([]*ReadRequest, 0)
@@ -118,17 +120,29 @@ func (c *Centralized) batchReads() {
 	for {
 		select {
 		case readReq = <-c.ReadChan:
-			c.processRead(readReq)
+			c.ReadBatch = append(c.ReadBatch, readReq)
+			if len(c.ReadBatch) >= BATCH_SIZE {
+				c.triggerBatchRead(c.ReadBatch)
+				c.ReadBatch = make([]*ReadRequest, 0)
+			} else {
+				c.log.Printf("Read: add to batch, size=%v\n", len(c.ReadBatch))
+			}
 		}
 	}
 }
 
-func (c *Centralized) processRead(req *ReadRequest) {
-	c.ReadBatch = append(c.ReadBatch, req)
-	if len(c.ReadBatch) >= BATCH_SIZE {
-
-		c.ReadBatch = make([]*ReadRequest, 0)
-	} else {
-		c.log.Printf("Read: add to batch, size=%v\n", len(c.ReadBatch))
+func (c *Centralized) triggerBatchRead(batch []*ReadRequest) {
+	args := &common.BatchReadArgs{}
+	// Copy args
+	args.Args = make([]common.ReadArgs, len(batch), len(batch))
+	for i, val := range batch {
+		args.Args[i] = *val.Args
 	}
+	// Choose a SeqNoRange
+	currSeqNo := atomic.LoadUint64(&c.globalSeqNo)
+	globalConfig := c.globalConfig.Load().(common.GlobalConfig)
+	args.SeqNoRange = common.Range{}
+	args.SeqNoRange.Start = currSeqNo - globalConfig.WindowSize
+	args.SeqNoRange.End = currSeqNo
+	args.SeqNoRange.Aborted = make([]uint64, 0, 0)
 }
