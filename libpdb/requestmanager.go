@@ -1,7 +1,6 @@
 package libpdb
 
 import (
-	"fmt"
 	"github.com/ryscheng/pdb/common"
 	"github.com/ryscheng/pdb/drbg"
 	"log"
@@ -78,6 +77,7 @@ func (rm *RequestManager) writePeriodic() {
 				rm.generateRandomWrite(globalConfig, rand, args)
 				rm.log.Printf("writePeriodic: Dummy request to %v, %v \n", args.Bucket1, args.Bucket2)
 			}
+			//@todo Do something with response
 			err := rm.leader.Write(args, &reply)
 			if err != nil || reply.Err != "" {
 				rm.log.Printf("writePeriodic error: %v, reply=%v\n", err, reply)
@@ -108,7 +108,7 @@ func (rm *RequestManager) readPeriodic() {
 				rm.generateRandomRead(globalConfig, rand, args)
 				rm.log.Printf("readPeriodic: Dummy request \n")
 			}
-			//@todo Send request
+			//@todo Do something with response
 			err := rm.leader.Read(args, &reply)
 			if err != nil || reply.Err != "" {
 				rm.log.Printf("readPeriodic error: %v, reply=%v\n", err, reply)

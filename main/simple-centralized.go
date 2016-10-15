@@ -31,9 +31,11 @@ func main() {
 	//s["t0"] = NewNetworkRpc(t0, 9000)
 
 	// Client
-	c := libpdb.NewClient("c0", globalConfig, t0)
+	c0 := libpdb.NewClient("c0", globalConfig, t0)
+	c1 := libpdb.NewClient("c1", globalConfig, t0)
 	//c := libpdb.NewClient("c0", globalConfig, common.NewLeaderRpc("c0->t0", trustDomainConfig0))
-	c.Ping()
+	c0.Ping()
+	c1.Ping()
 	time.Sleep(10 * time.Second)
 
 	// Kill servers

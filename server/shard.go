@@ -13,14 +13,12 @@ import (
  */
 type Shard struct {
 	// Private State
-	log       *log.Logger
-	name      string
-	WriteLog  map[uint64]*common.WriteArgs
-	ReadBatch []*ReadRequest
+	log      *log.Logger
+	name     string
+	WriteLog map[uint64]*common.WriteArgs
 	// Channels
-	WriteChan    chan *common.WriteArgs
-	ReadChan     chan *ReadRequest
-	TriggerBatch chan *common.Range
+	WriteChan     chan *common.WriteArgs
+	BatchReadChan chan *common.BatchReadArgs
 }
 
 func NewShard(name string) *Shard {
@@ -28,9 +26,8 @@ func NewShard(name string) *Shard {
 	s.log = log.New(os.Stdout, "["+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	s.name = name
 	s.WriteLog = make(map[uint64]*common.WriteArgs)
-	s.ReadBatch = make([]*ReadRequest, 0)
 	s.WriteChan = make(chan *common.WriteArgs)
-	s.ReadChan = make(chan *ReadRequest)
+	s.BatchReadChan = make(chan *common.BatchReadArgs)
 
 	go s.processRequests()
 	return s
@@ -45,7 +42,7 @@ func (s *Shard) Ping(args *common.PingArgs, reply *common.PingReply) error {
 }
 
 func (s *Shard) Write(args *common.WriteArgs, reply *common.WriteReply) error {
-	s.log.Println("Write: ")
+	//s.log.Println("Write: ")
 	s.WriteChan <- args
 	reply.Err = ""
 	return nil
@@ -53,10 +50,9 @@ func (s *Shard) Write(args *common.WriteArgs, reply *common.WriteReply) error {
 
 func (s *Shard) Read(args *common.ReadArgs, reply *common.ReadReply) error {
 	s.log.Println("Read: ")
-	resultChan := make(chan []byte)
-	s.ReadChan <- &ReadRequest{args, resultChan}
+	// @TODO
 	reply.Err = ""
-	reply.Data = <-resultChan
+	//reply.Data =
 	return nil
 }
 
@@ -71,34 +67,28 @@ func (s *Shard) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdates
 /** PRIVATE METHODS (singlethreaded) **/
 func (s *Shard) processRequests() {
 	var writeReq *common.WriteArgs
-	var readReq *ReadRequest
-	var dataRange *common.Range
+	var batchReadReq *common.BatchReadArgs
 	for {
 		select {
 		case writeReq = <-s.WriteChan:
 			s.processWrite(writeReq)
-		case readReq = <-s.ReadChan:
-			s.processRead(readReq)
-		case dataRange = <-s.TriggerBatch:
-			s.batchRead(dataRange)
+		case batchReadReq = <-s.BatchReadChan:
+			s.batchRead(batchReadReq)
 		}
 	}
 }
 
 func (s *Shard) processWrite(req *common.WriteArgs) {
+	s.log.Printf("processWrite: seqNo=%v\n", req.GlobalSeqNo)
 	s.WriteLog[req.GlobalSeqNo] = req
-	s.log.Printf("%v\n", s.WriteLog)
+	//s.log.Printf("%v\n", s.WriteLog)
 }
 
-func (s *Shard) processRead(req *ReadRequest) {
-	s.ReadBatch = append(s.ReadBatch, req)
-}
-
-func (s *Shard) batchRead(dataRange *common.Range) {
+func (s *Shard) batchRead(req *common.BatchReadArgs) {
 	// @todo --- garbage collection
 	// build a database
-	for len(s.ReadBatch) > 0 {
-		// Take batch size and PIR it
+	//for len(s.ReadBatch) > 0 {
+	// Take batch size and PIR it
 
-	}
+	//}
 }

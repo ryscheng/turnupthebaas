@@ -7,6 +7,8 @@ import (
 	"sync/atomic"
 )
 
+const BATCH_SIZE = 1
+
 type Centralized struct {
 	// Private State
 	log             *log.Logger
@@ -18,8 +20,9 @@ type Centralized struct {
 	// Thread-safe
 	shard       *Shard
 	globalSeqNo uint64 // Use atomic.AddUint64
-
-	// Unsafe
+	// Channels
+	ReadBatch []*ReadRequest
+	ReadChan  chan *ReadRequest
 }
 
 func NewCentralized(name string, follower common.FollowerInterface, isLeader bool) *Centralized {
@@ -31,6 +34,9 @@ func NewCentralized(name string, follower common.FollowerInterface, isLeader boo
 
 	c.shard = NewShard(name)
 	c.globalSeqNo = 0
+	c.ReadBatch = make([]*ReadRequest, 0)
+	c.ReadChan = make(chan *ReadRequest)
+	go c.batchReads()
 
 	return c
 }
@@ -61,7 +67,7 @@ func (c *Centralized) Ping(args *common.PingArgs, reply *common.PingReply) error
 }
 
 func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) error {
-	c.log.Println("Write: ")
+	//c.log.Println("Write: ")
 
 	// @todo --- parallelize writes.
 	if c.isLeader {
@@ -90,7 +96,10 @@ func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) er
 
 func (c *Centralized) Read(args *common.ReadArgs, reply *common.ReadReply) error {
 	c.log.Println("Read: ")
-	c.shard.Read(args, reply)
+	resultChan := make(chan []byte)
+	c.ReadChan <- &ReadRequest{args, resultChan}
+	reply.Err = ""
+	reply.Data = <-resultChan
 	return nil
 }
 
@@ -102,4 +111,24 @@ func (c *Centralized) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetU
 	c.log.Println("GetUpdates: ")
 	// @TODO
 	return nil
+}
+
+func (c *Centralized) batchReads() {
+	var readReq *ReadRequest
+	for {
+		select {
+		case readReq = <-c.ReadChan:
+			c.processRead(readReq)
+		}
+	}
+}
+
+func (c *Centralized) processRead(req *ReadRequest) {
+	c.ReadBatch = append(c.ReadBatch, req)
+	if len(c.ReadBatch) >= BATCH_SIZE {
+
+		c.ReadBatch = make([]*ReadRequest, 0)
+	} else {
+		c.log.Printf("Read: add to batch, size=%v\n", len(c.ReadBatch))
+	}
 }
