@@ -115,6 +115,7 @@ func (c *Centralized) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetU
 	return nil
 }
 
+/** PRIVATE METHODS (singlethreaded) **/
 func (c *Centralized) batchReads() {
 	var readReq *ReadRequest
 	for {
@@ -138,11 +139,25 @@ func (c *Centralized) triggerBatchRead(batch []*ReadRequest) {
 	for i, val := range batch {
 		args.Args[i] = *val.Args
 	}
+
 	// Choose a SeqNoRange
-	currSeqNo := atomic.LoadUint64(&c.globalSeqNo)
+	currSeqNo := atomic.LoadUint64(&c.globalSeqNo) + 1
 	globalConfig := c.globalConfig.Load().(common.GlobalConfig)
 	args.SeqNoRange = common.Range{}
-	args.SeqNoRange.Start = currSeqNo - globalConfig.WindowSize
-	args.SeqNoRange.End = currSeqNo
+	args.SeqNoRange.Start = currSeqNo - globalConfig.WindowSize // Inclusive
+	if args.SeqNoRange.Start < 1 {
+		args.SeqNoRange.Start = 1 // Minimum of 1
+	}
+	args.SeqNoRange.End = currSeqNo // Exclusive
 	args.SeqNoRange.Aborted = make([]uint64, 0, 0)
+
+	// Start computation on local shard
+
+	// Send to followers
+
+	// Retrieve all results
+
+	// Combine
+
+	// Respond to clients
 }
