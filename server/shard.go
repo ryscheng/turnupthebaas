@@ -48,7 +48,7 @@ func (s *Shard) Write(args *common.WriteArgs, reply *common.WriteReply) error {
 	return nil
 }
 
-func (s *Shard) Read(args *common.ReadArgs, reply *common.ReadReply) error {
+func (s *Shard) BatchRead(args *common.BatchReadArgs, reply *common.BatchReadReply) error {
 	s.log.Println("Read: ")
 	// @TODO
 	reply.Err = ""
