@@ -53,6 +53,7 @@ func (s *Shard) BatchRead(args *common.BatchReadArgs, reply *common.BatchReadRep
 	// @TODO
 	reply.Err = ""
 	//reply.Data =
+
 	return nil
 }
 

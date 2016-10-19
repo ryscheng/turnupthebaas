@@ -106,6 +106,12 @@ func (c *Centralized) Read(args *common.ReadArgs, reply *common.ReadReply) error
 }
 
 func (c *Centralized) BatchRead(args *common.BatchReadArgs, reply *common.BatchReadReply) error {
+	// Send to followers
+
+	// Retrieve all results
+
+	// Combine
+
 	return nil
 }
 
@@ -123,7 +129,7 @@ func (c *Centralized) batchReads() {
 		case readReq = <-c.ReadChan:
 			c.ReadBatch = append(c.ReadBatch, readReq)
 			if len(c.ReadBatch) >= BATCH_SIZE {
-				c.triggerBatchRead(c.ReadBatch)
+				go c.triggerBatchRead(c.ReadBatch)
 				c.ReadBatch = make([]*ReadRequest, 0)
 			} else {
 				c.log.Printf("Read: add to batch, size=%v\n", len(c.ReadBatch))
@@ -152,12 +158,16 @@ func (c *Centralized) triggerBatchRead(batch []*ReadRequest) {
 	args.SeqNoRange.Aborted = make([]uint64, 0, 0)
 
 	// Start computation on local shard
-
-	// Send to followers
-
-	// Retrieve all results
-
-	// Combine
+	var reply common.BatchReadReply
+	err := c.BatchRead(args, &reply)
+	if err != nil || reply.Err != "" {
+		c.log.Fatalf("Error doing BatchRead: err=%v, replyErr=%v\n", err, reply.Err)
+		return
+	}
 
 	// Respond to clients
+	for i, val := range reply.Replies {
+		batch[i].ReplyChan <- val.Data
+	}
+
 }
