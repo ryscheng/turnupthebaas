@@ -42,6 +42,18 @@ type ReadReply struct {
 	Data []byte
 }
 
+func (r *ReadReply) Combine(other []byte) {
+	var length int
+	if len(r.Data) < len(other) {
+		length = len(r.Data)
+	} else {
+		length = len(other)
+	}
+	for i := 0; i < length; i++ {
+		r.Data[i] = r.Data[i] ^ other[i]
+	}
+}
+
 type GetUpdatesArgs struct {
 }
 

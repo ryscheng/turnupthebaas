@@ -34,7 +34,7 @@ func NewCentralized(name string, globalConfig common.GlobalConfig, follower comm
 	c.isLeader = isLeader
 
 	c.globalConfig.Store(globalConfig)
-	c.shard = NewShard(name)
+	c.shard = NewShard(name, globalConfig)
 	c.globalSeqNo = 0
 	c.ReadBatch = make([]*ReadRequest, 0)
 	c.ReadChan = make(chan *ReadRequest)
@@ -106,6 +106,35 @@ func (c *Centralized) Read(args *common.ReadArgs, reply *common.ReadReply) error
 }
 
 func (c *Centralized) BatchRead(args *common.BatchReadArgs, reply *common.BatchReadReply) error {
+	// Start local computation
+	var fReply common.BatchReadReply
+	myReplyChan := make(chan *common.BatchReadReply)
+	c.shard.BatchRead(args, myReplyChan)
+
+	// Send to followers
+	if c.follower != nil {
+		fErr := c.follower.BatchRead(args, &fReply)
+		if fErr != nil {
+			// Assume all servers always available
+			reply.Err = fErr.Error()
+			c.log.Fatalf("Error forwarding to follower %v", c.follower.GetName())
+			return fErr
+		} else {
+			reply.Err = fReply.Err
+		}
+	} else {
+		reply.Err = ""
+	}
+
+	// Combine results
+	myReply := <-myReplyChan
+	if c.follower != nil {
+		for i, _ := range myReply.Replies {
+			myReply.Replies[i].Combine(fReply.Replies[i].Data)
+		}
+	}
+
+	reply.Replies = myReply.Replies
 	return nil
 }
 
@@ -123,7 +152,7 @@ func (c *Centralized) batchReads() {
 		case readReq = <-c.ReadChan:
 			c.ReadBatch = append(c.ReadBatch, readReq)
 			if len(c.ReadBatch) >= BATCH_SIZE {
-				c.triggerBatchRead(c.ReadBatch)
+				go c.triggerBatchRead(c.ReadBatch)
 				c.ReadBatch = make([]*ReadRequest, 0)
 			} else {
 				c.log.Printf("Read: add to batch, size=%v\n", len(c.ReadBatch))
@@ -144,20 +173,27 @@ func (c *Centralized) triggerBatchRead(batch []*ReadRequest) {
 	currSeqNo := atomic.LoadUint64(&c.globalSeqNo) + 1
 	globalConfig := c.globalConfig.Load().(common.GlobalConfig)
 	args.SeqNoRange = common.Range{}
-	args.SeqNoRange.Start = currSeqNo - globalConfig.WindowSize // Inclusive
+	args.SeqNoRange.Start = currSeqNo - uint64(globalConfig.WindowSize) // Inclusive
 	if args.SeqNoRange.Start < 1 {
 		args.SeqNoRange.Start = 1 // Minimum of 1
 	}
 	args.SeqNoRange.End = currSeqNo // Exclusive
 	args.SeqNoRange.Aborted = make([]uint64, 0, 0)
 
+	// Choose a RandSeed
+	args.RandSeed = 0
+
 	// Start computation on local shard
-
-	// Send to followers
-
-	// Retrieve all results
-
-	// Combine
+	var reply common.BatchReadReply
+	err := c.BatchRead(args, &reply)
+	if err != nil || reply.Err != "" {
+		c.log.Fatalf("Error doing BatchRead: err=%v, replyErr=%v\n", err, reply.Err)
+		return
+	}
 
 	// Respond to clients
+	for i, val := range reply.Replies {
+		batch[i].Reply(val.Data)
+	}
+
 }

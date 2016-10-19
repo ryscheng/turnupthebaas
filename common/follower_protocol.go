@@ -3,6 +3,7 @@ package common
 type BatchReadArgs struct {
 	Args       []ReadArgs // Set of Read requests
 	SeqNoRange Range
+	RandSeed   int64
 }
 
 type BatchReadReply struct {
