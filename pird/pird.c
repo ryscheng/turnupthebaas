@@ -1,17 +1,18 @@
 #include <errno.h>
 #include <fcntl.h>
+#include <math.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
-#include <time.h>
-#include <unistd.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/shm.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
+#include <time.h>
+#include <unistd.h>
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
 #else
@@ -46,13 +47,50 @@ cl_mem gpu_db;                      // device memory used for the database
 cl_mem gpu_input;
 cl_mem gpu_output;
 
-int configure(int, int, int);
+int configure(int, int, int, int);
 int do_write(DATA_TYPE*);
+void listDevices();
 DATA_TYPE* do_read(char*);
 
-int main()
+
+static volatile char* socketpath;
+void intHandler(int dummy) {
+  unlink((char*)socketpath);
+  exit(1);
+}
+
+
+int main(int argc, char** argv)
 {
     int err;
+    int c;
+    int listonly = 0;
+    socketpath = SOCKET_NAME;
+    int deviceid = 0;
+    while ((c = getopt(argc, argv, "s:d:l")) != -1) {
+      switch (c) {
+        case 'l':
+          listonly = 1;
+          break;
+        case 'd':
+          deviceid = atoi(optarg);
+          break;
+        case 's':
+          socketpath = optarg;
+          break;
+        default:
+          fprintf(stderr, "Usage: %s [-l] [-d <device id>] [-s <socket>].\n",
+              argv[0]);
+          return 1;
+      }
+    }
+
+    if (listonly) {
+      listDevices();
+      return 1;
+    }
+
+    signal(SIGINT, intHandler);
 
     int socket_fd = socket(AF_UNIX, SOCK_STREAM, 0);
     int client_sock;
@@ -62,11 +100,11 @@ int main()
     }
 
     // Bind the socket for communication.
-    unlink(SOCKET_NAME);
+    unlink((char*)socketpath);
     struct sockaddr_un socket_name;
     memset(&socket_name, 0, sizeof(struct sockaddr_un));
     socket_name.sun_family = AF_UNIX;
-    strncpy(socket_name.sun_path, SOCKET_NAME, sizeof(socket_name.sun_path) - 1);
+    strncpy(socket_name.sun_path, (char*)socketpath, sizeof(socket_name.sun_path) - 1);
     err = bind(socket_fd, (const struct sockaddr *) &socket_name, sizeof(struct sockaddr_un));
     if (err == -1) {
       printf("Error: Failed to bind socket!\n");
@@ -115,7 +153,7 @@ int main()
             printf("Failed to read configuration.\n");
             break;
           }
-          configure(configuration_params[0], configuration_params[1], configuration_params[2]);
+          configure(deviceid, configuration_params[0], configuration_params[1], configuration_params[2]);
         } else if (next_command == '3') { // write
           if (dbhndl != 0) {
             shmdt(database);
@@ -126,7 +164,7 @@ int main()
             break;
           }
           database = shmat(dbhndl, NULL, SHM_RDONLY);
-          if (database == -1) {
+          if (database == (void*)-1) {
             printf("Failed to open shm ptr: %d.\n", errno);
             break;
           }
@@ -139,7 +177,31 @@ int main()
     }
 }
 
-int configure(int n_cell_length, int n_cell_count, int n_batch_size) {
+void listDevices() {
+  int i, num;
+  char buf[256];
+  cl_device_id device_ids[10];
+  cl_platform_id cl_platform;
+
+  // Connect to a compute device
+  int err = clGetPlatformIDs(1, &cl_platform, NULL);
+  err = clGetDeviceIDs(cl_platform, CL_DEVICE_TYPE_ALL, 10, (cl_device_id*)&device_ids, &num);
+  if (err != CL_SUCCESS)
+  {
+      printf("Error: Failed get device IDs!\n");
+      return;
+  }
+  for (i = 0; i < num && device_ids[i] != 0; i++) {
+    err = clGetDeviceInfo(device_ids[i], CL_DEVICE_NAME, 256, &buf, NULL);
+    if (err != CL_SUCCESS) {
+      printf("%d: <Failed to read name.>\n", i);
+      continue;
+    }
+    printf("%d: %s\n", i, buf);
+  }
+}
+
+int configure(int devid, int n_cell_length, int n_cell_count, int n_batch_size) {
   int err;
 
   cell_length = n_cell_length;
@@ -162,13 +224,12 @@ int configure(int n_cell_length, int n_cell_count, int n_batch_size) {
     clReleaseContext(context);
   }
 
-  cl_device_id device_id;             // compute device id
+  cl_device_id device_id[10];             // compute device id
   cl_platform_id cl_platform;
 
   // Connect to a compute device
   err = clGetPlatformIDs(1, &cl_platform, NULL);
-  int gpu = 1;
-  err = clGetDeviceIDs(cl_platform, gpu ? CL_DEVICE_TYPE_GPU : CL_DEVICE_TYPE_CPU, 1, &device_id, NULL);
+  err = clGetDeviceIDs(cl_platform, CL_DEVICE_TYPE_ALL, 10, (cl_device_id*)&device_id, NULL);
   if (err != CL_SUCCESS)
   {
       printf("Error: Failed to create a device group!\n");
@@ -176,7 +237,7 @@ int configure(int n_cell_length, int n_cell_count, int n_batch_size) {
   }
 
   // Create a compute context
-  context = clCreateContext(0, 1, &device_id, NULL, NULL, &err);
+  context = clCreateContext(0, 1, &device_id[devid], NULL, NULL, &err);
   if (!context)
   {
       printf("Error: Failed to create a compute context!\n");
@@ -184,7 +245,7 @@ int configure(int n_cell_length, int n_cell_count, int n_batch_size) {
   }
 
   // Create a command queue
-  commands = clCreateCommandQueue(context, device_id, 0, &err);
+  commands = clCreateCommandQueue(context, device_id[devid], 0, &err);
   if (!commands)
   {
       printf("Error: Failed to create a command commands!\n");
@@ -215,7 +276,7 @@ int configure(int n_cell_length, int n_cell_count, int n_batch_size) {
       char buffer[2048];
 
       printf("Error: Failed to build program executable!\n");
-      clGetProgramBuildInfo(program, device_id, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
+      clGetProgramBuildInfo(program, device_id[devid], CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
       printf("%s\n", buffer);
       exit(1);
   }
@@ -236,7 +297,7 @@ int configure(int n_cell_length, int n_cell_count, int n_batch_size) {
 
   // Get the maximum work group size for executing the kernel on the device
   //
-  err = clGetKernelWorkGroupInfo(kernel, device_id, CL_KERNEL_WORK_GROUP_SIZE, sizeof(workgroup_size), &workgroup_size, NULL);
+  err = clGetKernelWorkGroupInfo(kernel, device_id[devid], CL_KERNEL_WORK_GROUP_SIZE, sizeof(workgroup_size), &workgroup_size, NULL);
   if (err != CL_SUCCESS)
   {
       printf("Error: Failed to retrieve kernel work group info! %d\n", err);

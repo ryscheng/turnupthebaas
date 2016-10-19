@@ -7,6 +7,7 @@ import "testing"
 
 func getSocket() string {
   if os.Getenv("PIR_SOCKET") != "" {
+    fmt.Printf("Testing against running pird at %s.\n", os.Getenv("PIR_SOCKET"))
     return os.Getenv("PIR_SOCKET")
   }
   return fmt.Sprintf("pirtest%d.socket", rand.Int())
@@ -58,6 +59,7 @@ func TestPir(t *testing.T) {
 
   if err != nil || response == nil {
     t.Error(err)
+    return
   }
 
   if response[1] != byte(1) {
