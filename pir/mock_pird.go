@@ -1,29 +1,16 @@
 package pir
 
-import "C"
 import "encoding/binary"
-import "errors"
 import "fmt"
 import "net"
-import "syscall"
 import "unsafe"
+import "github.com/YoshikiShibata/xusyscall"
 
 // This package provides the functionality of the PIR Daemon - it opens a
 // socket, and uses the same protocol to communicate.
 // Notably: It does not make use of GPU accelleration for PIR computation, so
 // will be much slower. It does, however, make the prospect of testing the
 // code base much simpler.
-
-func attachshm(shmid uintptr, size int) ([]byte, error) {
-	addr, _, errno := syscall.RawSyscall(syscall.SYS_SHMAT, shmid, 0, 010000)
-	if errno != 0 {
-		return nil, errors.New("Failed to attach SHM " + string(errno))
-	}
-
-	mem := (*byte)(unsafe.Pointer(addr))
-	arr := C.GoBytes(unsafe.Pointer(mem), C.int(size))
-	return arr, nil
-}
 
 func CreateMockServer(status chan int, socket string) error {
 	if len(socket) == 0 {
@@ -80,6 +67,7 @@ func handle(conn net.Conn) {
 			if len, err := conn.Read(masks); len < CellLength*BatchSize/8 || err != nil {
 				break
 			}
+
 			// calculate pir
 			response := make([]byte, CellLength*BatchSize)
 			for batch := 0; batch < BatchSize; batch += 1 {
@@ -91,6 +79,10 @@ func handle(conn net.Conn) {
 					}
 				}
 			}
+			if database[0] == 1 {
+				fmt.Printf("Databse looks set correctly.\n")
+			}
+
 			// write response
 			writeNum := 0
 			for writeNum < len(response) {
@@ -111,15 +103,14 @@ func handle(conn net.Conn) {
 			// write.
 
 			// read shared memory ID
-			var x uintptr
 			var err error
-			shmidarr := make([]byte, unsafe.Sizeof(x))
+			shmidarr := make([]byte, unsafe.Sizeof(int(0)))
 			conn.Read(shmidarr)
 			shmid := binary.LittleEndian.Uint32(shmidarr)
 			// attach shared memory
-			database, err = attachshm(uintptr(shmid), CellLength*CellCount)
+			database, err = xusyscall.Shmat(int(shmid), true)
 			if err != nil {
-				fmt.Printf("Couldn't read databse from ptr. %s", err)
+				fmt.Printf("Couldn't read database from ptr. %s", err)
 				conn.Close()
 				break
 			}

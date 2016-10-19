@@ -41,17 +41,23 @@ func TestPir(t *testing.T) {
     t.Error(err)
     return
   }
-  db.DB[0] = 1
+  for x := range db.DB {
+    db.DB[x] = byte(x)
+  }
 
   pirServer.SetDB(db)
 
   masks := make([]byte, 512)
-  masks[0] = 1
+  masks[0] = 0x01
 
   response, err := pirServer.Read(masks)
 
-  if err != nil || response == nil || response[0] !=1 {
+  if err != nil || response == nil {
     t.Error(err)
+  }
+
+  if response[1] != byte(1) {
+    t.Error(fmt.Sprintf("Response is incorrect. byte 1 was %d, not '1'.", response[1]))
   }
 
   status <- 1

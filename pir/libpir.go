@@ -1,18 +1,14 @@
 package pir
 
 import "bytes"
-import "C"
 import "encoding/binary"
 import "errors"
-import "fmt"
 import "net"
-import "syscall"
-import "unsafe"
+import "github.com/YoshikiShibata/xusyscall"
 
 type PirDB struct {
 	DB    []byte
-	dbptr *byte
-	shmid uintptr
+	shmid int
 }
 
 type PirServer struct {
@@ -25,28 +21,6 @@ type PirServer struct {
 
 const pirCommands = `123`
 const defaultSocket = "pir.socket"
-
-//from http://golangtc.com/t/531072f4320b5261970000ba
-func createShm(size int) (shmid uintptr, mem *byte) {
-	flag := 0600
-	shmid, _, errno := syscall.RawSyscall(syscall.SYS_SHMGET, 0, uintptr(size), uintptr(flag))
-
-	addr, _, errno := syscall.RawSyscall(syscall.SYS_SHMAT, shmid, 0, 0)
-	mem = (*byte)(unsafe.Pointer(addr))
-	if errno != 0 {
-		fmt.Printf("Failed to create SHM: %d", errno)
-	}
-	return
-}
-
-func destroyShm(mem *byte) error {
-	addr := unsafe.Pointer(mem)
-	ret, _, errno := syscall.RawSyscall(syscall.SYS_SHMDT, uintptr(addr), 0, 0)
-	if ret != 0 || errno != 0 {
-		return errors.New("Failed to release SHM: " + string(errno))
-	}
-	return nil
-}
 
 func Connect(socket string) (*PirServer, error) {
 	if len(socket) == 0 {
@@ -85,11 +59,15 @@ func (s *PirServer) Configure(celllength int, cellcount int, batchsize int) erro
 
 func (s *PirServer) GetDB() (*PirDB, error) {
 	db := new(PirDB)
-	db.shmid, db.dbptr = createShm(s.CellLength * s.CellCount)
-	if db.dbptr == nil {
-		return nil, errors.New("Could not create shared memory for database")
+	shmid, err := xusyscall.Shmget(0, s.CellLength * s.CellCount, xusyscall.IPC_CREAT|xusyscall.IPC_EXCL|0777)
+	if err != nil {
+			return nil, err
 	}
-	db.DB = C.GoBytes(unsafe.Pointer(db.dbptr), C.int(s.CellLength*s.CellCount))
+	db.shmid = shmid
+	db.DB, err = xusyscall.Shmat(db.shmid, false)
+	if err != nil {
+		return nil, err
+	}
 	return db, nil
 }
 
@@ -98,9 +76,9 @@ func (s *PirServer) SetDB(db *PirDB) error {
 		return err
 	}
 
-	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, int32(db.shmid))
-	if _, err := s.sock.Write(buf.Bytes()); err != nil {
+	dbptrarr := make([]byte, 8)
+	binary.LittleEndian.PutUint32(dbptrarr, uint32(db.shmid))
+	if _, err := s.sock.Write(dbptrarr); err != nil {
 		return err
 	}
 	s.DB = db
@@ -108,7 +86,7 @@ func (s *PirServer) SetDB(db *PirDB) error {
 }
 
 func (db *PirDB) Free() error {
-	return destroyShm(db.dbptr)
+	return xusyscall.Shmdt(db.DB)
 }
 
 func (s *PirServer) Read(masks []byte) ([]byte, error) {
