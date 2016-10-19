@@ -19,7 +19,7 @@ func CreateMockServer(status chan int, socket string) error {
 
 	sock, err := net.Listen("unix", socket)
 	if err != nil {
-		panic(err)
+		status <- -1
 		return err
 	}
 
