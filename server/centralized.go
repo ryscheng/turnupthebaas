@@ -190,7 +190,7 @@ func (c *Centralized) triggerBatchRead(batch []*ReadRequest) {
 
 	// Respond to clients
 	for i, val := range reply.Replies {
-		batch[i].ReplyChan <- val.Data
+		batch[i].Reply(val.Data)
 	}
 
 }

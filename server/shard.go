@@ -18,7 +18,7 @@ type Shard struct {
 	WriteLog map[uint64]*common.WriteArgs
 	// Channels
 	WriteChan     chan *common.WriteArgs
-	BatchReadChan chan *common.BatchReadArgs
+	BatchReadChan chan *BatchReadRequest
 }
 
 func NewShard(name string) *Shard {
@@ -27,7 +27,7 @@ func NewShard(name string) *Shard {
 	s.name = name
 	s.WriteLog = make(map[uint64]*common.WriteArgs)
 	s.WriteChan = make(chan *common.WriteArgs)
-	s.BatchReadChan = make(chan *common.BatchReadArgs)
+	s.BatchReadChan = make(chan *BatchReadRequest)
 
 	go s.processRequests()
 	return s
@@ -58,16 +58,15 @@ func (s *Shard) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdates
 
 func (s *Shard) BatchRead(args *common.BatchReadArgs, replyChan chan *common.BatchReadReply) error {
 	s.log.Println("Read: ")
-	// @TODO
-	//reply.Data =
-
+	batchReq := &BatchReadRequest{args, replyChan}
+	s.BatchReadChan <- batchReq
 	return nil
 }
 
 /** PRIVATE METHODS (singlethreaded) **/
 func (s *Shard) processRequests() {
 	var writeReq *common.WriteArgs
-	var batchReadReq *common.BatchReadArgs
+	var batchReadReq *BatchReadRequest
 	for {
 		select {
 		case writeReq = <-s.WriteChan:
@@ -84,7 +83,7 @@ func (s *Shard) processWrite(req *common.WriteArgs) {
 	//s.log.Printf("%v\n", s.WriteLog)
 }
 
-func (s *Shard) batchRead(req *common.BatchReadArgs) {
+func (s *Shard) batchRead(req *BatchReadRequest) {
 	// @todo --- garbage collection
 	// build a database
 	//for len(s.ReadBatch) > 0 {
