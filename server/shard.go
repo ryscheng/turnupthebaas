@@ -48,20 +48,19 @@ func (s *Shard) Write(args *common.WriteArgs, reply *common.WriteReply) error {
 	return nil
 }
 
-func (s *Shard) BatchRead(args *common.BatchReadArgs, reply *common.BatchReadReply) error {
-	s.log.Println("Read: ")
-	// @TODO
-	reply.Err = ""
-	//reply.Data =
-
-	return nil
-}
-
 func (s *Shard) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdatesReply) error {
 	s.log.Println("GetUpdates: ")
 	// @TODO
 	reply.Err = ""
 	//reply.InterestVector =
+	return nil
+}
+
+func (s *Shard) BatchRead(args *common.BatchReadArgs, replyChan chan *common.BatchReadReply) error {
+	s.log.Println("Read: ")
+	// @TODO
+	//reply.Data =
+
 	return nil
 }
 

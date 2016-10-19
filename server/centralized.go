@@ -106,12 +106,35 @@ func (c *Centralized) Read(args *common.ReadArgs, reply *common.ReadReply) error
 }
 
 func (c *Centralized) BatchRead(args *common.BatchReadArgs, reply *common.BatchReadReply) error {
+	// Start local computation
+	var fReply common.BatchReadReply
+	myReplyChan := make(chan *common.BatchReadReply)
+	c.shard.BatchRead(args, myReplyChan)
+
 	// Send to followers
+	if c.follower != nil {
+		fErr := c.follower.BatchRead(args, &fReply)
+		if fErr != nil {
+			// Assume all servers always available
+			reply.Err = fErr.Error()
+			c.log.Fatalf("Error forwarding to follower %v", c.follower.GetName())
+			return fErr
+		} else {
+			reply.Err = fReply.Err
+		}
+	} else {
+		reply.Err = ""
+	}
 
-	// Retrieve all results
+	// Combine results
+	myReply := <-myReplyChan
+	if c.follower != nil {
+		for i, _ := range myReply.Replies {
+			myReply.Replies[i].Combine(fReply.Replies[i].Data)
+		}
+	}
 
-	// Combine
-
+	reply.Replies = myReply.Replies
 	return nil
 }
 
