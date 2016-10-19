@@ -215,7 +215,7 @@ int configure(int devid, int n_cell_length, int n_cell_count, int n_batch_size) 
     output = NULL;
   }
   output = malloc(cell_length * batch_size);
-  invector = malloc(cell_count * batch_size);
+  invector = malloc(cell_count * batch_size / 8);
 
   if (context != NULL) {
     clReleaseProgram(program);
@@ -375,6 +375,6 @@ DATA_TYPE* do_read(char* invector) {
       printf("Error: Failed to read output array! %d\n", err);
       exit(1);
   }
-  printf("Read Batch.\n");
+  //printf("Read Batch.\n");
   return output;
 }

@@ -3,7 +3,6 @@ package pir
 import "encoding/binary"
 import "fmt"
 import "net"
-import "unsafe"
 import "github.com/YoshikiShibata/xusyscall"
 
 // This package provides the functionality of the PIR Daemon - it opens a
@@ -20,8 +19,10 @@ func CreateMockServer(status chan int, socket string) error {
 	sock, err := net.Listen("unix", socket)
 	if err != nil {
 		status <- -1
+		<- status
 		return err
 	}
+	fmt.Printf("No running PIR Daemon found. Using unoptimized Golang mock daemon.\n")
 
 	activeConn := make([]net.Conn, 1)
 
@@ -104,7 +105,7 @@ func handle(conn net.Conn) {
 
 			// read shared memory ID
 			var err error
-			shmidarr := make([]byte, unsafe.Sizeof(int(0)))
+			shmidarr := make([]byte, 4)
 			conn.Read(shmidarr)
 			shmid := binary.LittleEndian.Uint32(shmidarr)
 			// attach shared memory

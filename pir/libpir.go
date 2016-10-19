@@ -37,6 +37,10 @@ func Connect(socket string) (*PirServer, error) {
 	return server, nil
 }
 
+func (s *PirServer) Disconnect() error {
+	return s.sock.Close()
+}
+
 func (s *PirServer) Configure(celllength int, cellcount int, batchsize int) error {
 	s.BatchSize = batchsize
 	s.CellCount = cellcount
@@ -76,7 +80,7 @@ func (s *PirServer) SetDB(db *PirDB) error {
 		return err
 	}
 
-	dbptrarr := make([]byte, 8)
+	dbptrarr := make([]byte, 4)
 	binary.LittleEndian.PutUint32(dbptrarr, uint32(db.shmid))
 	if _, err := s.sock.Write(dbptrarr); err != nil {
 		return err
@@ -94,7 +98,7 @@ func (s *PirServer) Read(masks []byte) ([]byte, error) {
 		return nil, errors.New("DB not configured.")
 	}
 
-	if len(masks) != (s.CellLength*s.BatchSize)/8 {
+	if len(masks) != (s.CellCount*s.BatchSize)/8 {
 		return nil, errors.New("Wrong Mask Length.")
 	}
 

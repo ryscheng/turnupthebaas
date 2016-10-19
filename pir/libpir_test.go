@@ -19,11 +19,13 @@ func TestConnnect(t *testing.T) {
 	go CreateMockServer(status, sockName)
   <- status
 
-	_, err := Connect(sockName)
+	pirServer, err := Connect(sockName)
 	if err != nil {
 		t.Error(err)
     return
 	}
+
+  pirServer.Disconnect()
 
   status <- 1
 }
@@ -66,10 +68,16 @@ func TestPir(t *testing.T) {
     t.Error(fmt.Sprintf("Response is incorrect. byte 1 was %d, not '1'.", response[1]))
   }
 
+  pirServer.Disconnect()
+
   status <- 1
 }
 
 func BenchmarkPir(b *testing.B) {
+  cellLength := 1024
+  cellCount := 2048
+  batchSize := 8
+
   sockName := getSocket()
   status := make(chan int)
 	go CreateMockServer(status, sockName)
@@ -81,7 +89,7 @@ func BenchmarkPir(b *testing.B) {
     return
 	}
 
-  pirServer.Configure(512, 512, 8)
+  pirServer.Configure(cellLength, cellCount, batchSize)
   db, err := pirServer.GetDB()
   if err != nil {
     b.Error(err)
@@ -93,7 +101,7 @@ func BenchmarkPir(b *testing.B) {
 
   pirServer.SetDB(db)
 
-  masks := make([]byte, 512)
+  masks := make([]byte, cellCount * batchSize / 8)
   masks[0] = 0x01
 
   b.ResetTimer()
@@ -106,6 +114,8 @@ func BenchmarkPir(b *testing.B) {
     }
     b.SetBytes(int64(len(response)))
   }
+
+  pirServer.Disconnect()
 
   status <- 1
 }
