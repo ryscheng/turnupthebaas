@@ -120,16 +120,16 @@ func (rm *RequestManager) readPeriodic() {
 }
 
 func (rm *RequestManager) generateRandomWrite(globalConfig common.GlobalConfig, rand *drbg.HashDrbg, args *common.WriteArgs) {
-	args.Bucket1 = rand.RandomUint32() % globalConfig.NumBuckets
-	args.Bucket2 = rand.RandomUint32() % globalConfig.NumBuckets
+	args.Bucket1 = rand.RandomUint32() % uint32(globalConfig.NumBuckets)
+	args.Bucket2 = rand.RandomUint32() % uint32(globalConfig.NumBuckets)
 	args.Data = make([]byte, globalConfig.DataSize, globalConfig.DataSize)
 	rand.FillBytes(args.Data)
 }
 
 func (rm *RequestManager) generateRandomRead(globalConfig common.GlobalConfig, rand *drbg.HashDrbg, args *common.ReadArgs) {
 	numTds := len(globalConfig.TrustDomains)
-	numBytes := (globalConfig.NumBuckets / uint32(8)) + 1
-	if (globalConfig.NumBuckets % uint32(8)) > 0 {
+	numBytes := (uint32(globalConfig.NumBuckets) / uint32(8)) + 1
+	if (uint32(globalConfig.NumBuckets) % uint32(8)) > 0 {
 		numBytes = numBytes + 1
 	}
 	args.ForTd = make([]common.PIRArgs, numTds, numTds)

@@ -34,7 +34,7 @@ func NewCentralized(name string, globalConfig common.GlobalConfig, follower comm
 	c.isLeader = isLeader
 
 	c.globalConfig.Store(globalConfig)
-	c.shard = NewShard(name)
+	c.shard = NewShard(name, globalConfig)
 	c.globalSeqNo = 0
 	c.ReadBatch = make([]*ReadRequest, 0)
 	c.ReadChan = make(chan *ReadRequest)
@@ -173,12 +173,15 @@ func (c *Centralized) triggerBatchRead(batch []*ReadRequest) {
 	currSeqNo := atomic.LoadUint64(&c.globalSeqNo) + 1
 	globalConfig := c.globalConfig.Load().(common.GlobalConfig)
 	args.SeqNoRange = common.Range{}
-	args.SeqNoRange.Start = currSeqNo - globalConfig.WindowSize // Inclusive
+	args.SeqNoRange.Start = currSeqNo - uint64(globalConfig.WindowSize) // Inclusive
 	if args.SeqNoRange.Start < 1 {
 		args.SeqNoRange.Start = 1 // Minimum of 1
 	}
 	args.SeqNoRange.End = currSeqNo // Exclusive
 	args.SeqNoRange.Aborted = make([]uint64, 0, 0)
+
+	// Choose a RandSeed
+	args.RandSeed = 0
 
 	// Start computation on local shard
 	var reply common.BatchReadReply

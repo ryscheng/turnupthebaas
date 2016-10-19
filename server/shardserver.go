@@ -25,7 +25,7 @@ func NewShardServer(group string, name string, rpcPort int, dataLayerConfig *Dat
 	s.rpcPort = rpcPort
 	s.dataLayerConfig = dataLayerConfig
 
-	s.shard = NewShard(name)
+	//s.shard = NewShard(name)
 	if rpcPort != 0 {
 		s.netRpc = NewNetworkRpc(s.shard, rpcPort)
 	}
