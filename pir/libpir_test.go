@@ -3,6 +3,7 @@ package pir
 import "fmt"
 import "math/rand"
 import "os"
+import "strconv"
 import "testing"
 
 func getSocket() string {
@@ -77,6 +78,15 @@ func BenchmarkPir(b *testing.B) {
   cellLength := 1024
   cellCount := 2048
   batchSize := 8
+  if os.Getenv("PIR_CELL_LENGTH") != "" {
+    cellLength, _ = strconv.Atoi(os.Getenv("PIR_CELL_LENGTH"))
+  }
+  if os.Getenv("PIR_CELL_COUNT") != "" {
+    cellCount, _ = strconv.Atoi(os.Getenv("PIR_CELL_COUNT"))
+  }
+  if os.Getenv("PIR_BATCH_SIZE") != "" {
+    batchSize, _ = strconv.Atoi(os.Getenv("PIR_BATCH_SIZE"))
+  }
 
   sockName := getSocket()
   status := make(chan int)
@@ -102,7 +112,9 @@ func BenchmarkPir(b *testing.B) {
   pirServer.SetDB(db)
 
   masks := make([]byte, cellCount * batchSize / 8)
-  masks[0] = 0x01
+  for i :=0; i < len(masks); i ++ {
+    masks[i] = byte(rand.Int())
+  }
 
   b.ResetTimer()
 
