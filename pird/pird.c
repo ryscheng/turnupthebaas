@@ -119,6 +119,7 @@ int main(int argc, char** argv)
 
 
     char next_command;
+    int readamount;
     int ret;
     int dbhndl;
     int configuration_params[3];
@@ -136,16 +137,24 @@ int main(int argc, char** argv)
           break;
         }
         if (next_command == '1') { //read
-          ret = read(client_sock, invector, cell_count * batch_size / 8);
-          if (ret == -1) {
-            printf("Failed to read configuration.\n");
-            break;
+          readamount = 0;
+          while (readamount < cell_count * batch_size / 8) {
+            ret = read(client_sock, invector, cell_count * batch_size / 8 - readamount);
+            if (ret == -1) {
+              printf("Failed to read configuration.\n");
+              break;
+            }
+            readamount += ret;
           }
           output = do_read(invector);
-          ret = write(client_sock, output, cell_length * batch_size);
-          if (ret == -1) {
-            printf("Failed to write response.\n");
-            break;
+          readamount = 0;
+          while (readamount < cell_length * batch_size) {
+            ret = write(client_sock, output, cell_length * batch_size - readamount);
+            if (ret == -1) {
+              printf("Failed to write response.\n");
+              break;
+            }
+            readamount += ret;
           }
         } else if (next_command == '2') { //configure
           ret = read(client_sock, configuration_params, 3*sizeof(int));
