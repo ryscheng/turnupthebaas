@@ -13,9 +13,9 @@ import (
 // Test insert same value twice
 
 func GetBytes(val string) []byte {
-	buf := bytes.NewBuffer(make([]byte, 64))
-	buf.WriteString(val)
-	return buf.Bytes()
+	buf := make([]byte, 64)
+	copy(buf, bytes.NewBufferString(val).Bytes())
+	return buf
 }
 
 func randBucket(numBuckets int) int {
