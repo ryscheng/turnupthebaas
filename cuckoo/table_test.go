@@ -1,10 +1,10 @@
 package cuckoo
 
 import (
+	"bytes"
 	"fmt"
 	"math/rand"
 	"strconv"
-	"strings"
 	"testing"
 )
 
@@ -12,17 +12,10 @@ import (
 // Test contains after insert/remove sequence
 // Test insert same value twice
 
-type Entry struct {
-	Bucket1 int
-	Bucket2 int
-	Data    Value
-}
-
-type Value string
-
-func (v Value) Compare(other Comparable) int {
-	otherStr := string(other.(Value))
-	return strings.Compare(string(v), otherStr)
+func GetBytes(val string) []byte {
+	buf := bytes.NewBuffer(make([]byte, 64))
+	buf.WriteString(val)
+	return buf.Bytes()
 }
 
 func randBucket(numBuckets int) int {
@@ -36,17 +29,17 @@ func randBucket(numBuckets int) int {
 func TestGetCapacity(t *testing.T) {
 	fmt.Printf("TestGetCapacity: ...\n")
 
-	table := NewTable("t", 10, 2, 0)
+	table := NewTable("t", 10, 2, 64, nil, 0)
 	if table.GetCapacity() != 20 {
 		t.Fatalf("table returned wrong value for GetCapacity=%v. Expecting 20\n")
 	}
 
-	table = NewTable("t", 1, 1, 0)
+	table = NewTable("t", 1, 1, 64, nil, 0)
 	if table.GetCapacity() != 1 {
 		t.Fatalf("table returned wrong value for GetCapacity=%v. Expecting 1\n")
 	}
 
-	table = NewTable("t", 0, 0, 0)
+	table = NewTable("t", 0, 0, 64, nil, 0)
 	if table.GetCapacity() != 0 {
 		t.Fatalf("table returned wrong value for GetCapacity=%v. Expecting 0\n")
 	}
@@ -55,7 +48,7 @@ func TestGetCapacity(t *testing.T) {
 }
 
 func TestBasic(t *testing.T) {
-	table := NewTable("t", 10, 2, 0)
+	table := NewTable("t", 10, 2, 64, nil, 0)
 
 	fmt.Printf("TestBasic: check empty...\n")
 	if table.GetNumElements() != 0 {
@@ -63,12 +56,12 @@ func TestBasic(t *testing.T) {
 	}
 
 	fmt.Printf("TestBasic: Check contains non-existent value...\n")
-	if table.Contains(0, 1, Value("")) == true {
+	if table.Contains(&Item{GetBytes(""), 0, 1}) == true {
 		t.Fatalf("empty table returned true for Contains()\n")
 	}
 
 	fmt.Printf("TestBasic: remove non-existent value ...\n")
-	if table.Remove(0, 1, Value("value1")) == true {
+	if table.Remove(&Item{GetBytes("value1"), 0, 1}) == true {
 		t.Fatalf("empty table returned true for Remove()\n")
 	}
 
@@ -78,18 +71,18 @@ func TestBasic(t *testing.T) {
 	}
 
 	fmt.Printf("TestBasic: Insert value ...\n")
-	eb1, eb2, v, ok := table.Insert(0, 1, Value("value1"))
-	if eb1 != -1 || eb2 != -1 || v != nil || ok != true {
+	ok, itm := table.Insert(&Item{GetBytes("value1"), 0, 1})
+	if itm != nil || ok != true {
 		t.Fatalf("error inserting into table (0, 1, value1)\n")
 	}
 
 	fmt.Printf("TestBasic: Check inserted value...\n")
-	if table.Contains(0, 1, Value("value1")) == false {
+	if table.Contains(&Item{GetBytes("value1"), 0, 1}) == false {
 		t.Fatalf("cannot find recently inserted value\n")
 	}
 
 	fmt.Printf("TestBasic: Check non-existent value...\n")
-	if table.Contains(0, 1, Value("value2")) == true {
+	if table.Contains(&Item{GetBytes("value2"), 0, 1}) == true {
 		t.Fatalf("contains a non-existent value\n")
 	}
 
@@ -99,7 +92,7 @@ func TestBasic(t *testing.T) {
 	}
 
 	fmt.Printf("TestBasic: remove existing value ...\n")
-	if table.Remove(0, 1, Value("value1")) == false {
+	if table.Remove(&Item{GetBytes("value1"), 0, 1}) == false {
 		t.Fatalf("error removing existing value (0, 1, value1)\n")
 	}
 
@@ -109,7 +102,7 @@ func TestBasic(t *testing.T) {
 	}
 
 	fmt.Printf("TestBasic: remove recently removed value ...\n")
-	if table.Remove(0, 1, Value("value1")) == true {
+	if table.Remove(&Item{GetBytes("value1"), 0, 1}) == true {
 		t.Fatalf("empty table returned true for Remove()\n")
 	}
 
@@ -122,24 +115,24 @@ func TestBasic(t *testing.T) {
 }
 
 func TestOutOfBounds(t *testing.T) {
-	table := NewTable("t", 10, 2, 0)
+	table := NewTable("t", 10, 2, 64, nil, 0)
 
 	fmt.Printf("TestOutOfBounds: Insert() out of bounds...\n")
-	eb1, eb2, v, ok := table.Insert(100, 100, Value("value1"))
+	ok, itm := table.Insert(&Item{GetBytes("value1"), 100, 100})
 	if ok == true {
 		t.Fatalf("Insert returned true with out of bound buckets\n")
 	}
-	if eb1 != -1 || eb2 != -1 || v != nil {
+	if itm != nil {
 		t.Fatalf("Insert returned wrong values\n")
 	}
 
 	fmt.Printf("TestOutOfBounds: Contains() out of bounds...\n")
-	if table.Contains(100, 100, Value("value1")) == true {
+	if table.Contains(&Item{GetBytes("value1"), 100, 100}) == true {
 		t.Fatalf("Contains returned true with out of bound buckets\n")
 	}
 
 	fmt.Printf("TestOutOfBounds: Remove() out of bounds...\n")
-	if table.Remove(100, 100, Value("value1")) == true {
+	if table.Remove(&Item{GetBytes("value1"), 100, 100}) == true {
 		t.Fatalf("Remove() returned true with out of bound buckets\n")
 	}
 
@@ -151,26 +144,25 @@ func TestFullTable(t *testing.T) {
 	depth := 4
 
 	capacity := numBuckets * depth
-	entries := make([]Entry, 0, capacity)
-	table := NewTable("t", numBuckets, depth, 0)
+	entries := make([]Item, 0, capacity)
+	table := NewTable("t", numBuckets, depth, 64, nil, 0)
 	ok := true
 	count := 0
-	var b1, b2, evictb1, evictb2 int
-	var evictVal Comparable
-	var val Value
+	var evic *Item
+	var b1, b2 int
 
 	// Insert random values until we've reached a limit
 	fmt.Printf("TestFullTable: Insert until reach capacity...\n")
 	for ok {
 		b1 = randBucket(numBuckets)
 		b2 = randBucket(numBuckets)
-		val = Value(strconv.Itoa(rand.Int()))
-		entries = append(entries, Entry{b1, b2, val})
-		evictb1, evictb2, evictVal, ok = table.Insert(b1, b2, val)
+		val := GetBytes(strconv.Itoa(rand.Int()))
+		entries = append(entries, Item{val, b1, b2})
+		ok, evic = table.Insert(&Item{val, b1, b2})
 
 		if ok {
 			count += 1
-			if table.Contains(b1, b2, val) == false {
+			if table.Contains(&Item{val, b1, b2}) == false {
 				t.Fatalf("Insert() succeeded, but Contains failed\n")
 			}
 			if count != table.GetNumElements() {
@@ -180,7 +172,7 @@ func TestFullTable(t *testing.T) {
 	}
 
 	// Middle count check
-	fmt.Printf("TestFullTable: Mid-count check...\n")
+	fmt.Printf("TestFullTable: Fully Loaded check...\n")
 	if count != table.GetNumElements() {
 		t.Fatalf("Number of successful Inserts(), %v, does not match GetNumElements(), %v \n", count, table.GetNumElements())
 	}
@@ -188,8 +180,8 @@ func TestFullTable(t *testing.T) {
 	// Remove elements one by one
 	fmt.Printf("TestFullTable: Remove each element...\n")
 	for _, entry := range entries {
-		if entry.Bucket1 != evictb1 || entry.Bucket2 != evictb2 || entry.Data.Compare(evictVal) != 0 {
-			ok = table.Remove(entry.Bucket1, entry.Bucket2, entry.Data)
+		if !entry.Equals(evic) {
+			ok = table.Remove(&entry)
 			if ok == false {
 				t.Fatalf("Cannot Remove() an element believed to be in the table")
 			} else {
@@ -212,32 +204,32 @@ func TestFullTable(t *testing.T) {
 
 func TestDuplicateValues(t *testing.T) {
 	fmt.Printf("TestDuplicateValues: ...\n")
-	table := NewTable("t", 10, 2, 0)
+	table := NewTable("t", 10, 2, 64, nil, 0)
 
-	eb1, eb2, ev, ok := table.Insert(0, 1, Value("v"))
-	if eb1 != -1 || eb2 != -1 || ev != nil || ok == false {
+	ok, itm := table.Insert(&Item{GetBytes("v"), 0, 1})
+	if itm != nil || ok == false {
 		t.Fatalf("Error inserting value \n")
 	}
 
-	eb1, eb2, ev, ok = table.Insert(0, 1, Value("v"))
-	if eb1 != -1 || eb2 != -1 || ev != nil || ok == false {
+	ok, itm = table.Insert(&Item{GetBytes("v"), 0, 1})
+	if itm != nil || ok == false {
 		t.Fatalf("Error inserting value again \n")
 	}
 
-	eb1, eb2, ev, ok = table.Insert(1, 2, Value("v"))
-	if eb1 != -1 || eb2 != -1 || ev != nil || ok == false {
+	ok, itm = table.Insert(&Item{GetBytes("v"), 1, 2})
+	if itm != nil || ok == false {
 		t.Fatalf("Error inserting value in shifted buckets\n")
 	}
 
-	if table.Remove(0, 1, Value("v")) == false {
+	if table.Remove(&Item{GetBytes("v"), 0, 1}) == false {
 		t.Fatalf("Error removing value 1st time\n")
 	}
 
-	if table.Remove(0, 1, Value("v")) == false {
+	if table.Remove(&Item{GetBytes("v"), 0, 1}) == false {
 		t.Fatalf("Error removing value 2nd time\n")
 	}
 
-	if table.Remove(1, 2, Value("v")) == false {
+	if table.Remove(&Item{GetBytes("v"), 1, 2}) == false {
 		t.Fatalf("Error removing value 3rd time\n")
 	}
 
@@ -248,16 +240,15 @@ func TestLoadFactor(t *testing.T) {
 	fmt.Printf("TestLoadFactor: ...\n")
 	numBuckets := 1000
 	var table *Table
-	var val Value
 
 	for depth := 1; depth < 32; depth *= 2 {
 		count := -1
 		ok := true
-		table = NewTable("t", numBuckets, depth, int64(depth))
+		table = NewTable("t", numBuckets, depth, 64, nil, int64(depth))
 		for ok {
 			count += 1
-			val = Value(strconv.Itoa(rand.Int()))
-			_, _, _, ok = table.Insert(randBucket(numBuckets), randBucket(numBuckets), val)
+			val := GetBytes(strconv.Itoa(rand.Int()))
+			ok, _ = table.Insert(&Item{val, randBucket(numBuckets), randBucket(numBuckets)})
 		}
 
 		if table.GetNumElements() != count {
