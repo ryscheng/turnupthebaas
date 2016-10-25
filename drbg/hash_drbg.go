@@ -14,18 +14,23 @@ type HashDrbg struct {
 	//ctr uint64
 }
 
-func NewHashDrbg(seed *Seed) *HashDrbg {
+func NewHashDrbg(seed *Seed) (*HashDrbg, error) {
 	d := &HashDrbg{}
 	if seed == nil {
-		d.seed, _ = NewSeed()
+		newSeed, seedErr := NewSeed()
+		if seedErr != nil {
+			return nil, seedErr
+		} else {
+			d.seed = newSeed
+		}
 	} else {
 		d.seed = seed
 	}
 	//d.ctr = 0
-	d.sip = siphash.New(seed.Key())
-	copy(d.ofb[:], seed.InitVec())
+	d.sip = siphash.New(d.seed.Key())
+	copy(d.ofb[:], d.seed.InitVec())
 
-	return d
+	return d, nil
 }
 
 // NextBlock returns the next 8 byte DRBG block.
