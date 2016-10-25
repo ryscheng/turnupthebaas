@@ -58,8 +58,11 @@ func (rm *RequestManager) isDead() bool {
 }
 
 func (rm *RequestManager) writePeriodic() {
-	seed, _ := drbg.NewSeed()
-	rand := drbg.NewHashDrbg(seed)
+	rand, randErr := drbg.NewHashDrbg(nil)
+	if randErr != nil {
+		rm.log.Fatalf("Error creating new HashDrbg: %v\n", randErr)
+	}
+
 	for rm.isDead() == false {
 		select {
 		case msg := <-rm.writeChan:
@@ -89,8 +92,11 @@ func (rm *RequestManager) writePeriodic() {
 }
 
 func (rm *RequestManager) readPeriodic() {
-	seed, _ := drbg.NewSeed()
-	rand := drbg.NewHashDrbg(seed)
+	rand, randErr := drbg.NewHashDrbg(nil)
+	if randErr != nil {
+		rm.log.Fatalf("Error creating new HashDrbg: %v\n", randErr)
+	}
+
 	for rm.isDead() == false {
 		select {
 		case msg := <-rm.readChan:
@@ -136,7 +142,10 @@ func (rm *RequestManager) generateRandomRead(globalConfig common.GlobalConfig, r
 	for i := 0; i < numTds; i++ {
 		args.ForTd[i].RequestVector = make([]byte, numBytes, numBytes)
 		rand.FillBytes(args.ForTd[i].RequestVector)
-		seed, _ := drbg.NewSeed()
+		seed, seedErr := drbg.NewSeed()
+		if seedErr != nil {
+			rm.log.Fatalf("Error creating new Seed: %v\n", seedErr)
+		}
 		args.ForTd[i].PadSeed = seed.Export()
 	}
 	//args.RequestVector = make([]byte, numBytes, numBytes)

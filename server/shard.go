@@ -2,7 +2,7 @@ package server
 
 import (
 	"github.com/ryscheng/pdb/common"
-	"github.com/ryscheng/pdb/cuckoo"
+	//	"github.com/ryscheng/pdb/cuckoo"
 	"log"
 	"os"
 	"sync/atomic"
@@ -89,8 +89,8 @@ func (s *Shard) processWrite(req *common.WriteArgs) {
 
 func (s *Shard) batchRead(req *BatchReadRequest) {
 	// @todo --- garbage collection
-	globalConfig := s.globalConfig.Load().(common.GlobalConfig)
-	table := cuckoo.NewTable(s.name, globalConfig.NumBuckets, globalConfig.BucketDepth, req.Args.RandSeed)
+	//globalConfig := s.globalConfig.Load().(common.GlobalConfig)
+	//table := cuckoo.NewTable(s.name, globalConfig.NumBuckets, globalConfig.BucketDepth, req.Args.RandSeed)
 
 	// build a database
 	//for len(s.ReadBatch) > 0 {
