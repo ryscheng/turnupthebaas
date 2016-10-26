@@ -5,7 +5,7 @@ import (
 )
 
 type GlobalConfig struct {
-	NumBuckets    int
+	NumBuckets    uint64
 	BucketDepth   int
 	WindowSize    int
 	DataSize      int // Number of bytes

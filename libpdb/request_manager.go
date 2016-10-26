@@ -126,8 +126,8 @@ func (rm *RequestManager) readPeriodic() {
 }
 
 func (rm *RequestManager) generateRandomWrite(globalConfig common.GlobalConfig, rand *drbg.HashDrbg, args *common.WriteArgs) {
-	args.Bucket1 = rand.RandomUint32() % uint32(globalConfig.NumBuckets)
-	args.Bucket2 = rand.RandomUint32() % uint32(globalConfig.NumBuckets)
+	args.Bucket1 = rand.RandomUint64() % globalConfig.NumBuckets
+	args.Bucket2 = rand.RandomUint64() % globalConfig.NumBuckets
 	args.Data = make([]byte, globalConfig.DataSize, globalConfig.DataSize)
 	rand.FillBytes(args.Data)
 }

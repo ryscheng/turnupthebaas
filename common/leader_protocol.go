@@ -16,8 +16,8 @@ type PingReply struct {
 }
 
 type WriteArgs struct {
-	Bucket1        uint32
-	Bucket2        uint32
+	Bucket1        uint64
+	Bucket2        uint64
 	Data           []byte
 	InterestVector []byte
 	//Internal

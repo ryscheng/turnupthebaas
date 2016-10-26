@@ -2,6 +2,7 @@ package drbg
 
 import (
 	"crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"github.com/dchest/siphash"
 )
@@ -42,6 +43,12 @@ func (s *Seed) Export() []byte {
 
 func (s *Seed) Key() []byte {
 	return s.value[:16]
+}
+
+func (s *Seed) KeyUint128() (uint64, uint64) {
+	s1, _ := binary.Uvarint(s.value[0:8])
+	s2, _ := binary.Uvarint(s.value[8:16])
+	return s1, s2
 }
 
 func (s *Seed) InitVec() []byte {
