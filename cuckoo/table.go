@@ -153,14 +153,17 @@ func (t *Table) Insert(item *Item) (bool, *Item) {
 	// Then try the other bucket, starting the eviction loop
 	for i := 0; i < MAX_EVICTIONS; i++ {
 		ok, item := t.insertAndEvict(nextBucket, item)
-		if ok {
+		if !ok {
+			t.log.Fatalf("Lost item. Evicted, but was unable to add.")
+			return false, item
+		} else if item == nil {
 			return true, nil
 		} else if item.Bucket1 == nextBucket {
 			nextBucket = item.Bucket2
 		} else {
 			nextBucket = item.Bucket1
 		}
-		}
+	}
 
 	//t.log.Printf("Insert: MAX %v evictions\n", MAX_EVICTIONS)
 	return false, item
@@ -205,7 +208,8 @@ func (t *Table) isInBucket(bucketIndex int, item *Item) bool {
 		if t.index[idx].filled &&
 			t.index[idx].bucket1 == item.Bucket1 &&
 			t.index[idx].bucket2 == item.Bucket2 &&
-		 	bytes.Equal(item.Data, t.data[idx * t.itemSize : (idx + 1) * t.itemSize]) {
+			bytes.Equal(item.Data, t.data[idx * t.itemSize : (idx + 1) * t.itemSize]) {
+
 			return true
 		}
 	}
