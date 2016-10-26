@@ -1,11 +1,14 @@
 package libpdb
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha1"
 	"encoding/binary"
 	"github.com/ryscheng/pdb/drbg"
 	"golang.org/x/crypto/pbkdf2"
+	"io"
 )
 
 type TopicHandle struct {
@@ -56,4 +59,51 @@ func NewTopicHandle(password string) (*TopicHandle, error) {
 	t.EncrKey = pbkdf2.Key([]byte(password), t.salt, t.iterations, t.keyLen, sha1.New)
 
 	return t, nil
+}
+
+//@todo - can we use seqNo as the nonce?
+func (t *TopicHandle) Encrypt(plaintext []byte) ([]byte, []byte, error) {
+	// The key argument should be the AES key, either 16 or 32 bytes
+	// to select AES-128 or AES-256.
+	block, err := aes.NewCipher(t.EncrKey)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Never use more than 2^32 random nonces with a given key because of the risk of a repeat.
+	nonce := make([]byte, 12)
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return nil, nil, err
+	}
+
+	aesgcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ciphertext := aesgcm.Seal(nil, nonce, plaintext, nil)
+	//fmt.Printf("%x\n", ciphertext)
+	return ciphertext, nonce, nil
+}
+
+func (t *TopicHandle) Decrypt(ciphertext []byte, nonce []byte) ([]byte, error) {
+	// The key argument should be the AES key, either 16 or 32 bytes
+	// to select AES-128 or AES-256.
+	block, err := aes.NewCipher(t.EncrKey)
+	if err != nil {
+		return nil, err
+	}
+
+	aesgcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+
+	plaintext, err := aesgcm.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	//fmt.Printf("%s\n", string(plaintext))
+	return plaintext, nil
 }
