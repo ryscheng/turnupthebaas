@@ -7,6 +7,7 @@ import (
 	"crypto/sha1"
 	"encoding/binary"
 	"github.com/dchest/siphash"
+	"github.com/ryscheng/pdb/bloom"
 	"github.com/ryscheng/pdb/common"
 	"github.com/ryscheng/pdb/drbg"
 	"golang.org/x/crypto/pbkdf2"
@@ -62,24 +63,35 @@ func NewTopicHandle(password string) (*TopicHandle, error) {
 	return t, nil
 }
 
-func (t *TopicHandle) Publish(seqNo uint64, message []byte, numBuckets uint64) (*common.WriteArgs, error) {
+func (t *TopicHandle) Publish(globalConfig *common.GlobalConfig, seqNo uint64, message []byte) (*common.WriteArgs, error) {
 	args := &common.WriteArgs{}
-
 	seqNoBytes := make([]byte, 12)
 	_ = binary.PutUvarint(seqNoBytes, seqNo)
+
+	k0, k1 := t.Seed1.KeyUint128()
+	args.Bucket1 = siphash.Hash(k0, k1, seqNoBytes) % globalConfig.NumBuckets
+
+	k0, k1 = t.Seed2.KeyUint128()
+	args.Bucket2 = siphash.Hash(k0, k1, seqNoBytes) % globalConfig.NumBuckets
+
 	ciphertext, err := t.Encrypt(message, seqNoBytes)
 	if err != nil {
 		return nil, err
 	}
-
-	k0, k1 := t.Seed1.KeyUint128()
-	args.Bucket1 = siphash.Hash(k0, k1, seqNoBytes) % numBuckets
-
-	k0, k1 = t.Seed2.KeyUint128()
-	args.Bucket2 = siphash.Hash(k0, k1, seqNoBytes) % numBuckets
 	args.Data = ciphertext
-	//args.InterestVector =
+
+	bloomFilter := bloom.NewWithEstimates(uint(globalConfig.WindowSize), globalConfig.BloomFalsePositive)
+	idBytes := make([]byte, 8, 20)
+	_ = binary.PutUvarint(idBytes, t.Id)
+	idBytes = append(idBytes, seqNoBytes...)
+	bloomFilter.Add(idBytes)
+	args.InterestVector, _ = bloomFilter.GobEncode()
+
 	return args, nil
+}
+
+func (t *TopicHandle) Poll(globalConfig *common.GlobalConfig, seqNo uint64) (*common.ReadArgs, error) {
+	return nil, nil
 }
 
 //@todo - can we use seqNo as the nonce?
