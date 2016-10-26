@@ -117,10 +117,20 @@ func BenchmarkEncryptDecrypt(b *testing.B) {
 	}
 }
 
-func BenchmarkPublish(b *testing.B) {
+func BenchmarkPublishN10K(b *testing.B) {
+	HelperBenchmarkPublish(b, 10000)
+}
+func BenchmarkPublishN100K(b *testing.B) {
+	HelperBenchmarkPublish(b, 100000)
+}
+func BenchmarkPublishN1M(b *testing.B) {
+	HelperBenchmarkPublish(b, 1000000)
+}
+
+func HelperBenchmarkPublish(b *testing.B, WindowSize int) {
 	globalConfig := &common.GlobalConfig{}
 	globalConfig.NumBuckets = 100
-	globalConfig.WindowSize = 1000000
+	globalConfig.WindowSize = WindowSize
 	globalConfig.DataSize = 1024
 	globalConfig.BloomFalsePositive = 0.0001
 	plaintext := make([]byte, globalConfig.DataSize, globalConfig.DataSize)

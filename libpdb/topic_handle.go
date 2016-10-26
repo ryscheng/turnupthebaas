@@ -80,12 +80,13 @@ func (t *TopicHandle) Publish(globalConfig *common.GlobalConfig, seqNo uint64, m
 	}
 	args.Data = ciphertext
 
+	// @todo - just send the k bit locations
 	bloomFilter := bloom.NewWithEstimates(uint(globalConfig.WindowSize), globalConfig.BloomFalsePositive)
 	idBytes := make([]byte, 8, 20)
 	_ = binary.PutUvarint(idBytes, t.Id)
 	idBytes = append(idBytes, seqNoBytes...)
 	bloomFilter.Add(idBytes)
-	args.InterestVector, _ = bloomFilter.GobEncode()
+	//args.InterestVector, _ = bloomFilter.GobEncode()
 
 	return args, nil
 }
