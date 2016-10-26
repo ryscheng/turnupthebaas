@@ -10,10 +10,10 @@ import (
 )
 
 func TestEncryptDecrypt(t *testing.T) {
+	fmt.Printf("TestEncryptDecrypt:\n")
 	password := ""
 	plaintext := "Hello world"
 	nonce := []byte("012345678901")
-	fmt.Printf("TestEncryptDecrypt\n")
 	th, err := NewTopicHandle(password)
 	if err != nil {
 		t.Fatalf("Error creating topic handle: %v\n", err)
@@ -31,6 +31,34 @@ func TestEncryptDecrypt(t *testing.T) {
 	}
 
 	//fmt.Printf("%v", string(result))
+	fmt.Printf("... done \n")
+}
+
+func TestPublish(t *testing.T) {
+	fmt.Printf("TestPublish:\n")
+	globalConfig := &common.GlobalConfig{}
+	globalConfig.NumBuckets = 100
+	globalConfig.WindowSize = 10000
+	globalConfig.DataSize = 1024
+	globalConfig.BloomFalsePositive = 0.1
+	//globalConfig.BloomFalsePositive = 0.0001
+	plaintext := make([]byte, globalConfig.DataSize, globalConfig.DataSize)
+	_, err := rand.Read(plaintext)
+	if err != nil {
+		t.Fatalf("Error creating plaintext: %v\n", err)
+	}
+	password := ""
+	th, err := NewTopicHandle(password)
+	if err != nil {
+		t.Fatalf("Error creating topic handle: %v\n", err)
+	}
+	args, err := th.Publish(globalConfig, 1, plaintext)
+	if err != nil {
+		t.Fatalf("Error creating WriteArgs: %v\n", err)
+	}
+
+	fmt.Printf("len(args.Bucket1)=8; len(args.Bucket2)=8; len(args.Data)=%v; len(args.InterestVector)=%v\n", len(args.Data), len(args.InterestVector))
+
 	fmt.Printf("... done \n")
 }
 
@@ -93,8 +121,9 @@ func BenchmarkPublish(b *testing.B) {
 	globalConfig := &common.GlobalConfig{}
 	globalConfig.NumBuckets = 100
 	globalConfig.WindowSize = 1000000
+	globalConfig.DataSize = 1024
 	globalConfig.BloomFalsePositive = 0.0001
-	plaintext := make([]byte, 1024, 1024)
+	plaintext := make([]byte, globalConfig.DataSize, globalConfig.DataSize)
 	_, err := rand.Read(plaintext)
 	if err != nil {
 		b.Fatalf("Error creating plaintext: %v\n", err)

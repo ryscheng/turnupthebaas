@@ -323,7 +323,8 @@ func BenchmarkEstimated(b *testing.B) {
 }
 
 func BenchmarkSeparateTestAndAdd(b *testing.B) {
-	f := NewWithEstimates(uint(b.N), 0.0001)
+	//f := NewWithEstimates(uint(b.N), 0.0001)
+	f := NewWithEstimates(uint(1000000), 0.0001)
 	key := make([]byte, 100)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
