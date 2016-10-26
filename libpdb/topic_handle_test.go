@@ -1,6 +1,7 @@
 package libpdb
 
 import (
+	"crypto/rand"
 	"fmt"
 	"strconv"
 	"strings"
@@ -39,13 +40,19 @@ func BenchmarkNewTopicHandle(b *testing.B) {
 
 func BenchmarkEncrypt(b *testing.B) {
 	password := ""
+	plaintext := make([]byte, 1024, 1024)
+	_, err := rand.Read(plaintext)
+	if err != nil {
+		b.Fatalf("Error creating plaintext: %v\n", err)
+	}
 	th, err := NewTopicHandle(password)
 	if err != nil {
 		b.Fatalf("Error creating topic handle: %v\n", err)
 	}
+	// Start timing
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _, err = th.Encrypt([]byte(strconv.Itoa(i)))
+		_, _, err = th.Encrypt(plaintext)
 		if err != nil {
 			b.Fatalf("Error encrypting %v: %v\n", i, err)
 		}
@@ -54,15 +61,21 @@ func BenchmarkEncrypt(b *testing.B) {
 
 func BenchmarkEncryptDecrypt(b *testing.B) {
 	password := ""
+	plaintext := make([]byte, 1024, 1024)
+	_, err := rand.Read(plaintext)
+	if err != nil {
+		b.Fatalf("Error creating plaintext: %v\n", err)
+	}
 	th, err := NewTopicHandle(password)
 	var ciphertext []byte
 	var nonce []byte
 	if err != nil {
 		b.Fatalf("Error creating topic handle: %v\n", err)
 	}
+	// Start timing
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ciphertext, nonce, err = th.Encrypt([]byte(strconv.Itoa(i)))
+		ciphertext, nonce, err = th.Encrypt(plaintext)
 		if err != nil {
 			b.Fatalf("Error encrypting %v: %v\n", i, err)
 		}
