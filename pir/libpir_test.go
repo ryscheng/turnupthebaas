@@ -7,127 +7,127 @@ import "strconv"
 import "testing"
 
 func getSocket() string {
-  if os.Getenv("PIR_SOCKET") != "" {
-    fmt.Printf("Testing against running pird at %s.\n", os.Getenv("PIR_SOCKET"))
-    return os.Getenv("PIR_SOCKET")
-  }
-  return fmt.Sprintf("pirtest%d.socket", rand.Int())
+	if os.Getenv("PIR_SOCKET") != "" {
+		fmt.Printf("Testing against running pird at %s.\n", os.Getenv("PIR_SOCKET"))
+		return os.Getenv("PIR_SOCKET")
+	}
+	return fmt.Sprintf("pirtest%d.socket", rand.Int())
 }
 
 func TestConnnect(t *testing.T) {
-  sockName := getSocket()
-  status := make(chan int)
+	sockName := getSocket()
+	status := make(chan int)
 	go CreateMockServer(status, sockName)
-  <- status
+	<-status
 
 	pirServer, err := Connect(sockName)
 	if err != nil {
 		t.Error(err)
-    return
+		return
 	}
 
-  pirServer.Disconnect()
+	pirServer.Disconnect()
 
-  status <- 1
+	status <- 1
 }
 
 func TestPir(t *testing.T) {
-  sockName := getSocket()
-  status := make(chan int)
+	sockName := getSocket()
+	status := make(chan int)
 	go CreateMockServer(status, sockName)
-  <- status
+	<-status
 
 	pirServer, err := Connect(sockName)
 	if err != nil {
 		t.Error(err)
-    return
+		return
 	}
 
-  pirServer.Configure(512, 512, 8)
-  db, err := pirServer.GetDB()
-  if err != nil {
-    t.Error(err)
-    return
-  }
-  for x := range db.DB {
-    db.DB[x] = byte(x)
-  }
+	pirServer.Configure(512, 512, 8)
+	db, err := pirServer.GetDB()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	for x := range db.DB {
+		db.DB[x] = byte(x)
+	}
 
-  pirServer.SetDB(db)
+	pirServer.SetDB(db)
 
-  masks := make([]byte, 512)
-  masks[0] = 0x01
+	masks := make([]byte, 512)
+	masks[0] = 0x01
 
-  response, err := pirServer.Read(masks)
+	response, err := pirServer.Read(masks)
 
-  if err != nil || response == nil {
-    t.Error(err)
-    return
-  }
+	if err != nil || response == nil {
+		t.Error(err)
+		return
+	}
 
-  if response[1] != byte(1) {
-    t.Error(fmt.Sprintf("Response is incorrect. byte 1 was %d, not '1'.", response[1]))
-  }
+	if response[1] != byte(1) {
+		t.Error(fmt.Sprintf("Response is incorrect. byte 1 was %d, not '1'.", response[1]))
+	}
 
-  pirServer.Disconnect()
+	pirServer.Disconnect()
 
-  status <- 1
+	status <- 1
 }
 
 func BenchmarkPir(b *testing.B) {
-  cellLength := 1024
-  cellCount := 2048
-  batchSize := 8
-  if os.Getenv("PIR_CELL_LENGTH") != "" {
-    cellLength, _ = strconv.Atoi(os.Getenv("PIR_CELL_LENGTH"))
-  }
-  if os.Getenv("PIR_CELL_COUNT") != "" {
-    cellCount, _ = strconv.Atoi(os.Getenv("PIR_CELL_COUNT"))
-  }
-  if os.Getenv("PIR_BATCH_SIZE") != "" {
-    batchSize, _ = strconv.Atoi(os.Getenv("PIR_BATCH_SIZE"))
-  }
+	cellLength := 1024
+	cellCount := 2048
+	batchSize := 8
+	if os.Getenv("PIR_CELL_LENGTH") != "" {
+		cellLength, _ = strconv.Atoi(os.Getenv("PIR_CELL_LENGTH"))
+	}
+	if os.Getenv("PIR_CELL_COUNT") != "" {
+		cellCount, _ = strconv.Atoi(os.Getenv("PIR_CELL_COUNT"))
+	}
+	if os.Getenv("PIR_BATCH_SIZE") != "" {
+		batchSize, _ = strconv.Atoi(os.Getenv("PIR_BATCH_SIZE"))
+	}
 
-  sockName := getSocket()
-  status := make(chan int)
+	sockName := getSocket()
+	status := make(chan int)
 	go CreateMockServer(status, sockName)
-  <- status
+	<-status
 
 	pirServer, err := Connect(sockName)
 	if err != nil {
 		b.Error(err)
-    return
+		return
 	}
 
-  pirServer.Configure(cellLength, cellCount, batchSize)
-  db, err := pirServer.GetDB()
-  if err != nil {
-    b.Error(err)
-    return
-  }
-  for x := range db.DB {
-    db.DB[x] = byte(x)
-  }
+	pirServer.Configure(cellLength, cellCount, batchSize)
+	db, err := pirServer.GetDB()
+	if err != nil {
+		b.Error(err)
+		return
+	}
+	for x := range db.DB {
+		db.DB[x] = byte(x)
+	}
 
-  pirServer.SetDB(db)
+	pirServer.SetDB(db)
 
-  masks := make([]byte, cellCount * batchSize / 8)
-  for i :=0; i < len(masks); i ++ {
-    masks[i] = byte(rand.Int())
-  }
+	masks := make([]byte, cellCount*batchSize/8)
+	for i := 0; i < len(masks); i++ {
+		masks[i] = byte(rand.Int())
+	}
 
-  b.ResetTimer()
+	b.ResetTimer()
 
-  for i := 0; i < b.N; i++ {
-    response, err := pirServer.Read(masks)
+	for i := 0; i < b.N; i++ {
+		response, err := pirServer.Read(masks)
 
-    if err != nil || response == nil {
-      b.Error(err)
-    }
-    b.SetBytes(int64(len(response)))
-  }
+		if err != nil || response == nil {
+			b.Error(err)
+		}
+		b.SetBytes(int64(len(response)))
+	}
 
-  pirServer.Disconnect()
+	pirServer.Disconnect()
 
-  status <- 1
+	status <- 1
 }

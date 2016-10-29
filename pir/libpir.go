@@ -63,9 +63,9 @@ func (s *PirServer) Configure(celllength int, cellcount int, batchsize int) erro
 
 func (s *PirServer) GetDB() (*PirDB, error) {
 	db := new(PirDB)
-	shmid, err := xusyscall.Shmget(0, s.CellLength * s.CellCount, xusyscall.IPC_CREAT|xusyscall.IPC_EXCL|0777)
+	shmid, err := xusyscall.Shmget(0, s.CellLength*s.CellCount, xusyscall.IPC_CREAT|xusyscall.IPC_EXCL|0777)
 	if err != nil {
-			return nil, err
+		return nil, err
 	}
 	db.shmid = shmid
 	db.DB, err = xusyscall.Shmat(db.shmid, false)

@@ -19,7 +19,7 @@ func CreateMockServer(status chan int, socket string) error {
 	sock, err := net.Listen("unix", socket)
 	if err != nil {
 		status <- -1
-		<- status
+		<-status
 		return err
 	}
 	fmt.Printf("No running PIR Daemon found. Using unoptimized Golang mock daemon.\n")
@@ -40,7 +40,7 @@ func CreateMockServer(status chan int, socket string) error {
 }
 
 func quitWatchdog(channel chan int, listener *net.Listener, active []net.Conn) {
-	<- channel
+	<-channel
 	(*listener).Close()
 	if active[0] != nil {
 		active[0].Close()
@@ -54,6 +54,8 @@ func handle(conn net.Conn) {
 	CellCount := int(1024)
 	BatchSize := int(8)
 
+	var masks []byte
+
 	// handle connection.
 	for {
 		// read first byte
@@ -64,7 +66,6 @@ func handle(conn net.Conn) {
 		if cmd[0] == "1"[0] {
 			// read.
 			// read mask
-			masks := make([]byte, CellCount*BatchSize/8)
 			if len, err := conn.Read(masks); len < CellLength*BatchSize/8 || err != nil {
 				break
 			}
@@ -100,6 +101,9 @@ func handle(conn net.Conn) {
 			CellLength = int(binary.LittleEndian.Uint32(cfgs[0:4]))
 			CellCount = int(binary.LittleEndian.Uint32(cfgs[4:8]))
 			BatchSize = int(binary.LittleEndian.Uint32(cfgs[8:12]))
+
+			// generate buffers.
+			masks = make([]byte, CellCount*BatchSize/8)
 		} else if cmd[0] == "3"[0] {
 			// write.
 
