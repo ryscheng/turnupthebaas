@@ -130,7 +130,7 @@ func (c *Centralized) BatchRead(args *common.BatchReadArgs, reply *common.BatchR
 	myReply := <-myReplyChan
 	if c.follower != nil {
 		for i, _ := range myReply.Replies {
-			myReply.Replies[i].Combine(fReply.Replies[i].Data)
+			_ = myReply.Replies[i].Combine(fReply.Replies[i].Data)
 		}
 	}
 

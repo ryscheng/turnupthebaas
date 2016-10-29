@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"github.com/ryscheng/pdb/common"
 	"github.com/ryscheng/pdb/cuckoo"
 	"github.com/ryscheng/pdb/pir"
@@ -9,7 +10,7 @@ import (
 	"sync/atomic"
 )
 
-const maxWriteBuffer int = 1024;
+const maxWriteBuffer int = 1024
 
 /**
  * Handles a shard of the data
@@ -18,11 +19,11 @@ const maxWriteBuffer int = 1024;
  */
 type Shard struct {
 	// Private State
-	log          *log.Logger
-	name         string
-	WriteLog     map[uint64]*common.WriteArgs
+	log           *log.Logger
+	name          string
+	WriteLog      map[uint64]*common.WriteArgs
 	pendingWrites []uint64
-	globalConfig atomic.Value //common.GlobalConfig
+	globalConfig  atomic.Value //common.GlobalConfig
 	pir.PirServer
 	pir.PirDB
 	cuckoo.Table
@@ -42,19 +43,19 @@ func NewShard(name string, globalConfig common.GlobalConfig) *Shard {
 	s.BatchReadChan = make(chan *BatchReadRequest)
 
 	// TODO: per-server config of where the local PIR socket is.
-	s.PirServer, err := pir.Connect("pir.socket")
+	s.PirServer, err = pir.Connect("pir.socket")
 	if err != nil {
 		s.log.Fatalf("Could not connect to pir back end: %v", err)
 		return nil
 	}
-	err = s.PirServer.Configure(globalConfig.DataSize * globalConfig.BucketDepth, globalConfig.NumBuckets, globalConfig.ReadBatch)
-	if err !+ nil {
-		s.log.Fatalf("Could not start PIR back end with correct parameters: %v", err);
+	err = s.PirServer.Configure(globalConfig.DataSize*globalConfig.BucketDepth, globalConfig.NumBuckets, globalConfig.ReadBatch)
+	if err != nil {
+		s.log.Fatalf("Could not start PIR back end with correct parameters: %v", err)
 		return nil
 	}
 	s.PirDB, err = s.PirServer.GetDB()
 	if err != nil {
-		s.log.Fatalf("Could not allocate memory for inital server database: %v", err);
+		s.log.Fatalf("Could not allocate memory for inital server database: %v", err)
 		return nil
 	}
 
@@ -118,7 +119,6 @@ func (s *Shard) processWrite(req *common.WriteArgs) {
 	//s.log.Printf("%v\n", s.WriteLog)
 	append(s.pendingWrites, req.GlobalSeqNo)
 
-
 	// Trigger to swap to next DB.
 	if len(s.pendingWrites) == maxWriteBuffer {
 		conf := s.globalConfig.Load().(common.GlobalConfig)
@@ -135,7 +135,7 @@ func (s *Shard) processWrite(req *common.WriteArgs) {
 		// TODO: does table start from previous snapshto, or does it explicitly insert the full log of
 		// writes on each snapshot?
 		// TODO: how would old items fall out of table?
-		for i := 0; i < len(s.pendingWrites); i ++ {
+		for i := 0; i < len(s.pendingWrites); i++ {
 			table.Insert(s.WriteLog[s.pendingWrites[i]].asCuckooItem())
 		}
 
@@ -154,16 +154,33 @@ func (s *Shard) processWrite(req *common.WriteArgs) {
 
 func (s *Shard) batchRead(req *BatchReadRequest) {
 	// @todo --- garbage collection
-	//globalConfig := s.globalConfig.Load().(common.GlobalConfig)
-	//table := cuckoo.NewTable(s.name, globalConfig.NumBuckets, globalConfig.BucketDepth, req.Args.RandSeed)
+	conf := s.globalConfig.Load().(common.GlobalConfig)
+	reply := new(common.BatchReadReply)
+	reply.Replies = make(common.ReadReply, 0, len(req.Args.Args))
 
-	// build a database
-	//for len(s.ReadBatch) > 0 {
-	// Take batch size and PIR it
+	// Run PIR
+	pirvector := make([]byte, conf.NumBuckets/8*conf.ReadBatch)
+	for batch := 0; batch < len(req.Args.Args); batch += conf.ReadBatch {
+		for i := 0; i < conf.ReadBatch; i += 1 {
+			offset := batch*conf.ReadBatch + i
+			copy(pirvector[conf.NumBuckets/8*i:], req.Args.Args[offset].RequestVector)
+		}
+		responses, err := s.PirServer.Read(pirvector)
+		if err != nil {
+			s.log.Fatalf("Reading from PIR Server failed: %v", err)
+			req.Reply(&common.BatchReadReply{fmt.Sprintf("Failed to read: %v", err)})
+			return
+		}
 
-	//}
-
-	// Run PIR over database
+		replies := make([]common.ReadReply, conf.ReadBatch)
+		responseSize := conf.BucketDepth * conf.DataSize
+		for i := 0; i < conf.ReadBatch; i += 1 {
+			offset := i * conf.BucketDepth * conf.DataSize
+			replies[i].Data = responses[i*responseSize : (i+1)*responseSize]
+		}
+		append(reply.Replies, replies...)
+	}
 
 	// Return results
+	req.Reply(reply)
 }

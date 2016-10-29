@@ -42,16 +42,15 @@ type ReadReply struct {
 	Data []byte
 }
 
-func (r *ReadReply) Combine(other []byte) {
+func (r *ReadReply) Combine(other []byte) error {
 	var length int
-	if len(r.Data) < len(other) {
-		length = len(r.Data)
-	} else {
-		length = len(other)
+	if len(r.Data) != len(other) {
+		return errors.New("Cannot combine responses of different length.")
 	}
-	for i := 0; i < length; i++ {
+	for i := 0; i < len(r.Data); i++ {
 		r.Data[i] = r.Data[i] ^ other[i]
 	}
+	return nil
 }
 
 type GetUpdatesArgs struct {
