@@ -1,5 +1,9 @@
 package common
 
+import (
+	"errors"
+)
+
 type Error string
 
 /*************
@@ -43,7 +47,6 @@ type ReadReply struct {
 }
 
 func (r *ReadReply) Combine(other []byte) error {
-	var length int
 	if len(r.Data) != len(other) {
 		return errors.New("Cannot combine responses of different length.")
 	}
