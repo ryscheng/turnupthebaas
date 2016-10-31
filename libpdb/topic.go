@@ -130,6 +130,21 @@ func (t *Topic) generatePoll(globalConfig *common.GlobalConfig, seqNo uint64) (*
 	return args[0], args[1], nil
 }
 
+func (t *Topic) retrieveResponse(args *common.ReadArgs, reply *common.ReadReply) []byte {
+	data := reply.Data
+
+	for i := 0; i < len(args.ForTd); i++ {
+		pad := make([]byte, len(data))
+		seed, _ := drbg.ImportSeed(args.ForTd[i].PadSeed)
+		hashDrbg, _ := drbg.NewHashDrbg(seed)
+		hashDrbg.FillBytes(pad)
+		for j := 0; j < len(data); j++ {
+			data[j] ^= pad[j]
+		}
+	}
+	return data
+}
+
 //@todo - can we use seqNo as the nonce?
 func (t *Topic) Encrypt(plaintext []byte, nonce []byte) ([]byte, error) {
 	// The key argument should be the AES key, either 16 or 32 bytes

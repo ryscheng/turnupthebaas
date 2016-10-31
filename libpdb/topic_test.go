@@ -198,3 +198,27 @@ func HelperBenchmarkGeneratePoll(b *testing.B, WindowSize uint64) {
 	}
 
 }
+
+func BenchmarkRetrieveResponse(b *testing.B) {
+	globalConfig := &common.GlobalConfig{}
+	globalConfig.TrustDomains = make([]*common.TrustDomainConfig, 3)
+	globalConfig.NumBuckets = 10
+
+	password := ""
+	th, err := NewTopic(password)
+	if err != nil {
+		b.Fatalf("Error creating topic handle: %v\n", err)
+	}
+	args, _, err := th.generatePoll(globalConfig, 1)
+	if err != nil {
+		b.Fatalf("Error creating ReadArgs: %v\n", err)
+	}
+	reply := &common.ReadReply{}
+	reply.Data = make([]byte, 1024)
+	// Start timing
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = th.retrieveResponse(args, reply)
+	}
+
+}
