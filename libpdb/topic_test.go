@@ -14,7 +14,7 @@ func TestEncryptDecrypt(t *testing.T) {
 	password := ""
 	plaintext := "Hello world"
 	nonce := []byte("012345678901")
-	th, err := NewTopicHandle(password)
+	th, err := NewTopic(password)
 	if err != nil {
 		t.Fatalf("Error creating topic handle: %v\n", err)
 	}
@@ -34,8 +34,8 @@ func TestEncryptDecrypt(t *testing.T) {
 	fmt.Printf("... done \n")
 }
 
-func TestPublish(t *testing.T) {
-	fmt.Printf("TestPublish:\n")
+func TestGeneratePublish(t *testing.T) {
+	fmt.Printf("TestGeneratePublish:\n")
 	globalConfig := &common.GlobalConfig{}
 	globalConfig.NumBuckets = 100
 	globalConfig.WindowSize = 10000
@@ -48,11 +48,11 @@ func TestPublish(t *testing.T) {
 		t.Fatalf("Error creating plaintext: %v\n", err)
 	}
 	password := ""
-	th, err := NewTopicHandle(password)
+	th, err := NewTopic(password)
 	if err != nil {
 		t.Fatalf("Error creating topic handle: %v\n", err)
 	}
-	args, err := th.Publish(globalConfig, 1, plaintext)
+	args, err := th.generatePublish(globalConfig, 1, plaintext)
 	if err != nil {
 		t.Fatalf("Error creating WriteArgs: %v\n", err)
 	}
@@ -62,9 +62,30 @@ func TestPublish(t *testing.T) {
 	fmt.Printf("... done \n")
 }
 
-func BenchmarkNewTopicHandle(b *testing.B) {
+func TestGeneratePoll(t *testing.T) {
+	fmt.Printf("TestGeneratePoll:\n")
+	globalConfig := &common.GlobalConfig{}
+	globalConfig.NumBuckets = 1000000
+	globalConfig.TrustDomains = make([]*common.TrustDomainConfig, 3)
+	//globalConfig.BloomFalsePositive = 0.0001
+	password := ""
+	th, err := NewTopic(password)
+	if err != nil {
+		t.Fatalf("Error creating topic handle: %v\n", err)
+	}
+	args0, _, err := th.generatePoll(globalConfig, 1)
+	if err != nil {
+		t.Fatalf("Error creating ReadArgs: %v\n", err)
+	}
+
+	fmt.Printf("len(args0)=%v; \n", 3*(len(args0.ForTd[0].RequestVector)+len(args0.ForTd[0].PadSeed)))
+
+	fmt.Printf("... done \n")
+}
+
+func BenchmarkNewTopic(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_, _ = NewTopicHandle(strconv.Itoa(i))
+		_, _ = NewTopic(strconv.Itoa(i))
 	}
 }
 
@@ -76,7 +97,7 @@ func BenchmarkEncrypt(b *testing.B) {
 		b.Fatalf("Error creating plaintext: %v\n", err)
 	}
 	nonce := []byte("012345678901")
-	th, err := NewTopicHandle(password)
+	th, err := NewTopic(password)
 	if err != nil {
 		b.Fatalf("Error creating topic handle: %v\n", err)
 	}
@@ -99,7 +120,7 @@ func BenchmarkEncryptDecrypt(b *testing.B) {
 		b.Fatalf("Error creating plaintext: %v\n", err)
 	}
 	nonce := []byte("012345678901")
-	th, err := NewTopicHandle(password)
+	th, err := NewTopic(password)
 	if err != nil {
 		b.Fatalf("Error creating topic handle: %v\n", err)
 	}
@@ -117,17 +138,17 @@ func BenchmarkEncryptDecrypt(b *testing.B) {
 	}
 }
 
-func BenchmarkPublishN10K(b *testing.B) {
-	HelperBenchmarkPublish(b, 10000)
+func BenchmarkGeneratePublishN10K(b *testing.B) {
+	HelperBenchmarkGeneratePublish(b, 10000)
 }
-func BenchmarkPublishN100K(b *testing.B) {
-	HelperBenchmarkPublish(b, 100000)
+func BenchmarkGeneratePublishN100K(b *testing.B) {
+	HelperBenchmarkGeneratePublish(b, 100000)
 }
-func BenchmarkPublishN1M(b *testing.B) {
-	HelperBenchmarkPublish(b, 1000000)
+func BenchmarkGeneratePublishN1M(b *testing.B) {
+	HelperBenchmarkGeneratePublish(b, 1000000)
 }
 
-func HelperBenchmarkPublish(b *testing.B, WindowSize int) {
+func HelperBenchmarkGeneratePublish(b *testing.B, WindowSize int) {
 	globalConfig := &common.GlobalConfig{}
 	globalConfig.NumBuckets = 100
 	globalConfig.WindowSize = WindowSize
@@ -139,13 +160,41 @@ func HelperBenchmarkPublish(b *testing.B, WindowSize int) {
 		b.Fatalf("Error creating plaintext: %v\n", err)
 	}
 	password := ""
-	th, err := NewTopicHandle(password)
+	th, err := NewTopic(password)
 	if err != nil {
 		b.Fatalf("Error creating topic handle: %v\n", err)
 	}
 	// Start timing
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = th.Publish(globalConfig, uint64(i), plaintext)
+		_, _ = th.generatePublish(globalConfig, uint64(i), plaintext)
 	}
+}
+
+func BenchmarkGeneratePollN10K(b *testing.B) {
+	HelperBenchmarkGeneratePoll(b, 10000)
+}
+func BenchmarkGeneratePollN100K(b *testing.B) {
+	HelperBenchmarkGeneratePoll(b, 100000)
+}
+func BenchmarkGeneratePollN1M(b *testing.B) {
+	HelperBenchmarkGeneratePoll(b, 1000000)
+}
+
+func HelperBenchmarkGeneratePoll(b *testing.B, WindowSize uint64) {
+	globalConfig := &common.GlobalConfig{}
+	globalConfig.TrustDomains = make([]*common.TrustDomainConfig, 3)
+	globalConfig.NumBuckets = WindowSize
+
+	password := ""
+	th, err := NewTopic(password)
+	if err != nil {
+		b.Fatalf("Error creating topic handle: %v\n", err)
+	}
+	// Start timing
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _, _ = th.generatePoll(globalConfig, uint64(i))
+	}
+
 }

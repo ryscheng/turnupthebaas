@@ -138,7 +138,7 @@ func (rm *RequestManager) generateRandomRead(globalConfig common.GlobalConfig, r
 	if (uint32(globalConfig.NumBuckets) % uint32(8)) > 0 {
 		numBytes = numBytes + 1
 	}
-	args.ForTd = make([]common.PIRArgs, numTds, numTds)
+	args.ForTd = make([]common.PirArgs, numTds, numTds)
 	for i := 0; i < numTds; i++ {
 		args.ForTd[i].RequestVector = make([]byte, numBytes, numBytes)
 		rand.FillBytes(args.ForTd[i].RequestVector)

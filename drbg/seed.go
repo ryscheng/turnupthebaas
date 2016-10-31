@@ -19,7 +19,7 @@ type Seed struct {
 func NewSeed() (*Seed, error) {
 	seed := &Seed{}
 
-	seed.value = make([]byte, 16+siphash.Size)
+	seed.value = make([]byte, SeedLength)
 	_, err := rand.Read(seed.value)
 	if err != nil {
 		return nil, err
@@ -30,7 +30,7 @@ func NewSeed() (*Seed, error) {
 
 func ImportSeed(b []byte) (*Seed, error) {
 	seed := &Seed{}
-	if len(b) < (16 + siphash.Size) {
+	if len(b) < SeedLength {
 		return nil, fmt.Errorf("Invalid DRBG seed. Too few bytes %v", len(b))
 	}
 	seed.value = b

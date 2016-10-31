@@ -52,18 +52,19 @@ func (c *Client) Ping() bool {
 	}
 }
 
-func (c *Client) CreateTopic() *TopicHandle {
-	handle := &TopicHandle{}
+func (c *Client) CreateTopic() (*Topic, error) {
+	password := ""
+	handle, err := NewTopic(password)
 	//@todo
-	return handle
+	return handle, err
 }
 
-func (c *Client) Publish(handle *TopicHandle, data []byte) bool {
+func (c *Client) Publish(data []byte) bool {
 	//@todo using EnqueueWrite
 	return true
 }
 
-func (c *Client) Subscribe(handle *TopicHandle) bool {
+func (c *Client) Subscribe(handle *Topic) bool {
 	//@todo using EnqueueRead
 	return true
 }
