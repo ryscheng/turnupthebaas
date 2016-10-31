@@ -25,8 +25,7 @@ type Shard struct {
 	pendingWrites []uint64
 	globalConfig  atomic.Value //common.GlobalConfig
 	pir.PirServer
-	pir.PirDB
-	cuckoo.Table
+
 	// Channels
 	WriteChan     chan *common.WriteArgs
 	BatchReadChan chan *BatchReadRequest
@@ -109,7 +108,7 @@ func (s *Shard) processRequests() {
 	}
 }
 
-func (wa *common.WriteArgs) asCuckooItem() cuckoo.Item {
+func asCuckooItem(wa *common.WriteArgs) cuckoo.Item {
 	return &cuckoo.Item{wa.Data, wa.Bucket1, wa.Bucket2}
 }
 
@@ -136,7 +135,7 @@ func (s *Shard) processWrite(req *common.WriteArgs) {
 		// writes on each snapshot?
 		// TODO: how would old items fall out of table?
 		for i := 0; i < len(s.pendingWrites); i++ {
-			table.Insert(s.WriteLog[s.pendingWrites[i]].asCuckooItem())
+			table.Insert(asCuckooItem(s.WriteLog[s.pendingWrites[i]]))
 		}
 
 		err = s.PirServer.SetDB(newDB)
