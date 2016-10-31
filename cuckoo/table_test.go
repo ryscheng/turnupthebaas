@@ -254,7 +254,7 @@ func TestLoadFactor(t *testing.T) {
 		if table.GetNumElements() != count {
 			t.Fatalf("Mismatch count=%v with GetNumElements()=%v \n", count, table.GetNumElements())
 		}
-		fmt.Printf("count=%v, capacity=%v, loadfactor=%v \n", count, table.GetCapacity(), (float64(count) / float64(table.GetCapacity())))
+		fmt.Printf("count=%v, depth=%v, capacity=%v, loadfactor=%v \n", count, depth, table.GetCapacity(), (float64(count) / float64(table.GetCapacity())))
 	}
 
 	fmt.Printf("... done\n")
