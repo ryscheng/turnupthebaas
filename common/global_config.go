@@ -9,6 +9,7 @@ type GlobalConfig struct {
 	BucketDepth        int
 	WindowSize         int
 	DataSize           int // Number of bytes
+	ReadBatch          int
 	BloomFalsePositive float64
 	WriteInterval      time.Duration
 	ReadInterval       time.Duration

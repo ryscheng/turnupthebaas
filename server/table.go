@@ -17,12 +17,12 @@ type Table struct {
 
 	server *pir.PirServer
 
-	activeDB      pir.PirDB
-	activeTable   cuckoo.Table
+	activeDB      *pir.PirDB
+	activeTable   *cuckoo.Table
 	activeEntries []cuckoo.Item
 
-	alternateDB      pir.PirDB
-	alternateTable   cuckoo.Table
+	alternateDB      *pir.PirDB
+	alternateTable   *cuckoo.Table
 	alternateEntries []cuckoo.Item
 
 	pendingWrites []cuckoo.Item
@@ -35,8 +35,8 @@ type Table struct {
 	loadFactorStep float32
 }
 
-func NewTable(server *pir.PirServer, log *log.Logger, depth int, maxLoadFactor float32, loadFactorStep float32) *Table {
-	table := make(Table)
+func NewTable(server *pir.PirServer, name string, log *log.Logger, depth int, maxLoadFactor float32, loadFactorStep float32) *Table {
+	table := &Table{}
 	table.log = log
 	table.numBuckets = server.CellCount
 	table.bucketDepth = depth
@@ -49,7 +49,8 @@ func NewTable(server *pir.PirServer, log *log.Logger, depth int, maxLoadFactor f
 		return nil
 	}
 	table.activeDB = activeDB
-	table.activeTable = cuckoo.NewTable(name, table.numBuckets, table.bucketDepth, server.CellLength/table.bucketDepth, table.activeDB.DB, randSeed)
+	//TODO: randseed. set from somewhere.
+	table.activeTable = cuckoo.NewTable(name+"-A", table.numBuckets, table.bucketDepth, server.CellLength/table.bucketDepth, table.activeDB.DB, 0)
 	table.activeEntries = make([]cuckoo.Item, 0, table.numBuckets*table.bucketDepth)
 
 	alternateDB, err := server.GetDB()
@@ -58,7 +59,7 @@ func NewTable(server *pir.PirServer, log *log.Logger, depth int, maxLoadFactor f
 		return nil
 	}
 	table.alternateDB = alternateDB
-	table.alternateTable = cuckoo.NewTable(name, table.numBuckets, table.bucketDepth, server.CellLength/table.bucketDepth, table.activeDB.DB, randSeed)
+	table.alternateTable = cuckoo.NewTable(name+"-B", table.numBuckets, table.bucketDepth, server.CellLength/table.bucketDepth, table.activeDB.DB, 0)
 	table.alternateEntries = make([]cuckoo.Item, 0, table.numBuckets*table.bucketDepth)
 
 	table.pendingWrites = make([]cuckoo.Item, 0, table.numBuckets*table.bucketDepth)
@@ -71,7 +72,7 @@ func (t *Table) Flop() error {
 	newAlternateTable := t.activeTable
 	newAlternateEntries := t.activeEntries
 
-	err := server.SetDB(t.alternateDB)
+	err := t.server.SetDB(t.alternateDB)
 	if err != nil {
 		return err
 	}
@@ -88,24 +89,23 @@ func (t *Table) Flop() error {
 	repend := t.pendingWrites
 	t.pendingWrites = make([]cuckoo.Item, 0, len(repend))
 	for item := range repend {
-		t.Write(item)
+		t.Write(&repend[item])
 	}
-	append(t.appliedWrites, t.pendingWrites...)
-	t.pendingWrites = t.repend[0:0]
+	t.pendingWrites = repend[0:0]
 	return nil
 }
 
 func (t *Table) Write(item *cuckoo.Item) error {
 	// Mark this item as one that needs to go in the active table when swapped out.
-	append(t.pendingWrites, item)
+	t.pendingWrites = append(t.pendingWrites, *item)
 
 	// Apply immediately to alternate table.
-	append(t.alternateEntries, item)
+	t.alternateEntries = append(t.alternateEntries, *item)
 	ok, evicted := t.alternateTable.Insert(item)
-	if !ok || len(t.alternateEntries) > int(t.numBuckets*t.bucketDepth*t.maxLoadFactor) {
-		toRemove := int(t.numBuckets * t.bucketDepth * t.loadFactorStep)
+	if !ok || len(t.alternateEntries) > int(float32(t.numBuckets*t.bucketDepth)*t.maxLoadFactor) {
+		toRemove := int(float32(t.numBuckets*t.bucketDepth) * t.loadFactorStep)
 		for i := 0; i < toRemove; i++ {
-			t.alternateTable.Remove(t.alternateEntries[i])
+			t.alternateTable.Remove(&t.alternateEntries[i])
 		}
 		t.alternateEntries = t.alternateEntries[toRemove:]
 		// Trigger eviction.
