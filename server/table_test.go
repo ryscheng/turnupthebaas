@@ -3,6 +3,7 @@ package server
 import (
 	"github.com/ryscheng/pdb/pir"
 	"log"
+	"os"
 )
 
 import "testing"
@@ -20,7 +21,7 @@ func TestTableSanity(t *testing.T) {
 
 	log := log.New(os.Stdout, "[testlog] ", log.Ldate|log.Ltime|log.Lshortfile)
 
-	table := NewTable(pirServer, log, 4, 0.75, 0.01)
+	table := NewTable(pirServer, "testtable", log, 4, 0.75, 0.01)
 
 	table.Close()
 	pirServer.Disconnect()
