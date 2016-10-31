@@ -172,13 +172,13 @@ func HelperBenchmarkGeneratePublish(b *testing.B, WindowSize int) {
 }
 
 func BenchmarkGeneratePollN10K(b *testing.B) {
-	HelperBenchmarkGeneratePoll(b, 10000)
+	HelperBenchmarkGeneratePoll(b, 10000/4)
 }
 func BenchmarkGeneratePollN100K(b *testing.B) {
-	HelperBenchmarkGeneratePoll(b, 100000)
+	HelperBenchmarkGeneratePoll(b, 100000/4)
 }
 func BenchmarkGeneratePollN1M(b *testing.B) {
-	HelperBenchmarkGeneratePoll(b, 1000000)
+	HelperBenchmarkGeneratePoll(b, 1000000/4)
 }
 
 func HelperBenchmarkGeneratePoll(b *testing.B, WindowSize uint64) {
