@@ -38,6 +38,7 @@ type Table struct {
 func NewTable(server *pir.PirServer, name string, log *log.Logger, depth int, maxLoadFactor float32, loadFactorStep float32) *Table {
 	table := &Table{}
 	table.log = log
+	table.server = server
 	table.numBuckets = server.CellCount
 	table.bucketDepth = depth
 	table.maxLoadFactor = maxLoadFactor
@@ -55,11 +56,11 @@ func NewTable(server *pir.PirServer, name string, log *log.Logger, depth int, ma
 
 	alternateDB, err := server.GetDB()
 	if err != nil {
-		table.log.Fatalf("COuld not allocate DB region: %v", err)
+		table.log.Fatalf("Could not allocate DB region: %v", err)
 		return nil
 	}
 	table.alternateDB = alternateDB
-	table.alternateTable = cuckoo.NewTable(name+"-B", table.numBuckets, table.bucketDepth, server.CellLength/table.bucketDepth, table.activeDB.DB, 0)
+	table.alternateTable = cuckoo.NewTable(name+"-B", table.numBuckets, table.bucketDepth, server.CellLength/table.bucketDepth, table.alternateDB.DB, 0)
 	table.alternateEntries = make([]cuckoo.Item, 0, table.numBuckets*table.bucketDepth)
 
 	table.pendingWrites = make([]cuckoo.Item, 0, table.numBuckets*table.bucketDepth)
