@@ -93,6 +93,7 @@ func (s *Shard) BatchRead(args *common.BatchReadArgs, replyChan chan *common.Bat
 }
 
 func (s *Shard) Close() {
+	s.log.Println("Close: ")
 	s.signalChan <- 1
 }
 
@@ -109,9 +110,12 @@ func (s *Shard) processRequests() {
 			if err := s.processWrite(writeReq); err != nil {
 				break
 			}
+			continue
 		case batchReadReq = <-s.readChan:
 			s.batchRead(batchReadReq)
+			continue
 		case <- s.signalChan:
+			s.log.Printf("Shard Closing.")
 			break
 		}
 	}

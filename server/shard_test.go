@@ -2,6 +2,7 @@ package server
 
 import (
   "bytes"
+  "fmt"
 	"github.com/ryscheng/pdb/common"
 	"github.com/ryscheng/pdb/pir"
   "math/rand"
@@ -74,6 +75,7 @@ func TestShardSanity(t *testing.T) {
 }
 
 func BenchmarkShard(b *testing.B) {
+  fmt.Printf("Benchmark began with N=%d\n", b.N)
   readsPerWrite := fromEnvOrDefault("READS_PER_WRITE", 20)
 
   status := make(chan int)
@@ -127,7 +129,7 @@ func BenchmarkShard(b *testing.B) {
 		b.SetBytes(int64(1))
 	}
 
-
+  fmt.Printf("Benchmark called close w N=%d\n",b.N)
   shard.Close()
 	status <- 1
 }

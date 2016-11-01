@@ -29,5 +29,5 @@ type BatchReadRequest struct {
 
 func (r *BatchReadRequest) Reply(reply *common.BatchReadReply) {
 	r.ReplyChan <- reply
-	close(r.ReplyChan)
+	//close(r.ReplyChan)
 }
