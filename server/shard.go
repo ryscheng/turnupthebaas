@@ -30,6 +30,7 @@ type Shard struct {
 	// Channels
 	WriteChan     chan *common.WriteArgs
 	BatchReadChan chan *BatchReadRequest
+  sinceFlip int
 }
 
 func NewShard(name string, globalConfig common.GlobalConfig) *Shard {
@@ -99,7 +100,9 @@ func (s *Shard) processRequests() {
 	for {
 		select {
 		case writeReq = <-s.WriteChan:
-			s.processWrite(writeReq)
+			if err := s.processWrite(writeReq); err != nil {
+				break
+			}
 		case batchReadReq = <-s.BatchReadChan:
 			s.batchRead(batchReadReq)
 		}
@@ -111,12 +114,26 @@ func asCuckooItem(wa *common.WriteArgs) *cuckoo.Item {
 	return &cuckoo.Item{wa.Data, int(wa.Bucket1), int(wa.Bucket2)}
 }
 
-func (s *Shard) processWrite(req *common.WriteArgs) {
+func (s *Shard) processWrite(req *common.WriteArgs) error {
 	s.log.Printf("processWrite: seqNo=%v\n", req.GlobalSeqNo)
-	s.WriteLog[req.GlobalSeqNo] = req
-	//s.log.Printf("%v\n", s.WriteLog)
+
+	err := s.Table.Write(asCuckooItem(req))
+	if err != nil {
+		s.log.Fatalf("Could not write item: %v", err)
+		return err
+	}
+	s.sinceFlip +=1
 
 	// Trigger to swap to next DB.
+	if s.sinceFlip > maxWriteBuffer {
+		err := s.Table.Flop()
+		s.sinceFlip = 0
+		if err != nil {
+			s.log.Fatalf("Could not flip write snapshot: %v", err)
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Shard) batchRead(req *BatchReadRequest) {
