@@ -143,12 +143,13 @@ func (s *Shard) batchRead(req *BatchReadRequest) {
 	reply.Replies = make([]common.ReadReply, 0, len(req.Args.Args))
 
 	// Run PIR
-	pirvector := make([]byte, int(conf.NumBuckets)/8*conf.ReadBatch)
+	reqlength := int(conf.NumBuckets) / 8
+	pirvector := make([]byte, reqlength*conf.ReadBatch)
 	for batch := 0; batch < len(req.Args.Args); batch += conf.ReadBatch {
 		for i := 0; i < conf.ReadBatch; i += 1 {
-			offset := batch*conf.ReadBatch + i
+			offset := batch + i
 			//TODO: what's the deal with trust domains? (the forTD parameter)
-			copy(pirvector[int(conf.NumBuckets)/8*i:], req.Args.Args[offset].ForTd[0].RequestVector)
+			copy(pirvector[reqlength * i:reqlength*(i+1)], req.Args.Args[offset].ForTd[0].RequestVector)
 		}
 		responses, err := s.PirServer.Read(pirvector)
 		if err != nil {
@@ -160,8 +161,7 @@ func (s *Shard) batchRead(req *BatchReadRequest) {
 		replies := make([]common.ReadReply, conf.ReadBatch)
 		responseSize := conf.BucketDepth * conf.DataSize
 		for i := 0; i < conf.ReadBatch; i += 1 {
-			offset := i * conf.BucketDepth * conf.DataSize
-			replies[i].Data = responses[offset*responseSize : (offset+1)*responseSize]
+			replies[i].Data = responses[i*responseSize : (i+1)*responseSize]
 		}
 		reply.Replies = append(reply.Replies, replies...)
 	}

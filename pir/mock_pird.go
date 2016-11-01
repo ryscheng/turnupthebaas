@@ -66,7 +66,8 @@ func handle(conn net.Conn) {
 		if cmd[0] == "1"[0] {
 			// read.
 			// read mask
-			if len, err := conn.Read(masks); len < CellLength*BatchSize/8 || err != nil {
+			if len, err := conn.Read(masks); len < CellCount*BatchSize/8 || err != nil {
+				fmt.Printf("Incorrect pirvector provided %v. length should be %d but was %d", err, CellCount*BatchSize/8, len)
 				break
 			}
 
@@ -80,9 +81,6 @@ func handle(conn net.Conn) {
 						}
 					}
 				}
-			}
-			if database[0] == 1 {
-				fmt.Printf("Databse looks set correctly.\n")
 			}
 
 			// write response
