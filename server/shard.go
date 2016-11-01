@@ -25,6 +25,7 @@ type Shard struct {
 	pendingWrites []uint64
 	globalConfig  atomic.Value //common.GlobalConfig
 	*pir.PirServer
+	*Table
 
 	// Channels
 	WriteChan     chan *common.WriteArgs
@@ -52,6 +53,7 @@ func NewShard(name string, globalConfig common.GlobalConfig) *Shard {
 		s.log.Fatalf("Could not start PIR back end with correct parameters: %v", err)
 		return nil
 	}
+	s.Table = NewTable(s.PirServer, name + "-Table", s.log, globalConfig.BucketDepth, globalConfig.MaxLoadFactor, globalConfig.LoadFactorStep)
 
 	go s.processRequests()
 	return s
@@ -92,6 +94,7 @@ func (s *Shard) processRequests() {
 	var writeReq *common.WriteArgs
 	var batchReadReq *BatchReadRequest
 
+	defer s.Table.Close()
 	defer s.PirServer.Disconnect()
 	for {
 		select {

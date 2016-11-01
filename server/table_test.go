@@ -2,8 +2,8 @@ package server
 
 import (
 	"bytes"
-	"github.com/ryscheng/pdb/pir"
 	"github.com/ryscheng/pdb/cuckoo"
+	"github.com/ryscheng/pdb/pir"
 	"log"
 	"os"
 )
@@ -51,7 +51,7 @@ func TestTableWritingConsistency(t *testing.T) {
 	table := NewTable(pirServer, "testtable", log, 4, 0.75, 0.01)
 	data := bytes.NewBufferString("Test Data").Bytes()
 
-	for i := 1; i < 128; i+=1 {
+	for i := 1; i < 128; i += 1 {
 		err = table.Write(&cuckoo.Item{data, 0, i})
 		if err != nil {
 			t.Error(err)

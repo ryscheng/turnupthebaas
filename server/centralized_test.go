@@ -11,7 +11,7 @@ import (
 func BenchmarkWrite(b *testing.B) {
 	trustDomainConfig0 := common.NewTrustDomainConfig("t0", "localhost:9000", true, false)
 	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9100", true, false)
-	globalConfig := common.GlobalConfig{0, 0, 0, 0, 0, 0, time.Second, time.Second, []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1}}
+	globalConfig := common.GlobalConfig{0, 0, 0, 0, 0, 0, 0, 0, time.Second, time.Second, []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1}}
 	globalConfig.NumBuckets = 100
 	globalConfig.BucketDepth = 4
 	globalConfig.WindowSize = 100000
@@ -24,7 +24,7 @@ func BenchmarkWrite(b *testing.B) {
 		b.Fatalf("Error creating plaintext: %v\n", err)
 	}
 	password := ""
-	th, err := libpdb.NewTopicHandle(password)
+	th, err := libpdb.NewTopic(password)
 	if err != nil {
 		b.Fatalf("Error creating topic handle: %v\n", err)
 	}
