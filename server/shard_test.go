@@ -44,17 +44,17 @@ func TestShardSanity(t *testing.T) {
   reqs := make([]common.ReadArgs, 8)
 
   rv := make([]byte, 512)
+  rv[0] = 0xff
   req := common.PirArgs{rv, nil}
   for i := 0; i < 8; i ++ {
-    req.RequestVector[i] |= 1
     reqs[i] = common.ReadArgs{[]common.PirArgs{req}}
   }
   shard.BatchRead(&common.BatchReadArgs{reqs, common.Range{0,0, nil}, 0}, replychan)
 
   reply := <-replychan
   if reply.Replies[0].Data[0] != bytes.NewBufferString("Magic").Bytes()[0] {
-    t.Error("Failed to round-trip a write.")
     status <- 1
+    t.Error("Failed to round-trip a write.")
     return
   }
 
