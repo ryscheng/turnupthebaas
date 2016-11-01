@@ -4,18 +4,29 @@ import (
   "bytes"
 	"github.com/ryscheng/pdb/common"
 	"github.com/ryscheng/pdb/pir"
+  "math/rand"
+  "os"
+  "strconv"
   "time"
 )
 
 import "testing"
 
+func fromEnvOrDefault(envKey string, default_val int) int {
+  if os.Getenv(envKey) != "" {
+    val, _ := strconv.Atoi(os.Getenv(envKey))
+    return val
+  }
+  return default_val
+}
+
 func testConf() common.GlobalConfig {
   return common.GlobalConfig{
-    512, // num buckets
-    4, // depth
+    uint64(fromEnvOrDefault("NUM_BUCKETS", 512)), // num buckets
+    fromEnvOrDefault("BUCKET_DEPTH", 4), // depth
     0, //window size?
-    512, // data size
-    8, // batch size
+    fromEnvOrDefault("DATA_SIZE", 512), // data size
+    fromEnvOrDefault("BATCH_SIZE", 8), // batch size
     0.95, // bloom false positive
     0.95, // max load
     0.02, // load step
@@ -58,5 +69,65 @@ func TestShardSanity(t *testing.T) {
     return
   }
 
+  shard.Close()
+	status <- 1
+}
+
+func BenchmarkShard(b *testing.B) {
+  readsPerWrite := fromEnvOrDefault("READS_PER_WRITE", 20)
+
+  status := make(chan int)
+	go pir.CreateMockServer(status, "pir.socket")
+	<-status
+
+  conf := testConf()
+  shard := NewShard("Test Shard", conf)
+  if shard == nil {
+    b.Error("Failed to create shard.")
+    return
+  }
+
+  // Initial DB
+  shard.Table.Flop()
+
+  replychan := make(chan *common.BatchReadReply)
+
+  //A default write request
+  stdWrite := &common.WriteArgs{0, 1, bytes.NewBufferString("Magic").Bytes(), []byte{}, 0}
+
+  //A default read request
+  reqs := make([]common.ReadArgs, conf.ReadBatch)
+  rv := make([]byte, int(conf.NumBuckets))
+  for i := 0; i < len(rv); i++ {
+    rv[i] = byte(rand.Int())
+  }
+  req := common.PirArgs{rv, nil}
+  for i := 0; i < conf.ReadBatch; i ++ {
+    reqs[i] = common.ReadArgs{[]common.PirArgs{req}}
+  }
+  stdRead := &common.BatchReadArgs{reqs, common.Range{0,0, nil}, 0}
+
+  b.ResetTimer()
+
+  for i := 0; i < b.N; i++ {
+    if i % readsPerWrite == 0 {
+      stdWrite.Bucket1 = uint64(rand.Int()) % conf.NumBuckets
+      stdWrite.Bucket2 = uint64(rand.Int()) % conf.NumBuckets
+      shard.Write(stdWrite, &common.WriteReply{})
+    } else {
+      shard.BatchRead(stdRead, replychan)
+      reply := <-replychan
+
+      if reply == nil || reply.Err != "" {
+  			b.Error("Read failed.")
+  		}
+    }
+
+
+		b.SetBytes(int64(1))
+	}
+
+
+  shard.Close()
 	status <- 1
 }

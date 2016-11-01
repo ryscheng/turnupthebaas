@@ -28,8 +28,9 @@ type Shard struct {
 	*Table
 
 	// Channels
-	WriteChan     chan *common.WriteArgs
-	BatchReadChan chan *BatchReadRequest
+	writeChan     chan *common.WriteArgs
+	readChan chan *BatchReadRequest
+	signalChan    chan int
   sinceFlip int
 }
 
@@ -39,8 +40,9 @@ func NewShard(name string, globalConfig common.GlobalConfig) *Shard {
 	s.name = name
 	s.WriteLog = make(map[uint64]*common.WriteArgs)
 	s.globalConfig.Store(globalConfig)
-	s.WriteChan = make(chan *common.WriteArgs)
-	s.BatchReadChan = make(chan *BatchReadRequest)
+	s.writeChan = make(chan *common.WriteArgs)
+	s.readChan = make(chan *BatchReadRequest)
+	s.signalChan = make(chan int)
 
 	// TODO: per-server config of where the local PIR socket is.
 	pirServer, err := pir.Connect("pir.socket")
@@ -70,7 +72,7 @@ func (s *Shard) Ping(args *common.PingArgs, reply *common.PingReply) error {
 
 func (s *Shard) Write(args *common.WriteArgs, reply *common.WriteReply) error {
 	//s.log.Println("Write: ")
-	s.WriteChan <- args
+	s.writeChan <- args
 	reply.Err = ""
 	return nil
 }
@@ -86,8 +88,12 @@ func (s *Shard) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdates
 func (s *Shard) BatchRead(args *common.BatchReadArgs, replyChan chan *common.BatchReadReply) error {
 	s.log.Println("Read: ")
 	batchReq := &BatchReadRequest{args, replyChan}
-	s.BatchReadChan <- batchReq
+	s.readChan <- batchReq
 	return nil
+}
+
+func (s *Shard) Close() {
+	s.signalChan <- 1
 }
 
 /** PRIVATE METHODS (singlethreaded) **/
@@ -99,12 +105,14 @@ func (s *Shard) processRequests() {
 	defer s.PirServer.Disconnect()
 	for {
 		select {
-		case writeReq = <-s.WriteChan:
+		case writeReq = <-s.writeChan:
 			if err := s.processWrite(writeReq); err != nil {
 				break
 			}
-		case batchReadReq = <-s.BatchReadChan:
+		case batchReadReq = <-s.readChan:
 			s.batchRead(batchReadReq)
+		case <- s.signalChan:
+			break
 		}
 	}
 }
