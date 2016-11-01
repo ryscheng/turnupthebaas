@@ -34,7 +34,7 @@ type Shard struct {
   sinceFlip int
 }
 
-func NewShard(name string, globalConfig common.GlobalConfig) *Shard {
+func NewShard(name string, socket string, globalConfig common.GlobalConfig) *Shard {
 	s := &Shard{}
 	s.log = log.New(os.Stdout, "["+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	s.name = name
@@ -45,7 +45,7 @@ func NewShard(name string, globalConfig common.GlobalConfig) *Shard {
 	s.signalChan = make(chan int)
 
 	// TODO: per-server config of where the local PIR socket is.
-	pirServer, err := pir.Connect("pir.socket")
+	pirServer, err := pir.Connect(socket)
 	if err != nil {
 		s.log.Fatalf("Could not connect to pir back end: %v", err)
 		return nil

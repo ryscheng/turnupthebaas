@@ -34,7 +34,7 @@ func NewCentralized(name string, globalConfig common.GlobalConfig, follower comm
 	c.isLeader = isLeader
 
 	c.globalConfig.Store(globalConfig)
-	c.shard = NewShard(name, globalConfig)
+	c.shard = NewShard(name, "pir.socket", globalConfig)
 	c.globalSeqNo = 0
 	c.ReadBatch = make([]*ReadRequest, 0)
 	c.ReadChan = make(chan *ReadRequest)

@@ -21,6 +21,14 @@ func fromEnvOrDefault(envKey string, default_val int) int {
   return default_val
 }
 
+func getSocket() string {
+	if os.Getenv("PIR_SOCKET") != "" {
+		fmt.Printf("Testing against running pird at %s.\n", os.Getenv("PIR_SOCKET"))
+		return os.Getenv("PIR_SOCKET")
+	}
+	return fmt.Sprintf("pirtest%d.socket", rand.Int())
+}
+
 func testConf() common.GlobalConfig {
   return common.GlobalConfig{
     uint64(fromEnvOrDefault("NUM_BUCKETS", 512)), // num buckets
@@ -39,10 +47,11 @@ func testConf() common.GlobalConfig {
 
 func TestShardSanity(t *testing.T) {
 	status := make(chan int)
-	go pir.CreateMockServer(status, "pir.socket")
+  sock := getSocket()
+	go pir.CreateMockServer(status, sock)
 	<-status
 
-  shard := NewShard("Test Shard", testConf())
+  shard := NewShard("Test Shard", sock, testConf())
   if shard == nil {
     t.Error("Failed to create shard.")
     return
@@ -79,11 +88,12 @@ func BenchmarkShard(b *testing.B) {
   readsPerWrite := fromEnvOrDefault("READS_PER_WRITE", 20)
 
   status := make(chan int)
-	go pir.CreateMockServer(status, "pir.socket")
+  sock := getSocket()
+	go pir.CreateMockServer(status, sock)
 	<-status
 
   conf := testConf()
-  shard := NewShard("Test Shard", conf)
+  shard := NewShard("Test Shard", sock, conf)
   if shard == nil {
     b.Error("Failed to create shard.")
     return
