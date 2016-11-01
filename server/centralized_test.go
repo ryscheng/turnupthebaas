@@ -28,7 +28,7 @@ func BenchmarkWrite(b *testing.B) {
 	if err != nil {
 		b.Fatalf("Error creating topic handle: %v\n", err)
 	}
-	args, err := th.Publish(&globalConfig, 1, plaintext)
+	args, err := th.GeneratePublish(&globalConfig, 1, plaintext)
 	if err != nil {
 		b.Fatalf("Error creating WriteArgs: %v\n", err)
 	}

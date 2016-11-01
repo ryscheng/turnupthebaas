@@ -52,7 +52,7 @@ func TestGeneratePublish(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating topic handle: %v\n", err)
 	}
-	args, err := th.generatePublish(globalConfig, 1, plaintext)
+	args, err := th.GeneratePublish(globalConfig, 1, plaintext)
 	if err != nil {
 		t.Fatalf("Error creating WriteArgs: %v\n", err)
 	}

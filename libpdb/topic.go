@@ -70,7 +70,7 @@ func NewTopic(password string) (*Topic, error) {
 	return t, nil
 }
 
-func (t *Topic) generatePublish(globalConfig *common.GlobalConfig, seqNo uint64, message []byte) (*common.WriteArgs, error) {
+func (t *Topic) GeneratePublish(globalConfig *common.GlobalConfig, seqNo uint64, message []byte) (*common.WriteArgs, error) {
 	args := &common.WriteArgs{}
 	seqNoBytes := make([]byte, 12)
 	_ = binary.PutUvarint(seqNoBytes, seqNo)
