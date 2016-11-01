@@ -14,7 +14,19 @@ func main() {
 	// Config
 	trustDomainConfig0 := common.NewTrustDomainConfig("t0", "localhost:9000", true, false)
 	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9100", true, false)
-	globalConfig := common.GlobalConfig{100, 2, 100, 1024, 0.001, time.Second, time.Second, []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1}}
+	globalConfig := common.GlobalConfig{
+		100,         // NumBuckets
+		2,           // BucketDepth
+		100,         // WindowSize
+		1024,        // DataSize
+		2,           // ReadBatch
+		0.001,       // Bloom FP Rate
+		0.90,        // LoadFactor
+		0.05,        // LoadFactorStep
+		time.Second, // WriteInterval
+		time.Second, // ReadInterval
+		[]*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1},
+	}
 
 	// Trust Domain 1
 	t1 := server.NewCentralized("t1", globalConfig, nil, false)
