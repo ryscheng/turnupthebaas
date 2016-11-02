@@ -21,14 +21,6 @@ func fromEnvOrDefault(envKey string, default_val int) int {
 	return default_val
 }
 
-func getSocket() string {
-	if os.Getenv("PIR_SOCKET") != "" {
-		fmt.Printf("Testing against running pird at %s.\n", os.Getenv("PIR_SOCKET"))
-		return os.Getenv("PIR_SOCKET")
-	}
-	return fmt.Sprintf("pirtest%d.socket", rand.Int())
-}
-
 func testConf() common.GlobalConfig {
 	return common.GlobalConfig{
 		uint64(fromEnvOrDefault("NUM_BUCKETS", 512)), // num buckets
