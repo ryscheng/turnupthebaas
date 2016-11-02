@@ -117,6 +117,7 @@ func (s *Shard) processRequests() {
 		select {
 		case writeReq = <-s.writeChan:
 			if err := s.processWrite(writeReq); err != nil {
+				s.log.Println("processWrite failed, ending processRequests loop")
 				break
 			}
 			continue
@@ -136,7 +137,7 @@ func asCuckooItem(wa *common.WriteArgs) *cuckoo.Item {
 }
 
 func (s *Shard) processWrite(req *common.WriteArgs) error {
-	s.log.Printf("processWrite: seqNo=%v\n", req.GlobalSeqNo)
+	s.log.Printf("processWrite: enter with seqNo=%v\n", req.GlobalSeqNo)
 
 	err := s.Table.Write(asCuckooItem(req))
 	if err != nil {
@@ -154,10 +155,12 @@ func (s *Shard) processWrite(req *common.WriteArgs) error {
 			return err
 		}
 	}
+	s.log.Printf("processWrite: exit\n")
 	return nil
 }
 
 func (s *Shard) batchRead(req *BatchReadRequest) {
+	s.log.Printf("batchRead: enter\n")
 	// @todo --- garbage collection
 	conf := s.globalConfig.Load().(common.GlobalConfig)
 	reply := new(common.BatchReadReply)
@@ -190,4 +193,5 @@ func (s *Shard) batchRead(req *BatchReadRequest) {
 
 	// Return results
 	req.Reply(reply)
+	s.log.Printf("batchRead: exit\n")
 }
