@@ -6,11 +6,20 @@ import (
 	"github.com/ryscheng/pdb/cuckoo"
 	"github.com/ryscheng/pdb/pir"
 	"log"
+	"math/rand"
 	"os"
 	"sync/atomic"
 )
 
 const maxWriteBuffer int = 1024
+
+func getSocket() string {
+	if os.Getenv("PIR_SOCKET") != "" {
+		fmt.Printf("Testing against running pird at %s.\n", os.Getenv("PIR_SOCKET"))
+		return os.Getenv("PIR_SOCKET")
+	}
+	return fmt.Sprintf("pirtest%d.socket", rand.Int())
+}
 
 /**
  * Handles a shard of the data

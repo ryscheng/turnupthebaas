@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/ryscheng/pdb/common"
+	"github.com/ryscheng/pdb/pir"
 	"log"
 	"os"
 	"sync/atomic"
@@ -34,7 +35,15 @@ func NewCentralized(name string, globalConfig common.GlobalConfig, follower comm
 	c.isLeader = isLeader
 
 	c.globalConfig.Store(globalConfig)
-	c.shard = NewShard(name, "../pird/pir.socket", globalConfig)
+
+	status := make(chan int)
+	sock := getSocket()
+	go pir.CreateMockServer(status, sock)
+	<-status
+	//c.shard = NewShard(name, "../pird/pir.socket", globalConfig)
+	c.shard = NewShard(name, sock, globalConfig)
+	c.shard.Table.Flop()
+
 	c.globalSeqNo = 0
 	c.ReadBatch = make([]*ReadRequest, 0)
 	c.ReadChan = make(chan *ReadRequest)
