@@ -9,6 +9,7 @@ import (
 
 type FollowerRpc struct {
 	log          *log.Logger
+	name         string
 	config       *TrustDomainConfig
 	methodPrefix string
 }
@@ -16,6 +17,7 @@ type FollowerRpc struct {
 func NewFollowerRpc(name string, config *TrustDomainConfig) *FollowerRpc {
 	f := &FollowerRpc{}
 	f.log = log.New(os.Stdout, "[FollowerRpc:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
+	f.name = name
 	f.config = config
 	if f.config.IsDistributed() {
 		f.methodPrefix = "Frontend"
@@ -48,8 +50,12 @@ func (f *FollowerRpc) Call(methodName string, args interface{}, reply interface{
 		return errCall
 	}
 
-	f.log.Printf("%s.Write(): %v, %v, %v\n", addr, args, reply)
+	//f.log.Printf("%s.Call(): %v, %v, %v\n", addr, args, reply)
 	return nil
+}
+
+func (f *FollowerRpc) GetName() string {
+	return f.name
 }
 
 func (f *FollowerRpc) Ping(args *PingArgs, reply *PingReply) error {
@@ -61,5 +67,17 @@ func (f *FollowerRpc) Ping(args *PingArgs, reply *PingReply) error {
 func (f *FollowerRpc) Write(args *WriteArgs, reply *WriteReply) error {
 	f.log.Printf("Write: enter\n")
 	err := f.Call(f.methodPrefix+".Write", args, reply)
+	return err
+}
+
+func (l *FollowerRpc) BatchRead(args *BatchReadArgs, reply *BatchReadReply) error {
+	l.log.Printf("BatchRead: enter\n")
+	err := l.Call(l.methodPrefix+".BatchRead", args, reply)
+	return err
+}
+
+func (l *FollowerRpc) GetUpdates(args *GetUpdatesArgs, reply *GetUpdatesReply) error {
+	l.log.Printf("GetUpdates: enter\n")
+	err := l.Call(l.methodPrefix+".GetUpdates", args, reply)
 	return err
 }

@@ -18,7 +18,7 @@ func main() {
 
 	// Config
 	trustDomainConfig0 := common.NewTrustDomainConfig("t0", "localhost:9000", true, false)
-	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9100", true, false)
+	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9001", true, false)
 	globalConfig := common.GlobalConfig{
 		100,         // NumBuckets
 		2,           // BucketDepth
@@ -38,8 +38,8 @@ func main() {
 	s["t1"] = server.NewNetworkRpc(t1, 9001)
 
 	// Trust Domain 0
-	t0 := server.NewCentralized("t0", globalConfig, t1, true)
-	//t0 := server.NewCentralized("t0", globalConfig, common.NewLeaderRpc("t0->t1", trustDomainConfig1), true)
+	//t0 := server.NewCentralized("t0", globalConfig, t1, true)
+	t0 := server.NewCentralized("t0", globalConfig, common.NewFollowerRpc("t0->t1", trustDomainConfig1), true)
 	s["t0"] = server.NewNetworkRpc(t0, 9000)
 
 	// Client
