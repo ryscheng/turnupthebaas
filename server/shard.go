@@ -28,10 +28,10 @@ type Shard struct {
 	*Table
 
 	// Channels
-	writeChan     chan *common.WriteArgs
-	readChan chan *BatchReadRequest
-	signalChan    chan int
-  sinceFlip int
+	writeChan  chan *common.WriteArgs
+	readChan   chan *BatchReadRequest
+	signalChan chan int
+	sinceFlip  int
 }
 
 func NewShard(name string, socket string, globalConfig common.GlobalConfig) *Shard {
@@ -56,7 +56,7 @@ func NewShard(name string, socket string, globalConfig common.GlobalConfig) *Sha
 		s.log.Fatalf("Could not start PIR back end with correct parameters: %v", err)
 		return nil
 	}
-	s.Table = NewTable(s.PirServer, name + "-Table", s.log, globalConfig.BucketDepth, globalConfig.MaxLoadFactor, globalConfig.LoadFactorStep)
+	s.Table = NewTable(s.PirServer, name+"-Table", s.log, globalConfig.BucketDepth, globalConfig.MaxLoadFactor, globalConfig.LoadFactorStep)
 
 	go s.processRequests()
 	return s
@@ -114,7 +114,7 @@ func (s *Shard) processRequests() {
 		case batchReadReq = <-s.readChan:
 			s.batchRead(batchReadReq)
 			continue
-		case <- s.signalChan:
+		case <-s.signalChan:
 			s.log.Printf("Shard Closing.")
 			break
 		}
@@ -134,7 +134,7 @@ func (s *Shard) processWrite(req *common.WriteArgs) error {
 		s.log.Fatalf("Could not write item: %v", err)
 		return err
 	}
-	s.sinceFlip +=1
+	s.sinceFlip += 1
 
 	// Trigger to swap to next DB.
 	if s.sinceFlip > maxWriteBuffer {
@@ -160,8 +160,9 @@ func (s *Shard) batchRead(req *BatchReadRequest) {
 	for batch := 0; batch < len(req.Args.Args); batch += conf.ReadBatch {
 		for i := 0; i < conf.ReadBatch; i += 1 {
 			offset := batch + i
+			reqVector := req.Args.Args[offset].ForTd[0].RequestVector
 			//TODO: what's the deal with trust domains? (the forTD parameter)
-			copy(pirvector[reqlength * i:reqlength*(i+1)], req.Args.Args[offset].ForTd[0].RequestVector)
+			copy(pirvector[reqlength*i:reqlength*(i+1)], reqVector)
 		}
 		responses, err := s.PirServer.Read(pirvector)
 		if err != nil {

@@ -19,7 +19,7 @@ func main() {
 		2,           // BucketDepth
 		100,         // WindowSize
 		1024,        // DataSize
-		2,           // ReadBatch
+		1,           // ReadBatch
 		0.001,       // Bloom FP Rate
 		0.90,        // LoadFactor
 		0.05,        // LoadFactorStep
