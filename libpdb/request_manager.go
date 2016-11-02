@@ -121,7 +121,8 @@ func (rm *RequestManager) readPeriodic() {
 			if err != nil || reply.Err != "" {
 				rm.log.Printf("readPeriodic error: %v, reply=%v\n", err, reply)
 			} else {
-				rm.log.Printf("readPeriodic reply=%v\n", reply)
+				//rm.log.Printf("readPeriodic reply=%v\n", reply)
+				rm.log.Printf("readPeriodic reply\n")
 			}
 			time.Sleep(globalConfig.ReadInterval)
 			//time.Sleep(time.Duration(atomic.LoadInt64(&rm.readInterval)))

@@ -2,14 +2,14 @@ package main
 
 import (
 	"github.com/ryscheng/pdb/common"
-	"github.com/ryscheng/pdb/libpdb"
+	"github.com/ryscheng/pdb/server"
 	"log"
 	"time"
 )
 
 func main() {
 	log.Println("------------------")
-	log.Println("--- PDB Client ---")
+	log.Println("--- PDB Server ---")
 	log.Println("------------------")
 
 	// Config
@@ -29,10 +29,13 @@ func main() {
 		[]*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1},
 	}
 
-	c := libpdb.NewClient("c", globalConfig, common.NewLeaderRpc("c0->t0", trustDomainConfig0))
-	c.Ping()
+	//s := server.NewCentralized("s", globalConfig, nil, false)
+	s := server.NewCentralized("s", globalConfig, common.NewFollowerRpc("t0->t1", trustDomainConfig1), true)
+	_ = server.NewNetworkRpc(s, 9000)
 
-  //for {
+	log.Println(s)
+  for {
 	  time.Sleep(10 * time.Second)
-  //}
+  }
+
 }
