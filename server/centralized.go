@@ -6,17 +6,20 @@ import (
 	"log"
 	"os"
 	"sync/atomic"
+	"time"
 )
 
 const BATCH_SIZE = 1
+const THROUGHPUT_INTERVAL = 5 * time.Second
 
 type Centralized struct {
 	/** Private State **/
 	// Static
-	log      *log.Logger
-	name     string
-	follower common.FollowerInterface
-	isLeader bool
+	log       *log.Logger
+	name      string
+	follower  common.FollowerInterface
+	isLeader  bool
+	startTime time.Time
 
 	// Thread-safe
 	globalConfig atomic.Value //common.GlobalConfig
@@ -33,6 +36,7 @@ func NewCentralized(name string, globalConfig common.GlobalConfig, follower comm
 	c.name = name
 	c.follower = follower
 	c.isLeader = isLeader
+	c.startTime = time.Now()
 
 	c.globalConfig.Store(globalConfig)
 
