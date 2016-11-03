@@ -30,6 +30,8 @@ func main() {
 
 	log.Println(s)
 
-	time.Sleep(10 * time.Second)
+	for {
+		time.Sleep(10 * time.Second)
+	}
 
 }
