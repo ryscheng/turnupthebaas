@@ -176,7 +176,7 @@ func (c *Centralized) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetU
 
 /** PRIVATE METHODS (singlethreaded) **/
 func (c *Centralized) batchReads() {
-	globalConfig := s.globalConfig.Load().(common.GlobalConfig)
+	globalConfig := c.globalConfig.Load().(common.GlobalConfig)
 	var readReq *ReadRequest
 	for {
 		select {
