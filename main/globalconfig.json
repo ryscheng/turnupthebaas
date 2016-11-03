@@ -1,0 +1,12 @@
+{
+  "NumBuckets": 100,
+  "BucketDepth": 2,
+  "WindowSize": 100,
+  "DataSize": 1024,
+  "ReadBatch": 1,
+  "BloomFalsePositive": 0.001,
+  "MaxLoadFactor": 0.90,
+  "LoadFactorStep": 0.05,
+  "WriteInterval": 1000000,
+  "ReadInterval": 1000000
+}
