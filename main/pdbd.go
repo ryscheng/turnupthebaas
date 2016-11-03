@@ -17,14 +17,16 @@ func main() {
 	go http.ListenAndServe("localhost:8080", nil)
 
 	// Config
-	trustDomainConfig0 := common.NewTrustDomainConfig("t0", "localhost:9000", true, false)
-	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9001", true, false)
+	//trustDomainConfig0 := common.NewTrustDomainConfig("t0", "localhost:9000", true, false)
+	//trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9001", true, false)
+	trustDomainConfig0 := common.NewTrustDomainConfig("t0", "35.163.10.49:9000", true, false)
+	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "35.163.8.29:9000", true, false)
 	globalConfig := common.GlobalConfigFromFile("globalconfig.json")
 	globalConfig.TrustDomains = []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1}
 
 	s := server.NewCentralized("s", *globalConfig, nil, false)
 	//s := server.NewCentralized("s", globalConfig, common.NewFollowerRpc("t0->t1", trustDomainConfig1), true)
-	_ = server.NewNetworkRpc(s, 9001)
+	_ = server.NewNetworkRpc(s, 9000)
 
 	log.Println(s)
 
