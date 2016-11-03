@@ -5,6 +5,7 @@ import (
 	"github.com/ryscheng/pdb/libpdb"
 	"github.com/ryscheng/pdb/server"
 	"log"
+	"net/http"
 	"time"
 )
 
@@ -15,6 +16,9 @@ type Killable interface {
 func main() {
 	log.Println("Simple Sanity Test")
 	s := make(map[string]Killable)
+
+	// For trace debug status
+	go http.ListenAndServe("localhost:8080", nil)
 
 	// Config
 	trustDomainConfig0 := common.NewTrustDomainConfig("t0", "localhost:9000", true, false)

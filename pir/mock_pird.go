@@ -18,6 +18,7 @@ func CreateMockServer(status chan int, socket string) error {
 
 	sock, err := net.Listen("unix", socket)
 	if err != nil {
+		fmt.Printf("Mock PIRD could not listen on specified socket. Yielding to existing listener.\n")
 		status <- -1
 		<-status
 		return err

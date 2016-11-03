@@ -105,6 +105,9 @@ func (t *Table) Write(item *cuckoo.Item) error {
 	ok, evicted := t.alternateTable.Insert(item)
 	if !ok || len(t.alternateEntries) > int(float32(t.numBuckets*t.bucketDepth)*t.maxLoadFactor) {
 		toRemove := int(float32(t.numBuckets*t.bucketDepth) * t.loadFactorStep)
+		if toRemove >= len(t.alternateEntries) {
+			toRemove = len(t.alternateEntries) - 1
+		}
 		for i := 0; i < toRemove; i++ {
 			t.alternateTable.Remove(&t.alternateEntries[i])
 		}

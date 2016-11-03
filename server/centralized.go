@@ -3,23 +3,21 @@ package server
 import (
 	"github.com/ryscheng/pdb/common"
 	"github.com/ryscheng/pdb/pir"
+  "golang.org/x/net/trace"
 	"log"
 	"os"
 	"sync/atomic"
-	"time"
 )
 
 const BATCH_SIZE = 1
-const THROUGHPUT_INTERVAL = 5 * time.Second
 
 type Centralized struct {
 	/** Private State **/
 	// Static
-	log       *log.Logger
-	name      string
-	follower  common.FollowerInterface
-	isLeader  bool
-	startTime time.Time
+	log      *log.Logger
+	name     string
+	follower common.FollowerInterface
+	isLeader bool
 
 	// Thread-safe
 	globalConfig atomic.Value //common.GlobalConfig
@@ -36,7 +34,6 @@ func NewCentralized(name string, globalConfig common.GlobalConfig, follower comm
 	c.name = name
 	c.follower = follower
 	c.isLeader = isLeader
-	c.startTime = time.Now()
 
 	c.globalConfig.Store(globalConfig)
 
@@ -83,6 +80,8 @@ func (c *Centralized) Ping(args *common.PingArgs, reply *common.PingReply) error
 
 func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) error {
 	c.log.Println("Write: enter")
+	tr := trace.New("centralized." + c.name, "Write")
+	defer tr.Finish()
 
 	// @todo --- parallelize writes.
 	if c.isLeader {
@@ -112,6 +111,8 @@ func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) er
 
 func (c *Centralized) Read(args *common.ReadArgs, reply *common.ReadReply) error {
 	c.log.Println("Read: enter")
+	tr := trace.New("centralized." + c.name, "Read")
+	defer tr.Finish()
 	resultChan := make(chan []byte)
 	c.ReadChan <- &ReadRequest{args, resultChan}
 	reply.Err = ""
@@ -122,6 +123,8 @@ func (c *Centralized) Read(args *common.ReadArgs, reply *common.ReadReply) error
 
 func (c *Centralized) BatchRead(args *common.BatchReadArgs, reply *common.BatchReadReply) error {
 	c.log.Println("BatchRead: enter")
+	tr := trace.New("centralized." + c.name, "BatchRead")
+	defer tr.Finish()
 	// Start local computation
 	var fReply common.BatchReadReply
 	myReplyChan := make(chan *common.BatchReadReply)
@@ -208,6 +211,9 @@ func (c *Centralized) triggerBatchRead(batch []*ReadRequest) {
 		c.log.Fatalf("Error doing BatchRead: err=%v, replyErr=%v\n", err, reply.Err)
 		return
 	}
+
+	// logging of throughput.
+
 
 	// Respond to clients
 	for i, val := range reply.Replies {

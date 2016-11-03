@@ -1,5 +1,5 @@
 {
-  "NumBuckets": 100,
+  "NumBuckets": 128,
   "BucketDepth": 2,
   "DataSize": 1024,
   "ReadBatch": 1,
