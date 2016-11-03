@@ -3,13 +3,11 @@ package server
 import (
 	"github.com/ryscheng/pdb/common"
 	"github.com/ryscheng/pdb/pir"
-  "golang.org/x/net/trace"
+	"golang.org/x/net/trace"
 	"log"
 	"os"
 	"sync/atomic"
 )
-
-const BATCH_SIZE = 1
 
 type Centralized struct {
 	/** Private State **/
@@ -178,12 +176,13 @@ func (c *Centralized) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetU
 
 /** PRIVATE METHODS (singlethreaded) **/
 func (c *Centralized) batchReads() {
+	globalConfig := s.globalConfig.Load().(common.GlobalConfig)
 	var readReq *ReadRequest
 	for {
 		select {
 		case readReq = <-c.ReadChan:
 			c.ReadBatch = append(c.ReadBatch, readReq)
-			if len(c.ReadBatch) >= BATCH_SIZE {
+			if len(c.ReadBatch) >= globalConfig.ReadBatch {
 				go c.triggerBatchRead(c.ReadBatch)
 				c.ReadBatch = make([]*ReadRequest, 0)
 			} else {
@@ -228,7 +227,6 @@ func (c *Centralized) triggerBatchRead(batch []*ReadRequest) {
 	}
 
 	// logging of throughput.
-
 
 	// Respond to clients
 	for i, val := range reply.Replies {
