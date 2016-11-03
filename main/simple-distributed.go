@@ -20,7 +20,8 @@ func main() {
 	trustDomainConfig0 := common.NewTrustDomainConfig("t0", "localhost:9000", true, true)
 	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9100", true, true)
 	emptyTrustDomainConfig := common.NewTrustDomainConfig("", "", false, true)
-	globalConfig := common.GlobalConfig{100, 1024, time.Second, time.Second, []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1}}
+	globalConfig := common.GlobalConfigFromFile("globalconfig.json")
+	globalConfig.TrustDomains = []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1}
 
 	// Trust Domain 1
 	dataLayerConfig1 := &server.DataLayerConfig{map[string]map[string]string{
@@ -41,7 +42,7 @@ func main() {
 	s["t0fe0"] = server.NewFrontendServer("t0fe0", 9000, dataLayerConfig0, trustDomainConfig1, true)
 
 	// Client
-	c := libpdb.NewClient("c1", globalConfig)
+	c := libpdb.NewClient("c1", *globalConfig)
 	c.Ping()
 	time.Sleep(10 * time.Second)
 

@@ -1,6 +1,8 @@
 package common
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"time"
 )
 
@@ -22,5 +24,19 @@ type GlobalConfig struct {
 	LoadFactorStep float32
 	WriteInterval  time.Duration
 	ReadInterval   time.Duration
-	TrustDomains   []*TrustDomainConfig
+	TrustDomains   []*TrustDomainConfig `json:"-"`
+}
+
+// Load configuration from a JSON file. returns the config on success or nil if
+// loading or parsing the file fails.
+func GlobalConfigFromFile(file string) *GlobalConfig {
+	configString, err := ioutil.ReadFile(file)
+	if err != nil {
+		return nil
+	}
+	config := new(GlobalConfig)
+	if err := json.Unmarshal(configString, config); err != nil {
+		return nil
+	}
+	return config
 }
