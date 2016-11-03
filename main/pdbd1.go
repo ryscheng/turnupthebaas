@@ -12,6 +12,9 @@ func main() {
 	log.Println("--- PDB Server ---")
 	log.Println("------------------")
 
+	// For trace debug status
+	go http.ListenAndServe("localhost:8080", nil)
+
 	// Config
 	trustDomainConfig0 := common.NewTrustDomainConfig("t0", "localhost:9000", true, false)
 	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9001", true, false)
