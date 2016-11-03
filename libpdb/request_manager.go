@@ -74,11 +74,11 @@ func (rm *RequestManager) writePeriodic() {
 			if len(rm.writeQueue) > 0 {
 				args = rm.writeQueue[0]
 				rm.writeQueue = rm.writeQueue[1:]
-				rm.log.Printf("writePeriodic: Real request to %v, %v \n", args.Bucket1, args.Bucket2)
+				//rm.log.Printf("writePeriodic: Real request to %v, %v \n", args.Bucket1, args.Bucket2)
 			} else {
 				args = &common.WriteArgs{}
 				rm.generateRandomWrite(globalConfig, rand, args)
-				rm.log.Printf("writePeriodic: Dummy request to %v, %v \n", args.Bucket1, args.Bucket2)
+				//rm.log.Printf("writePeriodic: Dummy request to %v, %v \n", args.Bucket1, args.Bucket2)
 			}
 			//@todo Do something with response
 			startTime := time.Now()
@@ -88,7 +88,7 @@ func (rm *RequestManager) writePeriodic() {
 			if err != nil || reply.Err != "" {
 				rm.log.Printf("writePeriodic error: %v, reply=%v, time=%v\n", err, reply, elapsedTime)
 			} else {
-				rm.log.Printf("writePeriodic reply=%v, time=%v\n", reply, elapsedTime)
+				//rm.log.Printf("writePeriodic reply=%v, time=%v\n", reply, elapsedTime)
 			}
 			time.Sleep(globalConfig.WriteInterval)
 			//time.Sleep(time.Duration(atomic.LoadInt64(&rm.writeInterval)))
@@ -113,11 +113,11 @@ func (rm *RequestManager) readPeriodic() {
 			if len(rm.readQueue) > 0 {
 				args = rm.readQueue[0]
 				rm.readQueue = rm.readQueue[1:]
-				rm.log.Printf("readPeriodic: Real request \n")
+				//rm.log.Printf("readPeriodic: Real request \n")
 			} else {
 				args = &common.ReadArgs{}
 				rm.generateRandomRead(globalConfig, rand, args)
-				rm.log.Printf("readPeriodic: Dummy request \n")
+				//rm.log.Printf("readPeriodic: Dummy request \n")
 			}
 			//@todo Do something with response
 			startTime := time.Now()
@@ -128,7 +128,7 @@ func (rm *RequestManager) readPeriodic() {
 				rm.log.Printf("readPeriodic error: %v, reply=%v, time=%v\n", err, reply, elapsedTime)
 			} else {
 				//rm.log.Printf("readPeriodic reply=%v\n", reply)
-				rm.log.Printf("readPeriodic reply: time=%v\n", elapsedTime)
+				//rm.log.Printf("readPeriodic reply: time=%v\n", elapsedTime)
 			}
 			time.Sleep(globalConfig.ReadInterval)
 			//time.Sleep(time.Duration(atomic.LoadInt64(&rm.readInterval)))

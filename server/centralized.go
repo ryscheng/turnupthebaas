@@ -89,7 +89,7 @@ func (c *Centralized) Ping(args *common.PingArgs, reply *common.PingReply) error
 }
 
 func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) error {
-	c.log.Println("Write: enter")
+	//c.log.Println("Write: enter")
 	tr := trace.New("centralized.write", "Write")
 	defer tr.Finish()
 
@@ -115,24 +115,24 @@ func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) er
 		reply.Err = ""
 	}
 
-	c.log.Println("Write: exit")
+	//c.log.Println("Write: exit")
 	return nil
 }
 
 func (c *Centralized) Read(args *common.ReadArgs, reply *common.ReadReply) error {
-	c.log.Println("Read: enter")
+	//c.log.Println("Read: enter")
 	tr := trace.New("centralized.read", "Read")
 	defer tr.Finish()
 	resultChan := make(chan []byte)
 	c.ReadChan <- &ReadRequest{args, resultChan}
 	reply.Err = ""
 	reply.Data = <-resultChan
-	c.log.Println("Read: exit")
+	//c.log.Println("Read: exit")
 	return nil
 }
 
 func (c *Centralized) BatchRead(args *common.BatchReadArgs, reply *common.BatchReadReply) error {
-	c.log.Println("BatchRead: enter")
+	//c.log.Println("BatchRead: enter")
 	tr := trace.New("centralized.batchread", "BatchRead")
 	defer tr.Finish()
 	// Start local computation
@@ -164,12 +164,12 @@ func (c *Centralized) BatchRead(args *common.BatchReadArgs, reply *common.BatchR
 	}
 
 	reply.Replies = myReply.Replies
-	c.log.Println("BatchRead: exit")
+	//c.log.Println("BatchRead: exit")
 	return nil
 }
 
 func (c *Centralized) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdatesReply) error {
-	c.log.Println("GetUpdates: ")
+	//c.log.Println("GetUpdates: ")
 	// @TODO
 	return nil
 }
@@ -186,7 +186,7 @@ func (c *Centralized) batchReads() {
 				go c.triggerBatchRead(c.ReadBatch)
 				c.ReadBatch = make([]*ReadRequest, 0)
 			} else {
-				c.log.Printf("Read: add to batch, size=%v\n", len(c.ReadBatch))
+				//c.log.Printf("Read: add to batch, size=%v\n", len(c.ReadBatch))
 			}
 			continue
 		case <-c.closeChan:
@@ -196,7 +196,7 @@ func (c *Centralized) batchReads() {
 }
 
 func (c *Centralized) triggerBatchRead(batch []*ReadRequest) {
-	c.log.Println("triggerBatchRead: enter")
+	//c.log.Println("triggerBatchRead: enter")
 	args := &common.BatchReadArgs{}
 	// Copy args
 	args.Args = make([]common.ReadArgs, len(batch), len(batch))
@@ -233,5 +233,5 @@ func (c *Centralized) triggerBatchRead(batch []*ReadRequest) {
 		batch[i].Reply(val.Data)
 	}
 
-	c.log.Println("triggerBatchRead: exit")
+	//c.log.Println("triggerBatchRead: exit")
 }

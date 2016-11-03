@@ -87,7 +87,7 @@ func (s *Shard) Write(args *common.WriteArgs, reply *common.WriteReply) error {
 }
 
 func (s *Shard) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdatesReply) error {
-	s.log.Println("GetUpdates: ")
+	//s.log.Println("GetUpdates: ")
 	// @TODO
 	reply.Err = ""
 	//reply.InterestVector =
@@ -95,7 +95,7 @@ func (s *Shard) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdates
 }
 
 func (s *Shard) BatchRead(args *common.BatchReadArgs, replyChan chan *common.BatchReadReply) error {
-	s.log.Println("Read: ")
+	//s.log.Println("Read: ")
 	batchReq := &BatchReadRequest{args, replyChan}
 	s.readChan <- batchReq
 	return nil
@@ -137,7 +137,7 @@ func asCuckooItem(wa *common.WriteArgs) *cuckoo.Item {
 }
 
 func (s *Shard) processWrite(req *common.WriteArgs) error {
-	s.log.Printf("processWrite: enter with seqNo=%v\n", req.GlobalSeqNo)
+	//s.log.Printf("processWrite: enter with seqNo=%v\n", req.GlobalSeqNo)
 
 	err := s.Table.Write(asCuckooItem(req))
 	if err != nil {
@@ -155,12 +155,12 @@ func (s *Shard) processWrite(req *common.WriteArgs) error {
 			return err
 		}
 	}
-	s.log.Printf("processWrite: exit\n")
+	//s.log.Printf("processWrite: exit\n")
 	return nil
 }
 
 func (s *Shard) batchRead(req *BatchReadRequest) {
-	s.log.Printf("batchRead: enter\n")
+	//s.log.Printf("batchRead: enter\n")
 	// @todo --- garbage collection
 	conf := s.globalConfig.Load().(common.GlobalConfig)
 	reply := new(common.BatchReadReply)
@@ -193,5 +193,5 @@ func (s *Shard) batchRead(req *BatchReadRequest) {
 
 	// Return results
 	req.Reply(reply)
-	s.log.Printf("batchRead: exit\n")
+	//s.log.Printf("batchRead: exit\n")
 }

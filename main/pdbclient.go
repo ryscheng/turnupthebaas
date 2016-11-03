@@ -22,8 +22,8 @@ func main() {
 	globalConfig := common.GlobalConfigFromFile("globalconfig.json")
 	globalConfig.TrustDomains = []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1}
 
-	for i := 0; i < 20000; i++ {
-		_ := libpdb.NewClient("c", *globalConfig, common.NewLeaderRpc("c0->t0", trustDomainConfig0))
+	for i := 0; i < 16000; i++ {
+		_ = libpdb.NewClient("c", *globalConfig, common.NewLeaderRpc("c0->t0", trustDomainConfig0))
 	}
 	//c.Ping()
 
