@@ -89,6 +89,9 @@ func (s *PirServer) SetDB(db *PirDB) error {
 		return err
 	}
 	s.DB = db
+	if _, err := s.sock.Read(dbptrarr[0:2]); err != nil {
+		return err
+	}
 	return nil
 }
 

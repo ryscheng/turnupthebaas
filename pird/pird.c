@@ -122,6 +122,7 @@ int main(int argc, char** argv)
     int readamount;
     int ret;
     int dbhndl;
+    int newdbhndl;
     int configuration_params[3];
     for (;;) {
       client_sock = accept(socket_fd, NULL, NULL);
@@ -164,20 +165,23 @@ int main(int argc, char** argv)
           }
           configure(deviceid, configuration_params[0], configuration_params[1], configuration_params[2]);
         } else if (next_command == '3') { // write
-          if (dbhndl != 0) {
-            shmdt(database);
-          }
-          ret = read(client_sock, &dbhndl, sizeof(dbhndl));
+          ret = read(client_sock, &newdbhndl, sizeof(newdbhndl));
           if (ret == -1) {
             printf("Failed to learn shm id.\n");
             break;
           }
-          database = shmat(dbhndl, NULL, SHM_RDONLY);
-          if (database == (void*)-1) {
-            printf("Failed to open shm ptr: %d.\n", errno);
-            break;
+          if (newdbhndl != dbhndl && dbhndl != 0) {
+            shmdt(database);
+          }
+          if (newdbhndl != dbhndl) {
+            database = shmat(dbhndl, NULL, SHM_RDONLY);
+            if (database == (void*)-1) {
+              printf("Failed to open shm ptr: %d.\n", errno);
+              break;
+            }
           }
           do_write(database);
+          write(client_sock, "ok", 2);
         } else {
           printf("Unexpected command: %c\n", next_command);
           break;

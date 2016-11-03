@@ -118,6 +118,7 @@ func handle(conn net.Conn) {
 				conn.Close()
 				break
 			}
+			conn.Write([]byte{1,1})
 		}
 	}
 }

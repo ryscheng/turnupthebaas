@@ -102,7 +102,6 @@ func (s *Shard) BatchRead(args *common.BatchReadArgs, replyChan chan *common.Bat
 }
 
 func (s *Shard) Close() {
-	s.log.Println("Close: ")
 	s.signalChan <- 1
 }
 
