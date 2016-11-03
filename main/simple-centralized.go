@@ -6,7 +6,8 @@ import (
 	"github.com/ryscheng/pdb/server"
 	"log"
 	"net/http"
-	"time"
+	"os"
+	"os/signal"
 )
 
 type Killable interface {
@@ -41,11 +42,13 @@ func main() {
 	c0 := libpdb.NewClient("c0", *globalConfig, common.NewLeaderRpc("c0->t0", trustDomainConfig0))
 	c0.Ping()
 	//c1.Ping()
-	time.Sleep(10 * time.Second)
 
-	// Kill servers
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	<-c
 	for _, v := range s {
 		v.Kill()
 	}
-
+	t1.Close()
+	t0.Close()
 }

@@ -18,6 +18,7 @@ type Centralized struct {
 	name     string
 	follower common.FollowerInterface
 	isLeader bool
+	status   chan int
 
 	// Thread-safe
 	globalConfig atomic.Value //common.GlobalConfig
@@ -26,6 +27,7 @@ type Centralized struct {
 	// Channels
 	ReadBatch []*ReadRequest
 	ReadChan  chan *ReadRequest
+	closeChan chan int
 }
 
 func NewCentralized(name string, globalConfig common.GlobalConfig, follower common.FollowerInterface, isLeader bool) *Centralized {
@@ -37,10 +39,11 @@ func NewCentralized(name string, globalConfig common.GlobalConfig, follower comm
 
 	c.globalConfig.Store(globalConfig)
 
-	status := make(chan int)
+	c.status = make(chan int)
+	c.closeChan = make(chan int)
 	sock := getSocket()
-	go pir.CreateMockServer(status, sock)
-	<-status
+	go pir.CreateMockServer(c.status, sock)
+	<-c.status
 	//c.shard = NewShard(name, "../pird/pir.socket", globalConfig)
 	c.shard = NewShard(name, sock, globalConfig)
 	c.shard.Table.Flop()
@@ -51,6 +54,15 @@ func NewCentralized(name string, globalConfig common.GlobalConfig, follower comm
 	go c.batchReads()
 
 	return c
+}
+
+func (c *Centralized) Close() {
+	// stop processing.
+	c.closeChan <- 1
+	// Stop the shard.
+	c.shard.Close()
+	// stop pir daemon if there was one.
+	c.status <- 1
 }
 
 /** PUBLIC METHODS (threadsafe) **/
@@ -80,7 +92,7 @@ func (c *Centralized) Ping(args *common.PingArgs, reply *common.PingReply) error
 
 func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) error {
 	c.log.Println("Write: enter")
-	tr := trace.New("centralized." + c.name, "Write")
+	tr := trace.New("centralized.write", "Write")
 	defer tr.Finish()
 
 	// @todo --- parallelize writes.
@@ -111,7 +123,7 @@ func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) er
 
 func (c *Centralized) Read(args *common.ReadArgs, reply *common.ReadReply) error {
 	c.log.Println("Read: enter")
-	tr := trace.New("centralized." + c.name, "Read")
+	tr := trace.New("centralized.read", "Read")
 	defer tr.Finish()
 	resultChan := make(chan []byte)
 	c.ReadChan <- &ReadRequest{args, resultChan}
@@ -123,7 +135,7 @@ func (c *Centralized) Read(args *common.ReadArgs, reply *common.ReadReply) error
 
 func (c *Centralized) BatchRead(args *common.BatchReadArgs, reply *common.BatchReadReply) error {
 	c.log.Println("BatchRead: enter")
-	tr := trace.New("centralized." + c.name, "BatchRead")
+	tr := trace.New("centralized.batchread", "BatchRead")
 	defer tr.Finish()
 	// Start local computation
 	var fReply common.BatchReadReply
@@ -177,6 +189,9 @@ func (c *Centralized) batchReads() {
 			} else {
 				c.log.Printf("Read: add to batch, size=%v\n", len(c.ReadBatch))
 			}
+			continue
+		case <-c.closeChan:
+			break
 		}
 	}
 }
