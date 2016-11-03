@@ -25,7 +25,6 @@ func testConf() common.GlobalConfig {
 	return common.GlobalConfig{
 		uint64(fromEnvOrDefault("NUM_BUCKETS", 512)), // num buckets
 		fromEnvOrDefault("BUCKET_DEPTH", 4),          // depth
-		0, //window size?
 		fromEnvOrDefault("DATA_SIZE", 512), // data size
 		fromEnvOrDefault("BATCH_SIZE", 8),  // batch size
 		0.95,        // bloom false positive
