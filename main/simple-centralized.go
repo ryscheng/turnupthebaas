@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"github.com/ryscheng/pdb/common"
 	"github.com/ryscheng/pdb/libpdb"
 	"github.com/ryscheng/pdb/server"
@@ -10,6 +11,8 @@ import (
 	"os/signal"
 )
 
+var numClients = flag.Int("clients", 1, "Number of clients")
+
 type Killable interface {
 	Kill()
 }
@@ -17,6 +20,7 @@ type Killable interface {
 func main() {
 	log.Println("Simple Sanity Test")
 	s := make(map[string]Killable)
+	flag.Parse()
 
 	// For trace debug status
 	go http.ListenAndServe("localhost:8080", nil)
@@ -39,8 +43,11 @@ func main() {
 	// Client
 	//c0 := libpdb.NewClient("c0", globalConfig, t0)
 	//c1 := libpdb.NewClient("c1", globalConfig, t0)
-	c0 := libpdb.NewClient("c0", *globalConfig, common.NewLeaderRpc("c0->t0", trustDomainConfig0))
-	c0.Ping()
+	clients := make([]*libpdb.Client, *numClients)
+	for i:=0; i < *numClients; i++ {
+		clients[i] = libpdb.NewClient("c" + string(i), *globalConfig, common.NewLeaderRpc("c0->t0", trustDomainConfig0))
+		clients[i].Ping()
+	}
 	//c1.Ping()
 
 	c := make(chan os.Signal, 1)
