@@ -187,7 +187,7 @@ func (c *Centralized) triggerBatchRead(batch []*ReadRequest) {
 	currSeqNo := atomic.LoadUint64(&c.globalSeqNo) + 1
 	globalConfig := c.globalConfig.Load().(common.GlobalConfig)
 	args.SeqNoRange = common.Range{}
-	args.SeqNoRange.Start = currSeqNo - uint64(globalConfig.WindowSize) // Inclusive
+	args.SeqNoRange.Start = currSeqNo - uint64(globalConfig.WindowSize()) // Inclusive
 	if args.SeqNoRange.Start < 1 {
 		args.SeqNoRange.Start = 1 // Minimum of 1
 	}

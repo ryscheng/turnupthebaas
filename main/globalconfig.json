@@ -1,7 +1,6 @@
 {
   "NumBuckets": 100,
   "BucketDepth": 2,
-  "WindowSize": 100,
   "DataSize": 1024,
   "ReadBatch": 1,
   "BloomFalsePositive": 0.001,

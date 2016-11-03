@@ -11,7 +11,6 @@ type GlobalConfig struct {
 	NumBuckets uint64
 	// How many items are in a bucket?
 	BucketDepth int
-	WindowSize  int
 	// How many bytes are in an item?
 	DataSize int // Number of bytes
 	// How many read requests should be made of the PIR server at a time?
@@ -25,6 +24,10 @@ type GlobalConfig struct {
 	WriteInterval  time.Duration
 	ReadInterval   time.Duration
 	TrustDomains   []*TrustDomainConfig `json:"-"`
+}
+
+func (g *GlobalConfig) WindowSize() int {
+	return int(float32(int(g.NumBuckets) * g.BucketDepth) * g.MaxLoadFactor)
 }
 
 // Load configuration from a JSON file. returns the config on success or nil if

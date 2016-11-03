@@ -88,7 +88,7 @@ func (t *Topic) GeneratePublish(globalConfig *common.GlobalConfig, seqNo uint64,
 	args.Data = ciphertext
 
 	// @todo - just send the k bit locations
-	bloomFilter := bloom.NewWithEstimates(uint(globalConfig.WindowSize), globalConfig.BloomFalsePositive)
+	bloomFilter := bloom.NewWithEstimates(uint(globalConfig.WindowSize()), globalConfig.BloomFalsePositive)
 	idBytes := make([]byte, 8, 20)
 	_ = binary.PutUvarint(idBytes, t.Id)
 	idBytes = append(idBytes, seqNoBytes...)

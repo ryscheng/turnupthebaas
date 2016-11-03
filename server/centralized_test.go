@@ -14,7 +14,6 @@ func BenchmarkWrite(b *testing.B) {
 	globalConfig := common.GlobalConfig{0, 0, 0, 0, 0, 0, 0, 0, time.Second, time.Second, []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1}}
 	globalConfig.NumBuckets = 100
 	globalConfig.BucketDepth = 4
-	globalConfig.WindowSize = 100000
 	globalConfig.DataSize = 256
 	globalConfig.BloomFalsePositive = 0.1
 

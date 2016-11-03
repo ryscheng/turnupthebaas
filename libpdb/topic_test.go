@@ -38,7 +38,7 @@ func TestGeneratePublish(t *testing.T) {
 	fmt.Printf("TestGeneratePublish:\n")
 	globalConfig := &common.GlobalConfig{}
 	globalConfig.NumBuckets = 100
-	globalConfig.WindowSize = 10000
+	globalConfig.BucketDepth = 2
 	globalConfig.DataSize = 1024
 	globalConfig.BloomFalsePositive = 0.1
 	//globalConfig.BloomFalsePositive = 0.0001
@@ -139,19 +139,19 @@ func BenchmarkEncryptDecrypt(b *testing.B) {
 }
 
 func BenchmarkGeneratePublishN10K(b *testing.B) {
-	HelperBenchmarkGeneratePublish(b, 10000)
+	HelperBenchmarkGeneratePublish(b, 100)
 }
 func BenchmarkGeneratePublishN100K(b *testing.B) {
-	HelperBenchmarkGeneratePublish(b, 100000)
+	HelperBenchmarkGeneratePublish(b, 1000)
 }
 func BenchmarkGeneratePublishN1M(b *testing.B) {
-	HelperBenchmarkGeneratePublish(b, 1000000)
+	HelperBenchmarkGeneratePublish(b, 10000)
 }
 
-func HelperBenchmarkGeneratePublish(b *testing.B, WindowSize int) {
+func HelperBenchmarkGeneratePublish(b *testing.B, BucketDepth int) {
 	globalConfig := &common.GlobalConfig{}
 	globalConfig.NumBuckets = 100
-	globalConfig.WindowSize = WindowSize
+	globalConfig.BucketDepth = BucketDepth
 	globalConfig.DataSize = 1024
 	globalConfig.BloomFalsePositive = 0.0001
 	plaintext := make([]byte, globalConfig.DataSize, globalConfig.DataSize)
@@ -181,10 +181,10 @@ func BenchmarkGeneratePollN1M(b *testing.B) {
 	HelperBenchmarkGeneratePoll(b, 1000000/4)
 }
 
-func HelperBenchmarkGeneratePoll(b *testing.B, WindowSize uint64) {
+func HelperBenchmarkGeneratePoll(b *testing.B, NumBuckets uint64) {
 	globalConfig := &common.GlobalConfig{}
 	globalConfig.TrustDomains = make([]*common.TrustDomainConfig, 3)
-	globalConfig.NumBuckets = WindowSize
+	globalConfig.NumBuckets = NumBuckets
 
 	password := ""
 	th, err := NewTopic(password)
