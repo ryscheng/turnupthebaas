@@ -1,7 +1,6 @@
 package cuckoo
 
 import (
-	"bytes"
 	"log"
 	"math/rand"
 	"os"
@@ -10,21 +9,14 @@ import (
 const MAX_EVICTIONS int = 500
 
 type ItemLocation struct {
+	id int
 	filled bool
 	bucket1 int
 	bucket2 int
 }
 
-func (b *ItemLocation) Equals(other ItemLocation) bool {
-	if b.bucket1 == other.bucket1 &&
-		b.bucket2 == other.bucket2 {
-		return true
-	} else {
-		return false
-	}
-}
-
 type Item struct {
+	id int
 	Data []byte
 	Bucket1 int
 	Bucket2 int
@@ -32,6 +24,7 @@ type Item struct {
 
 func (i Item) Copy() *Item {
 	other := &Item{}
+	other.id = i.id
 	other.Data = make([]byte, len(i.Data))
 	other.Bucket1 = i.Bucket1
 	other.Bucket2 = i.Bucket2
@@ -45,7 +38,7 @@ func (i *Item) Equals(other *Item) bool {
 	}
 	return i.Bucket1 == other.Bucket1 &&
 		i.Bucket2 == other.Bucket2 &&
-		bytes.Equal(i.Data, other.Data);
+		i.id == other.id;
 }
 
 type Table struct {
@@ -151,8 +144,9 @@ func (t *Table) Insert(item *Item) (bool, *Item) {
 	}
 
 	// Then try the other bucket, starting the eviction loop
+	ok := true
 	for i := 0; i < MAX_EVICTIONS; i++ {
-		ok, item := t.insertAndEvict(nextBucket, item)
+		ok, item = t.insertAndEvict(nextBucket, item)
 		if !ok {
 			t.log.Fatalf("Lost item. Evicted, but was unable to add.")
 			return false, item
@@ -178,6 +172,7 @@ func (t *Table) Insert(item *Item) (bool, *Item) {
 // - fails if either bucket is out of range
 func (t *Table) Remove(item *Item) bool {
 	if item.Bucket1 >= t.numBuckets || item.Bucket2 >= t.numBuckets {
+		//t.log.Fatalf("Failed to remove item with invalid buckets.")
 		return false
 	}
 
@@ -208,8 +203,7 @@ func (t *Table) isInBucket(bucketIndex int, item *Item) bool {
 		if t.index[idx].filled &&
 			t.index[idx].bucket1 == item.Bucket1 &&
 			t.index[idx].bucket2 == item.Bucket2 &&
-			bytes.Equal(item.Data, t.data[idx * t.itemSize : (idx + 1) * t.itemSize]) {
-
+			t.index[idx].id == item.id {
 			return true
 		}
 	}
@@ -226,6 +220,7 @@ func (t *Table) tryInsertToBucket(bucketIndex int, item *Item) bool {
 	for i := bucketIndex * t.bucketDepth; i < (bucketIndex + 1) * t.bucketDepth; i++ {
 		if !t.index[i].filled {
 			copy(t.data[i * t.itemSize:], item.Data)
+			t.index[i].id = item.id
 			t.index[i].bucket1 = item.Bucket1
 			t.index[i].bucket2 = item.Bucket2
 			t.index[i].filled = true
@@ -244,6 +239,9 @@ func (t *Table) tryInsertToBucket(bucketIndex int, item *Item) bool {
 // - false if insertion triggered an eviction
 //   other values contain the evicted item's alternate bucket, BucketLocation pair, and value
 func (t *Table) insertAndEvict(bucketIndex int, item *Item) (bool, *Item) {
+	if item.Bucket1 != bucketIndex && item.Bucket2 != bucketIndex {
+		return false, item
+	}
 	if t.tryInsertToBucket(bucketIndex, item) {
 		return true, nil
 	}
@@ -279,7 +277,9 @@ func (t *Table) getItem(itemIndex int) *Item {
 	if t.index[itemIndex].filled == false {
 		return nil
 	}
-	return &Item{t.data[itemIndex * t.itemSize : (itemIndex + 1) * t.itemSize],
+	return &Item{
+		t.index[itemIndex].id,
+		t.data[itemIndex * t.itemSize : (itemIndex + 1) * t.itemSize],
 		t.index[itemIndex].bucket1,
 		t.index[itemIndex].bucket2}
 }
