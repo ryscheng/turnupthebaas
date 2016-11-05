@@ -121,10 +121,10 @@ func (s *Shard) BatchRead(args *common.BatchReadArgs, replyChan chan *common.Bat
 
 func (s *Shard) Close() {
 	s.log.Info.Printf("Graceful shutdown of shard.")
+	s.writeChan <- nil
 	s.readChan <- nil
 	<-s.syncChan
-	s.log.Info.Printf("All reads flushed & read loop closed.")
-	s.writeChan <- nil
+	s.log.Info.Printf("Caller thread knows read loop closed.")
 }
 
 /** PRIVATE METHODS (singlethreaded) **/
@@ -138,8 +138,9 @@ func (s *Shard) processReads() {
 		select {
 		case batchReadReq = <-s.readChan:
 			if batchReadReq == nil {
+				s.log.Info.Printf("Read loop closed.")
 				s.syncChan <- 0
-				break
+				return
 			}
 			s.batchRead(batchReadReq)
 			continue
@@ -156,8 +157,7 @@ func (s *Shard) processWrites() {
 		select {
 		case writeReq = <-s.writeChan:
 			if writeReq == nil {
-				s.syncChan <- 0
-				break
+				return
 			}
 
 			itm := asCuckooItem(writeReq)
