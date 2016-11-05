@@ -2,7 +2,6 @@ package server
 
 import (
 	"github.com/ryscheng/pdb/common"
-	"github.com/ryscheng/pdb/pir"
 	"golang.org/x/net/trace"
 	"sync/atomic"
 )
@@ -27,7 +26,7 @@ type Centralized struct {
 	closeChan chan int
 }
 
-func NewCentralized(name string, globalConfig common.GlobalConfig, follower common.FollowerInterface, isLeader bool) *Centralized {
+func NewCentralized(name string, socket string, globalConfig common.GlobalConfig, follower common.FollowerInterface, isLeader bool) *Centralized {
 	c := &Centralized{}
 	c.log = common.NewLogger(name)
 	c.name = name
@@ -36,13 +35,8 @@ func NewCentralized(name string, globalConfig common.GlobalConfig, follower comm
 
 	c.globalConfig.Store(globalConfig)
 
-	c.status = make(chan int)
 	c.closeChan = make(chan int)
-	sock := getSocket()
-	go pir.CreateMockServer(c.status, sock)
-	<-c.status
-	//c.shard = NewShard(name, "../pird/pir.socket", globalConfig)
-	c.shard = NewShard(name, sock, globalConfig)
+	c.shard = NewShard(name, socket, globalConfig)
 
 	c.proposedSeqNo = 0
 	c.committedSeqNo = 0
@@ -58,9 +52,6 @@ func (c *Centralized) Close() {
 	c.closeChan <- 1
 	// Stop the shard.
 	c.shard.Close()
-	// stop pir daemon if there was one.
-	c.status <- 1
-	<-c.status
 }
 
 /** PUBLIC METHODS (threadsafe) **/
@@ -187,7 +178,7 @@ func (c *Centralized) batchReads() {
 			c.ReadBatch = append(c.ReadBatch, readReq)
 			if len(c.ReadBatch) >= globalConfig.ReadBatch {
 				go c.triggerBatchRead(c.ReadBatch)
-				c.ReadBatch = make([]*common.ReadRequest, 0)
+				c.ReadBatch = make([]*common.ReadRequest, 0, globalConfig.ReadBatch)
 			} else {
 				c.log.Trace.Printf("Read: add to batch, size=%v\n", len(c.ReadBatch))
 			}
