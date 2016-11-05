@@ -38,7 +38,7 @@ type Shard struct {
 
 	// Channels
 	writeChan chan *common.WriteArgs
-	readChan  chan *BatchReadRequest
+	readChan  chan *common.BatchReadRequest
 	syncChan  chan int
 
 	sinceFlip        int
@@ -52,7 +52,7 @@ func NewShard(name string, socket string, globalConfig common.GlobalConfig) *Sha
 
 	s.globalConfig.Store(globalConfig)
 	s.writeChan = make(chan *common.WriteArgs)
-	s.readChan = make(chan *BatchReadRequest)
+	s.readChan = make(chan *common.BatchReadRequest)
 	s.syncChan = make(chan int)
 
 	// TODO: per-server config of where the local PIR socket is.
@@ -114,7 +114,7 @@ func (s *Shard) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdates
 
 func (s *Shard) BatchRead(args *common.BatchReadArgs, replyChan chan *common.BatchReadReply) error {
 	s.log.Trace.Println("BatchRead: ")
-	batchReq := &BatchReadRequest{args, replyChan}
+	batchReq := &common.BatchReadRequest{args, replyChan}
 	s.readChan <- batchReq
 	return nil
 }
@@ -130,7 +130,7 @@ func (s *Shard) Close() {
 /** PRIVATE METHODS (singlethreaded) **/
 func (s *Shard) processReads() {
 	// The read thread searializs all access to the underlying DB
-	var batchReadReq *BatchReadRequest
+	var batchReadReq *common.BatchReadRequest
 
 	defer s.PirDB.Free()
 	defer s.PirServer.Disconnect()
@@ -203,7 +203,7 @@ func asCuckooItem(wa *common.WriteArgs) *cuckoo.Item {
 	return &cuckoo.Item{int(wa.GlobalSeqNo), wa.Data, int(wa.Bucket1), int(wa.Bucket2)}
 }
 
-func (s *Shard) batchRead(req *BatchReadRequest) {
+func (s *Shard) batchRead(req *common.BatchReadRequest) {
 	s.log.Trace.Printf("batchRead: enter\n")
 	// @todo --- garbage collection
 	conf := s.globalConfig.Load().(common.GlobalConfig)

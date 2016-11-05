@@ -11,6 +11,20 @@ type BatchReadReply struct {
 	Replies []ReadReply
 }
 
+/**
+ * Embodies a single batch read request
+ * Reads require a response on the ReplyChan
+ */
+type BatchReadRequest struct {
+	Args      *BatchReadArgs
+	ReplyChan chan *BatchReadReply
+}
+
+func (r *BatchReadRequest) Reply(reply *BatchReadReply) {
+	r.ReplyChan <- reply
+	close(r.ReplyChan)
+}
+
 /*************
  * OTHER TYPES
  *************/

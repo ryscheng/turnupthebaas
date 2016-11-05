@@ -22,8 +22,8 @@ type Centralized struct {
 	proposedSeqNo  uint64 // Use atomic.AddUint64, atomic.LoadUint64
 	committedSeqNo uint64 // Use atomic.AddUint64, atomic.LoadUint64
 	// Channels
-	ReadBatch []*ReadRequest
-	ReadChan  chan *ReadRequest
+	ReadBatch []*common.ReadRequest
+	ReadChan  chan *common.ReadRequest
 	closeChan chan int
 }
 
@@ -46,8 +46,8 @@ func NewCentralized(name string, globalConfig common.GlobalConfig, follower comm
 
 	c.proposedSeqNo = 0
 	c.committedSeqNo = 0
-	c.ReadBatch = make([]*ReadRequest, 0)
-	c.ReadChan = make(chan *ReadRequest)
+	c.ReadBatch = make([]*common.ReadRequest, 0)
+	c.ReadChan = make(chan *common.ReadRequest)
 	go c.batchReads()
 
 	return c
@@ -60,7 +60,7 @@ func (c *Centralized) Close() {
 	c.shard.Close()
 	// stop pir daemon if there was one.
 	c.status <- 1
-	<- c.status
+	<-c.status
 }
 
 /** PUBLIC METHODS (threadsafe) **/
@@ -127,7 +127,7 @@ func (c *Centralized) Read(args *common.ReadArgs, reply *common.ReadReply) error
 	tr := trace.New("centralized.read", "Read")
 	defer tr.Finish()
 	resultChan := make(chan *common.ReadReply)
-	c.ReadChan <- &ReadRequest{args, resultChan}
+	c.ReadChan <- &common.ReadRequest{args, resultChan}
 	myReply := <-resultChan
 	*reply = *myReply
 	c.log.Trace.Println("Read: exit")
@@ -180,14 +180,14 @@ func (c *Centralized) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetU
 /** PRIVATE METHODS (singlethreaded) **/
 func (c *Centralized) batchReads() {
 	globalConfig := c.globalConfig.Load().(common.GlobalConfig)
-	var readReq *ReadRequest
+	var readReq *common.ReadRequest
 	for {
 		select {
 		case readReq = <-c.ReadChan:
 			c.ReadBatch = append(c.ReadBatch, readReq)
 			if len(c.ReadBatch) >= globalConfig.ReadBatch {
 				go c.triggerBatchRead(c.ReadBatch)
-				c.ReadBatch = make([]*ReadRequest, 0)
+				c.ReadBatch = make([]*common.ReadRequest, 0)
 			} else {
 				c.log.Trace.Printf("Read: add to batch, size=%v\n", len(c.ReadBatch))
 			}
@@ -198,7 +198,7 @@ func (c *Centralized) batchReads() {
 	}
 }
 
-func (c *Centralized) triggerBatchRead(batch []*ReadRequest) {
+func (c *Centralized) triggerBatchRead(batch []*common.ReadRequest) {
 	c.log.Trace.Println("triggerBatchRead: enter")
 	args := &common.BatchReadArgs{}
 	// Copy args

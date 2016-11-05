@@ -66,3 +66,12 @@ func (c *Client) Subscribe(handle *Topic) bool {
 	//@todo using EnqueueRead
 	return true
 }
+
+func (c *Client) PublishTrace() uint64 {
+
+	return 0
+}
+
+func (c *Client) PollTrace() common.Range {
+	return common.Range{}
+}

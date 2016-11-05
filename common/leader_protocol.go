@@ -33,6 +33,20 @@ type WriteReply struct {
 	GlobalSeqNo uint64
 }
 
+/**
+ * Embodies a single read request
+ * Reads require a response on the ReplyChan
+ */
+type WriteRequest struct {
+	Args      *WriteArgs
+	ReplyChan chan *WriteReply
+}
+
+func (w *WriteRequest) Reply(reply *WriteReply) {
+	w.ReplyChan <- reply
+	close(w.ReplyChan)
+}
+
 type PirArgs struct {
 	RequestVector []byte
 	PadSeed       []byte
@@ -56,6 +70,20 @@ func (r *ReadReply) Combine(other []byte) error {
 		r.Data[i] = r.Data[i] ^ other[i]
 	}
 	return nil
+}
+
+/**
+ * Embodies a single read request
+ * Reads require a response on the ReplyChan
+ */
+type ReadRequest struct {
+	Args      *ReadArgs
+	ReplyChan chan *ReadReply
+}
+
+func (r *ReadRequest) Reply(reply *ReadReply) {
+	r.ReplyChan <- reply
+	close(r.ReplyChan)
 }
 
 type GetUpdatesArgs struct {
