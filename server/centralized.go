@@ -17,9 +17,10 @@ type Centralized struct {
 	status   chan int
 
 	// Thread-safe
-	globalConfig atomic.Value //common.GlobalConfig
-	shard        *Shard
-	globalSeqNo  uint64 // Use atomic.AddUint64, atomic.LoadUint64
+	globalConfig   atomic.Value //common.GlobalConfig
+	shard          *Shard
+	proposedSeqNo  uint64 // Use atomic.AddUint64, atomic.LoadUint64
+	committedSeqNo uint64 // Use atomic.AddUint64, atomic.LoadUint64
 	// Channels
 	ReadBatch []*ReadRequest
 	ReadChan  chan *ReadRequest
@@ -44,7 +45,8 @@ func NewCentralized(name string, globalConfig common.GlobalConfig, follower comm
 	c.shard = NewShard(name, sock, globalConfig)
 	c.shard.Table.Flop()
 
-	c.globalSeqNo = 0
+	c.proposedSeqNo = 0
+	c.committedSeqNo = 0
 	c.ReadBatch = make([]*ReadRequest, 0)
 	c.ReadChan = make(chan *ReadRequest)
 	go c.batchReads()
@@ -94,7 +96,7 @@ func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) er
 
 	// @todo --- parallelize writes.
 	if c.isLeader {
-		seqNo := atomic.AddUint64(&c.globalSeqNo, 1)
+		seqNo := atomic.AddUint64(&c.proposedSeqNo, 1)
 		args.GlobalSeqNo = seqNo
 	}
 
@@ -114,6 +116,7 @@ func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) er
 		reply.Err = ""
 	}
 
+	atomic.StoreUint64(&c.committedSeqNo, args.GlobalSeqNo)
 	reply.GlobalSeqNo = args.GlobalSeqNo
 	c.log.Trace.Println("Write: exit")
 	return nil
@@ -205,7 +208,7 @@ func (c *Centralized) triggerBatchRead(batch []*ReadRequest) {
 	}
 
 	// Choose a SeqNoRange
-	currSeqNo := atomic.LoadUint64(&c.globalSeqNo) + 1
+	currSeqNo := atomic.LoadUint64(&c.committedSeqNo) + 1
 	globalConfig := c.globalConfig.Load().(common.GlobalConfig)
 	args.SeqNoRange = common.Range{}
 	if currSeqNo <= uint64(globalConfig.WindowSize()) {
