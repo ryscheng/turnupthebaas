@@ -87,6 +87,7 @@ func (s *PirServer) SetDB(db *PirDB) error {
 		return err
 	}
 
+	fmt.Printf("DB being set for shmid %d\n", db.shmid)
 	dbptrarr := make([]byte, 4)
 	binary.LittleEndian.PutUint32(dbptrarr, uint32(db.shmid))
 	if _, err := s.sock.Write(dbptrarr); err != nil {
@@ -100,6 +101,7 @@ func (s *PirServer) SetDB(db *PirDB) error {
 }
 
 func (db *PirDB) Free() error {
+	xusyscall.Shmrm(db.DB)
 	return xusyscall.Shmdt(db.DB)
 }
 
