@@ -2,8 +2,6 @@ package libpdb
 
 import (
 	"github.com/ryscheng/pdb/common"
-	"log"
-	"os"
 	"sync/atomic"
 )
 
@@ -14,7 +12,7 @@ import (
  * - 1x RequestManager.readPeriodic
  */
 type Client struct {
-	log          *log.Logger
+	log          *common.Logger
 	name         string
 	globalConfig atomic.Value //common.GlobalConfig
 	leader       common.LeaderInterface
@@ -23,14 +21,14 @@ type Client struct {
 
 func NewClient(name string, globalConfig common.GlobalConfig, leader common.LeaderInterface) *Client {
 	c := &Client{}
-	c.log = log.New(os.Stdout, "["+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
+	c.log = common.NewLogger(name)
 	c.name = name
 	c.globalConfig.Store(globalConfig)
 	c.leader = leader
 
 	c.msgReqMan = NewRequestManager(name, c.leader, &c.globalConfig)
 
-	c.log.Println("NewClient: starting new client - " + name)
+	c.log.Info.Println("NewClient: starting new client - " + name)
 	return c
 }
 
@@ -44,10 +42,10 @@ func (c *Client) Ping() bool {
 	var reply common.PingReply
 	err := c.leader.Ping(&common.PingArgs{"PING"}, &reply)
 	if err == nil && reply.Err == "" {
-		c.log.Printf("Ping success\n")
+		c.log.Info.Printf("Ping success\n")
 		return true
 	} else {
-		c.log.Printf("Ping fail: err=%v, reply=%v\n", err, reply)
+		c.log.Warn.Printf("Ping fail: err=%v, reply=%v\n", err, reply)
 		return false
 	}
 }
