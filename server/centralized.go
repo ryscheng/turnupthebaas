@@ -178,7 +178,7 @@ func (c *Centralized) batchReads() {
 			c.ReadBatch = append(c.ReadBatch, readReq)
 			if len(c.ReadBatch) >= globalConfig.ReadBatch {
 				go c.triggerBatchRead(c.ReadBatch)
-				c.ReadBatch = make([]*ReadRequest, 0)
+				c.ReadBatch = make([]*ReadRequest, 0, globalConfig.ReadBatch)
 			} else {
 				c.log.Trace.Printf("Read: add to batch, size=%v\n", len(c.ReadBatch))
 			}

@@ -12,8 +12,8 @@ import (
 )
 
 var numClients = flag.Int("clients", 1, "Number of clients")
-var leaderPIR = flag.Int("leader", "../pird/pir.socket", "PIR daemon for leader")
-var followerPIR = flag.Int("follower", "../pird/pir2.socket", "PIR daemon for follower")
+var leaderPIR = flag.String("leader", "../pird/pir.socket", "PIR daemon for leader")
+var followerPIR = flag.String("follower", "../pird/pir2.socket", "PIR daemon for follower")
 
 type Killable interface {
 	Kill()
