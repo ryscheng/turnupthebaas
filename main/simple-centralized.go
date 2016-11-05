@@ -2,10 +2,13 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/ryscheng/pdb/common"
 	"github.com/ryscheng/pdb/libpdb"
+	"github.com/ryscheng/pdb/pir"
 	"github.com/ryscheng/pdb/server"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,6 +17,7 @@ import (
 var numClients = flag.Int("clients", 1, "Number of clients")
 var leaderPIR = flag.String("leader", "../pird/pir.socket", "PIR daemon for leader")
 var followerPIR = flag.String("follower", "../pird/pir2.socket", "PIR daemon for follower")
+var mockPIR = flag.Bool("mock", false, "Use the mock PIR daemon")
 
 type Killable interface {
 	Kill()
@@ -32,6 +36,17 @@ func main() {
 	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9001", true, false)
 	globalConfig := common.GlobalConfigFromFile("globalconfig.json")
 	globalConfig.TrustDomains = []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1}
+
+	status := make(chan int)
+
+	if *mockPIR {
+		*followerPIR = fmt.Sprintf("pirtest%d.socket", rand.Int())
+		*leaderPIR = fmt.Sprintf("pirtest%d.socket", rand.Int())
+		go pir.CreateMockServer(status, *followerPIR)
+		go pir.CreateMockServer(status, *leaderPIR)
+		<-status
+		<-status
+	}
 
 	// Trust Domain 1
 	t1 := server.NewCentralized("t1", *followerPIR, *globalConfig, nil, false)
@@ -61,4 +76,10 @@ func main() {
 	}
 	t1.Close()
 	t0.Close()
+	if *mockPIR {
+		status <- 1
+		status <- 1
+		<- status
+		<- status
+	}
 }
