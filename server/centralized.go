@@ -4,24 +4,23 @@ import (
 	"github.com/ryscheng/pdb/common"
 	"github.com/ryscheng/pdb/pir"
 	"golang.org/x/net/trace"
-	"log"
-	"os"
 	"sync/atomic"
 )
 
 type Centralized struct {
 	/** Private State **/
 	// Static
-	log      *log.Logger
+	log      *common.Logger
 	name     string
 	follower common.FollowerInterface
 	isLeader bool
 	status   chan int
 
 	// Thread-safe
-	globalConfig atomic.Value //common.GlobalConfig
-	shard        *Shard
-	globalSeqNo  uint64 // Use atomic.AddUint64, atomic.LoadUint64
+	globalConfig   atomic.Value //common.GlobalConfig
+	shard          *Shard
+	proposedSeqNo  uint64 // Use atomic.AddUint64, atomic.LoadUint64
+	committedSeqNo uint64 // Use atomic.AddUint64, atomic.LoadUint64
 	// Channels
 	ReadBatch []*ReadRequest
 	ReadChan  chan *ReadRequest
@@ -30,7 +29,7 @@ type Centralized struct {
 
 func NewCentralized(name string, globalConfig common.GlobalConfig, follower common.FollowerInterface, isLeader bool) *Centralized {
 	c := &Centralized{}
-	c.log = log.New(os.Stdout, "["+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
+	c.log = common.NewLogger(name)
 	c.name = name
 	c.follower = follower
 	c.isLeader = isLeader
@@ -45,7 +44,8 @@ func NewCentralized(name string, globalConfig common.GlobalConfig, follower comm
 	//c.shard = NewShard(name, "../pird/pir.socket", globalConfig)
 	c.shard = NewShard(name, sock, globalConfig)
 
-	c.globalSeqNo = 0
+	c.proposedSeqNo = 0
+	c.committedSeqNo = 0
 	c.ReadBatch = make([]*ReadRequest, 0)
 	c.ReadChan = make(chan *ReadRequest)
 	go c.batchReads()
@@ -69,8 +69,7 @@ func (c *Centralized) GetName() string {
 }
 
 func (c *Centralized) Ping(args *common.PingArgs, reply *common.PingReply) error {
-	c.log.Println("Ping: " + args.Msg + ", ... Pong")
-
+	c.log.Trace.Println("Ping: enter")
 	// Try to ping the follower if one exists
 	if c.follower != nil {
 		var fReply common.PingReply
@@ -85,17 +84,19 @@ func (c *Centralized) Ping(args *common.PingArgs, reply *common.PingReply) error
 	}
 
 	reply.Msg = "PONG"
+	c.log.Trace.Println("Ping: exit")
+	c.log.Info.Println("Ping: " + args.Msg + ", ... Pong")
 	return nil
 }
 
 func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) error {
-	//c.log.Println("Write: enter")
+	c.log.Trace.Println("Write: enter")
 	tr := trace.New("centralized.write", "Write")
 	defer tr.Finish()
 
 	// @todo --- parallelize writes.
 	if c.isLeader {
-		seqNo := atomic.AddUint64(&c.globalSeqNo, 1)
+		seqNo := atomic.AddUint64(&c.proposedSeqNo, 1)
 		args.GlobalSeqNo = seqNo
 	}
 
@@ -106,7 +107,7 @@ func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) er
 		if fErr != nil {
 			// Assume all servers always available
 			reply.Err = fErr.Error()
-			c.log.Fatalf("Error forwarding to follower %v", c.follower.GetName())
+			c.log.Error.Fatalf("Error forwarding to follower %v", c.follower.GetName())
 			return fErr
 		} else {
 			reply.Err = fReply.Err
@@ -115,24 +116,26 @@ func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) er
 		reply.Err = ""
 	}
 
-	//c.log.Println("Write: exit")
+	atomic.StoreUint64(&c.committedSeqNo, args.GlobalSeqNo)
+	reply.GlobalSeqNo = args.GlobalSeqNo
+	c.log.Trace.Println("Write: exit")
 	return nil
 }
 
 func (c *Centralized) Read(args *common.ReadArgs, reply *common.ReadReply) error {
-	//c.log.Println("Read: enter")
+	c.log.Trace.Println("Read: enter")
 	tr := trace.New("centralized.read", "Read")
 	defer tr.Finish()
-	resultChan := make(chan []byte)
+	resultChan := make(chan *common.ReadReply)
 	c.ReadChan <- &ReadRequest{args, resultChan}
-	reply.Err = ""
-	reply.Data = <-resultChan
-	//c.log.Println("Read: exit")
+	myReply := <-resultChan
+	*reply = *myReply
+	c.log.Trace.Println("Read: exit")
 	return nil
 }
 
 func (c *Centralized) BatchRead(args *common.BatchReadArgs, reply *common.BatchReadReply) error {
-	//c.log.Println("BatchRead: enter")
+	c.log.Trace.Println("BatchRead: enter")
 	tr := trace.New("centralized.batchread", "BatchRead")
 	defer tr.Finish()
 	// Start local computation
@@ -146,7 +149,7 @@ func (c *Centralized) BatchRead(args *common.BatchReadArgs, reply *common.BatchR
 		if fErr != nil {
 			// Assume all servers always available
 			reply.Err = fErr.Error()
-			c.log.Fatalf("Error forwarding to follower %v", c.follower.GetName())
+			c.log.Error.Fatalf("Error forwarding to follower %v", c.follower.GetName())
 			return fErr
 		} else {
 			reply.Err = fReply.Err
@@ -164,12 +167,12 @@ func (c *Centralized) BatchRead(args *common.BatchReadArgs, reply *common.BatchR
 	}
 
 	reply.Replies = myReply.Replies
-	//c.log.Println("BatchRead: exit")
+	c.log.Trace.Println("BatchRead: exit")
 	return nil
 }
 
 func (c *Centralized) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdatesReply) error {
-	//c.log.Println("GetUpdates: ")
+	c.log.Trace.Println("GetUpdates: ")
 	// @TODO
 	return nil
 }
@@ -186,7 +189,7 @@ func (c *Centralized) batchReads() {
 				go c.triggerBatchRead(c.ReadBatch)
 				c.ReadBatch = make([]*ReadRequest, 0)
 			} else {
-				//c.log.Printf("Read: add to batch, size=%v\n", len(c.ReadBatch))
+				c.log.Trace.Printf("Read: add to batch, size=%v\n", len(c.ReadBatch))
 			}
 			continue
 		case <-c.closeChan:
@@ -196,7 +199,7 @@ func (c *Centralized) batchReads() {
 }
 
 func (c *Centralized) triggerBatchRead(batch []*ReadRequest) {
-	//c.log.Println("triggerBatchRead: enter")
+	c.log.Trace.Println("triggerBatchRead: enter")
 	args := &common.BatchReadArgs{}
 	// Copy args
 	args.Args = make([]common.ReadArgs, len(batch), len(batch))
@@ -205,12 +208,13 @@ func (c *Centralized) triggerBatchRead(batch []*ReadRequest) {
 	}
 
 	// Choose a SeqNoRange
-	currSeqNo := atomic.LoadUint64(&c.globalSeqNo) + 1
+	currSeqNo := atomic.LoadUint64(&c.committedSeqNo) + 1
 	globalConfig := c.globalConfig.Load().(common.GlobalConfig)
 	args.SeqNoRange = common.Range{}
-	args.SeqNoRange.Start = currSeqNo - uint64(globalConfig.WindowSize()) // Inclusive
-	if args.SeqNoRange.Start < 1 {
+	if currSeqNo <= uint64(globalConfig.WindowSize()) {
 		args.SeqNoRange.Start = 1 // Minimum of 1
+	} else {
+		args.SeqNoRange.Start = currSeqNo - uint64(globalConfig.WindowSize()) // Inclusive
 	}
 	args.SeqNoRange.End = currSeqNo // Exclusive
 	args.SeqNoRange.Aborted = make([]uint64, 0, 0)
@@ -222,7 +226,7 @@ func (c *Centralized) triggerBatchRead(batch []*ReadRequest) {
 	var reply common.BatchReadReply
 	err := c.BatchRead(args, &reply)
 	if err != nil || reply.Err != "" {
-		c.log.Fatalf("Error doing BatchRead: err=%v, replyErr=%v\n", err, reply.Err)
+		c.log.Error.Fatalf("Error doing BatchRead: err=%v, replyErr=%v\n", err, reply.Err)
 		return
 	}
 
@@ -230,8 +234,9 @@ func (c *Centralized) triggerBatchRead(batch []*ReadRequest) {
 
 	// Respond to clients
 	for i, val := range reply.Replies {
-		batch[i].Reply(val.Data)
+		val.GlobalSeqNo = args.SeqNoRange
+		batch[i].Reply(&val)
 	}
 
-	//c.log.Println("triggerBatchRead: exit")
+	c.log.Trace.Println("triggerBatchRead: exit")
 }

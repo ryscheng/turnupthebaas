@@ -5,7 +5,6 @@ import (
 	"github.com/ryscheng/pdb/common"
 	"github.com/ryscheng/pdb/cuckoo"
 	"github.com/ryscheng/pdb/pir"
-	"log"
 	"math/rand"
 	"os"
 	"sync/atomic"
@@ -26,8 +25,8 @@ func getSocket() string {
  */
 type Shard struct {
 	// Private State
-	log           *log.Logger
-	name          string
+	log  *common.Logger
+	name string
 
 	*pir.PirServer
 	*pir.PirDB
@@ -35,20 +34,20 @@ type Shard struct {
 	Entries []cuckoo.Item
 	*cuckoo.Table
 
-	globalConfig  atomic.Value //common.GlobalConfig
+	globalConfig atomic.Value //common.GlobalConfig
 
 	// Channels
-	writeChan  chan *common.WriteArgs
-	readChan   chan *BatchReadRequest
-	syncChan   chan int
+	writeChan chan *common.WriteArgs
+	readChan  chan *BatchReadRequest
+	syncChan  chan int
 
-	sinceFlip  int
+	sinceFlip        int
 	outstandingLimit int
 }
 
 func NewShard(name string, socket string, globalConfig common.GlobalConfig) *Shard {
 	s := &Shard{}
-	s.log = log.New(os.Stdout, "["+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
+	s.log = common.NewLogger(name)
 	s.name = name
 
 	s.globalConfig.Store(globalConfig)
@@ -59,19 +58,19 @@ func NewShard(name string, socket string, globalConfig common.GlobalConfig) *Sha
 	// TODO: per-server config of where the local PIR socket is.
 	pirServer, err := pir.Connect(socket)
 	if err != nil {
-		s.log.Fatalf("Could not connect to pir back end: %v", err)
+		s.log.Error.Fatalf("Could not connect to pir back end: %v", err)
 		return nil
 	}
 	s.PirServer = pirServer
 	err = s.PirServer.Configure(globalConfig.DataSize*globalConfig.BucketDepth, int(globalConfig.NumBuckets), globalConfig.ReadBatch)
 	if err != nil {
-		s.log.Fatalf("Could not start PIR back end with correct parameters: %v", err)
+		s.log.Error.Fatalf("Could not start PIR back end with correct parameters: %v", err)
 		return nil
 	}
 
 	db, err := pirServer.GetDB()
 	if err != nil {
-		s.log.Fatalf("Could not allocate DB region: %v", err)
+		s.log.Error.Fatalf("Could not allocate DB region: %v", err)
 		return nil
 	}
 	s.PirDB = db
@@ -79,10 +78,10 @@ func NewShard(name string, socket string, globalConfig common.GlobalConfig) *Sha
 	s.PirServer.SetDB(s.PirDB)
 
 	// TODO: rand seed
-	s.Table = cuckoo.NewTable(name + "-Table", int(globalConfig.NumBuckets), globalConfig.BucketDepth, globalConfig.DataSize, db.DB, 0)
-	s.Entries = make([]cuckoo.Item, 0, int(globalConfig.NumBuckets) * globalConfig.BucketDepth)
+	s.Table = cuckoo.NewTable(name+"-Table", int(globalConfig.NumBuckets), globalConfig.BucketDepth, globalConfig.DataSize, db.DB, 0)
+	s.Entries = make([]cuckoo.Item, 0, int(globalConfig.NumBuckets)*globalConfig.BucketDepth)
 
-  //TODO: should be a parameter in globalconfig
+	//TODO: should be a parameter in globalconfig
 	s.outstandingLimit = int(float32(globalConfig.NumBuckets) * 0.10)
 
 	go s.processReads()
@@ -92,21 +91,21 @@ func NewShard(name string, socket string, globalConfig common.GlobalConfig) *Sha
 
 /** PUBLIC METHODS (threadsafe) **/
 func (s *Shard) Ping(args *common.PingArgs, reply *common.PingReply) error {
-	s.log.Println("Ping: " + args.Msg + ", ... Pong")
+	s.log.Info.Println("Ping: " + args.Msg + ", ... Pong")
 	reply.Err = ""
 	reply.Msg = "PONG"
 	return nil
 }
 
 func (s *Shard) Write(args *common.WriteArgs, reply *common.WriteReply) error {
-	//s.log.Println("Write: ")
+	s.log.Trace.Println("Write: ")
 	s.writeChan <- args
 	reply.Err = ""
 	return nil
 }
 
 func (s *Shard) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdatesReply) error {
-	//s.log.Println("GetUpdates: ")
+	s.log.Trace.Println("GetUpdates: ")
 	// @TODO
 	reply.Err = ""
 	//reply.InterestVector =
@@ -114,17 +113,17 @@ func (s *Shard) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdates
 }
 
 func (s *Shard) BatchRead(args *common.BatchReadArgs, replyChan chan *common.BatchReadReply) error {
-	//s.log.Println("Read: ")
+	s.log.Trace.Println("BatchRead: ")
 	batchReq := &BatchReadRequest{args, replyChan}
 	s.readChan <- batchReq
 	return nil
 }
 
 func (s *Shard) Close() {
-	s.log.Printf("Graceful shutdown of shard.")
+	s.log.Info.Printf("Graceful shutdown of shard.")
 	s.readChan <- nil
-	<- s.syncChan
-	s.log.Printf("All reads flushed & read loop closed.")
+	<-s.syncChan
+	s.log.Info.Printf("All reads flushed & read loop closed.")
 	s.writeChan <- nil
 }
 
@@ -166,13 +165,13 @@ func (s *Shard) processWrites() {
 			ok, evicted := s.Table.Insert(itm)
 			// No longer need this pointer.
 			itm.Data = nil
-			if !ok || len(s.Entries) > int(float32(int(conf.NumBuckets) * conf.BucketDepth) * conf.MaxLoadFactor) {
+			if !ok || len(s.Entries) > int(float32(int(conf.NumBuckets)*conf.BucketDepth)*conf.MaxLoadFactor) {
 				s.evictOldItems()
 			}
 			if evicted != nil {
 				ok, evicted = s.Table.Insert(evicted)
 				if !ok || evicted != nil {
-					s.log.Fatalf("Consistency violation: lost an in-window DB item.")
+					s.log.Error.Fatalf("Consistency violation: lost an in-window DB item.")
 				}
 			}
 			s.sinceFlip += 1
@@ -189,7 +188,7 @@ func (s *Shard) processWrites() {
 
 func (s *Shard) evictOldItems() {
 	conf := s.globalConfig.Load().(common.GlobalConfig)
-	toRemove := int(float32(int(conf.NumBuckets) * conf.BucketDepth) * conf.LoadFactorStep)
+	toRemove := int(float32(int(conf.NumBuckets)*conf.BucketDepth) * conf.LoadFactorStep)
 	if toRemove >= len(s.Entries) {
 		toRemove = len(s.Entries) - 1
 	}
@@ -205,7 +204,7 @@ func asCuckooItem(wa *common.WriteArgs) *cuckoo.Item {
 }
 
 func (s *Shard) batchRead(req *BatchReadRequest) {
-	//s.log.Printf("batchRead: enter\n")
+	s.log.Trace.Printf("batchRead: enter\n")
 	// @todo --- garbage collection
 	conf := s.globalConfig.Load().(common.GlobalConfig)
 	reply := new(common.BatchReadReply)
@@ -223,7 +222,7 @@ func (s *Shard) batchRead(req *BatchReadRequest) {
 		}
 		responses, err := s.PirServer.Read(pirvector)
 		if err != nil {
-			s.log.Fatalf("Reading from PIR Server failed: %v", err)
+			s.log.Error.Fatalf("Reading from PIR Server failed: %v", err)
 			req.Reply(&common.BatchReadReply{fmt.Sprintf("Failed to read: %v", err), nil})
 			return
 		}
@@ -238,5 +237,5 @@ func (s *Shard) batchRead(req *BatchReadRequest) {
 
 	// Return results
 	req.Reply(reply)
-	//s.log.Printf("batchRead: exit\n")
+	s.log.Trace.Printf("batchRead: exit\n")
 }

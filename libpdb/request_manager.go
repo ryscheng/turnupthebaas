@@ -3,8 +3,6 @@ package libpdb
 import (
 	"github.com/ryscheng/pdb/common"
 	"github.com/ryscheng/pdb/drbg"
-	"log"
-	"os"
 	"sync/atomic"
 	"time"
 )
@@ -13,7 +11,7 @@ import (
 //const defaultWriteInterval = int64(time.Second)
 
 type RequestManager struct {
-	log    *log.Logger
+	log    *common.Logger
 	leader common.LeaderInterface
 	// Protected by `atomic`
 	globalConfig *atomic.Value //*common.GlobalConfig
@@ -27,12 +25,12 @@ type RequestManager struct {
 
 func NewRequestManager(name string, leader common.LeaderInterface, globalConfig *atomic.Value) *RequestManager {
 	rm := &RequestManager{}
-	rm.log = log.New(os.Stdout, "["+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
+	rm.log = common.NewLogger(name)
 	rm.leader = leader
 	rm.globalConfig = globalConfig
 	rm.dead = 0
 
-	rm.log.Printf("NewRequestManager \n")
+	rm.log.Info.Printf("NewRequestManager \n")
 	go rm.readPeriodic()
 	go rm.writePeriodic()
 	return rm
@@ -60,7 +58,7 @@ func (rm *RequestManager) isDead() bool {
 func (rm *RequestManager) writePeriodic() {
 	rand, randErr := drbg.NewHashDrbg(nil)
 	if randErr != nil {
-		rm.log.Fatalf("Error creating new HashDrbg: %v\n", randErr)
+		rm.log.Error.Fatalf("Error creating new HashDrbg: %v\n", randErr)
 	}
 
 	for rm.isDead() == false {
@@ -74,11 +72,11 @@ func (rm *RequestManager) writePeriodic() {
 			if len(rm.writeQueue) > 0 {
 				args = rm.writeQueue[0]
 				rm.writeQueue = rm.writeQueue[1:]
-				//rm.log.Printf("writePeriodic: Real request to %v, %v \n", args.Bucket1, args.Bucket2)
+				rm.log.Info.Printf("writePeriodic: Real request to %v, %v \n", args.Bucket1, args.Bucket2)
 			} else {
 				args = &common.WriteArgs{}
 				rm.generateRandomWrite(globalConfig, rand, args)
-				//rm.log.Printf("writePeriodic: Dummy request to %v, %v \n", args.Bucket1, args.Bucket2)
+				rm.log.Info.Printf("writePeriodic: Dummy request to %v, %v \n", args.Bucket1, args.Bucket2)
 			}
 			//@todo Do something with response
 			startTime := time.Now()
@@ -86,12 +84,11 @@ func (rm *RequestManager) writePeriodic() {
 			elapsedTime := time.Since(startTime)
 
 			if err != nil || reply.Err != "" {
-				rm.log.Printf("writePeriodic error: %v, reply=%v, time=%v\n", err, reply, elapsedTime)
+				rm.log.Warn.Printf("writePeriodic error: %v, reply=%v, time=%v\n", err, reply, elapsedTime)
 			} else {
-				//rm.log.Printf("writePeriodic reply=%v, time=%v\n", reply, elapsedTime)
+				rm.log.Info.Printf("writePeriodic seqNo=%v, time=%v\n", reply.GlobalSeqNo, elapsedTime)
 			}
 			time.Sleep(globalConfig.WriteInterval)
-			//time.Sleep(time.Duration(atomic.LoadInt64(&rm.writeInterval)))
 		}
 	}
 }
@@ -99,7 +96,7 @@ func (rm *RequestManager) writePeriodic() {
 func (rm *RequestManager) readPeriodic() {
 	rand, randErr := drbg.NewHashDrbg(nil)
 	if randErr != nil {
-		rm.log.Fatalf("Error creating new HashDrbg: %v\n", randErr)
+		rm.log.Error.Fatalf("Error creating new HashDrbg: %v\n", randErr)
 	}
 
 	for rm.isDead() == false {
@@ -113,11 +110,11 @@ func (rm *RequestManager) readPeriodic() {
 			if len(rm.readQueue) > 0 {
 				args = rm.readQueue[0]
 				rm.readQueue = rm.readQueue[1:]
-				//rm.log.Printf("readPeriodic: Real request \n")
+				rm.log.Info.Printf("readPeriodic: Real request \n")
 			} else {
 				args = &common.ReadArgs{}
 				rm.generateRandomRead(globalConfig, rand, args)
-				//rm.log.Printf("readPeriodic: Dummy request \n")
+				rm.log.Info.Printf("readPeriodic: Dummy request \n")
 			}
 			//@todo Do something with response
 			startTime := time.Now()
@@ -125,13 +122,11 @@ func (rm *RequestManager) readPeriodic() {
 			elapsedTime := time.Since(startTime)
 
 			if err != nil || reply.Err != "" {
-				rm.log.Printf("readPeriodic error: %v, reply=%v, time=%v\n", err, reply, elapsedTime)
+				rm.log.Error.Printf("readPeriodic error: %v, reply=%v, time=%v\n", err, reply, elapsedTime)
 			} else {
-				//rm.log.Printf("readPeriodic reply=%v\n", reply)
-				//rm.log.Printf("readPeriodic reply: time=%v\n", elapsedTime)
+				rm.log.Info.Printf("readPeriodic reply: range=%v, time=%v\n", reply.GlobalSeqNo, elapsedTime)
 			}
 			time.Sleep(globalConfig.ReadInterval)
-			//time.Sleep(time.Duration(atomic.LoadInt64(&rm.readInterval)))
 		}
 	}
 }
@@ -155,7 +150,7 @@ func (rm *RequestManager) generateRandomRead(globalConfig common.GlobalConfig, r
 		rand.FillBytes(args.ForTd[i].RequestVector)
 		seed, seedErr := drbg.NewSeed()
 		if seedErr != nil {
-			rm.log.Fatalf("Error creating new Seed: %v\n", seedErr)
+			rm.log.Error.Fatalf("Error creating new Seed: %v\n", seedErr)
 		}
 		args.ForTd[i].PadSeed = seed.Export()
 	}

@@ -29,7 +29,8 @@ type WriteArgs struct {
 }
 
 type WriteReply struct {
-	Err string
+	Err         string
+	GlobalSeqNo uint64
 }
 
 type PirArgs struct {
@@ -42,8 +43,9 @@ type ReadArgs struct {
 }
 
 type ReadReply struct {
-	Err  string
-	Data []byte
+	Err         string
+	Data        []byte
+	GlobalSeqNo Range
 }
 
 func (r *ReadReply) Combine(other []byte) error {
