@@ -3,6 +3,7 @@ package pir
 import "bytes"
 import "encoding/binary"
 import "errors"
+import "fmt"
 import "net"
 import "github.com/YoshikiShibata/xusyscall"
 
