@@ -114,6 +114,7 @@ func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) er
 		reply.Err = ""
 	}
 
+	reply.GlobalSeqNo = args.GlobalSeqNo
 	c.log.Trace.Println("Write: exit")
 	return nil
 }
