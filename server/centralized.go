@@ -123,10 +123,10 @@ func (c *Centralized) Read(args *common.ReadArgs, reply *common.ReadReply) error
 	c.log.Trace.Println("Read: enter")
 	tr := trace.New("centralized.read", "Read")
 	defer tr.Finish()
-	resultChan := make(chan []byte)
+	resultChan := make(chan *common.ReadReply)
 	c.ReadChan <- &ReadRequest{args, resultChan}
-	reply.Err = ""
-	reply.Data = <-resultChan
+	myReply := <-resultChan
+	*reply = *myReply
 	c.log.Trace.Println("Read: exit")
 	return nil
 }
@@ -208,9 +208,10 @@ func (c *Centralized) triggerBatchRead(batch []*ReadRequest) {
 	currSeqNo := atomic.LoadUint64(&c.globalSeqNo) + 1
 	globalConfig := c.globalConfig.Load().(common.GlobalConfig)
 	args.SeqNoRange = common.Range{}
-	args.SeqNoRange.Start = currSeqNo - uint64(globalConfig.WindowSize()) // Inclusive
-	if args.SeqNoRange.Start < 1 {
+	if currSeqNo <= uint64(globalConfig.WindowSize()) {
 		args.SeqNoRange.Start = 1 // Minimum of 1
+	} else {
+		args.SeqNoRange.Start = currSeqNo - uint64(globalConfig.WindowSize()) // Inclusive
 	}
 	args.SeqNoRange.End = currSeqNo // Exclusive
 	args.SeqNoRange.Aborted = make([]uint64, 0, 0)
@@ -230,7 +231,8 @@ func (c *Centralized) triggerBatchRead(batch []*ReadRequest) {
 
 	// Respond to clients
 	for i, val := range reply.Replies {
-		batch[i].Reply(val.Data)
+		val.GlobalSeqNo = args.SeqNoRange
+		batch[i].Reply(&val)
 	}
 
 	c.log.Trace.Println("triggerBatchRead: exit")

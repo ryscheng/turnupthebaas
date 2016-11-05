@@ -10,11 +10,11 @@ import (
  */
 type ReadRequest struct {
 	Args      *common.ReadArgs
-	ReplyChan chan []byte
+	ReplyChan chan *common.ReadReply
 }
 
-func (r *ReadRequest) Reply(data []byte) {
-	r.ReplyChan <- data
+func (r *ReadRequest) Reply(reply *common.ReadReply) {
+	r.ReplyChan <- reply
 	close(r.ReplyChan)
 }
 

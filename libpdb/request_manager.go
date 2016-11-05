@@ -86,7 +86,7 @@ func (rm *RequestManager) writePeriodic() {
 			if err != nil || reply.Err != "" {
 				rm.log.Warn.Printf("writePeriodic error: %v, reply=%v, time=%v\n", err, reply, elapsedTime)
 			} else {
-				rm.log.Info.Printf("writePeriodic reply=%v, time=%v\n", reply, elapsedTime)
+				rm.log.Info.Printf("writePeriodic seqNo=%v, time=%v\n", reply.GlobalSeqNo, elapsedTime)
 			}
 			time.Sleep(globalConfig.WriteInterval)
 		}
@@ -124,7 +124,7 @@ func (rm *RequestManager) readPeriodic() {
 			if err != nil || reply.Err != "" {
 				rm.log.Error.Printf("readPeriodic error: %v, reply=%v, time=%v\n", err, reply, elapsedTime)
 			} else {
-				rm.log.Info.Printf("readPeriodic reply: time=%v\n", elapsedTime)
+				rm.log.Info.Printf("readPeriodic reply: range=%v, time=%v\n", reply.GlobalSeqNo, elapsedTime)
 			}
 			time.Sleep(globalConfig.ReadInterval)
 		}
