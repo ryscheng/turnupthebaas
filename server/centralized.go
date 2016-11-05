@@ -4,15 +4,13 @@ import (
 	"github.com/ryscheng/pdb/common"
 	"github.com/ryscheng/pdb/pir"
 	"golang.org/x/net/trace"
-	"log"
-	"os"
 	"sync/atomic"
 )
 
 type Centralized struct {
 	/** Private State **/
 	// Static
-	log      *log.Logger
+	log      *common.Logger
 	name     string
 	follower common.FollowerInterface
 	isLeader bool
@@ -30,7 +28,7 @@ type Centralized struct {
 
 func NewCentralized(name string, globalConfig common.GlobalConfig, follower common.FollowerInterface, isLeader bool) *Centralized {
 	c := &Centralized{}
-	c.log = log.New(os.Stdout, "["+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
+	c.log = common.NewLogger(name)
 	c.name = name
 	c.follower = follower
 	c.isLeader = isLeader
@@ -69,8 +67,7 @@ func (c *Centralized) GetName() string {
 }
 
 func (c *Centralized) Ping(args *common.PingArgs, reply *common.PingReply) error {
-	c.log.Println("Ping: " + args.Msg + ", ... Pong")
-
+	c.log.Trace.Println("Ping: enter")
 	// Try to ping the follower if one exists
 	if c.follower != nil {
 		var fReply common.PingReply
@@ -85,11 +82,13 @@ func (c *Centralized) Ping(args *common.PingArgs, reply *common.PingReply) error
 	}
 
 	reply.Msg = "PONG"
+	c.log.Trace.Println("Ping: exit")
+	c.log.Info.Println("Ping: " + args.Msg + ", ... Pong")
 	return nil
 }
 
 func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) error {
-	//c.log.Println("Write: enter")
+	c.log.Trace.Println("Write: enter")
 	tr := trace.New("centralized.write", "Write")
 	defer tr.Finish()
 
@@ -106,7 +105,7 @@ func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) er
 		if fErr != nil {
 			// Assume all servers always available
 			reply.Err = fErr.Error()
-			c.log.Fatalf("Error forwarding to follower %v", c.follower.GetName())
+			c.log.Error.Fatalf("Error forwarding to follower %v", c.follower.GetName())
 			return fErr
 		} else {
 			reply.Err = fReply.Err
@@ -115,24 +114,24 @@ func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) er
 		reply.Err = ""
 	}
 
-	//c.log.Println("Write: exit")
+	c.log.Trace.Println("Write: exit")
 	return nil
 }
 
 func (c *Centralized) Read(args *common.ReadArgs, reply *common.ReadReply) error {
-	//c.log.Println("Read: enter")
+	c.log.Trace.Println("Read: enter")
 	tr := trace.New("centralized.read", "Read")
 	defer tr.Finish()
 	resultChan := make(chan []byte)
 	c.ReadChan <- &ReadRequest{args, resultChan}
 	reply.Err = ""
 	reply.Data = <-resultChan
-	//c.log.Println("Read: exit")
+	c.log.Trace.Println("Read: exit")
 	return nil
 }
 
 func (c *Centralized) BatchRead(args *common.BatchReadArgs, reply *common.BatchReadReply) error {
-	//c.log.Println("BatchRead: enter")
+	c.log.Trace.Println("BatchRead: enter")
 	tr := trace.New("centralized.batchread", "BatchRead")
 	defer tr.Finish()
 	// Start local computation
@@ -146,7 +145,7 @@ func (c *Centralized) BatchRead(args *common.BatchReadArgs, reply *common.BatchR
 		if fErr != nil {
 			// Assume all servers always available
 			reply.Err = fErr.Error()
-			c.log.Fatalf("Error forwarding to follower %v", c.follower.GetName())
+			c.log.Error.Fatalf("Error forwarding to follower %v", c.follower.GetName())
 			return fErr
 		} else {
 			reply.Err = fReply.Err
@@ -164,12 +163,12 @@ func (c *Centralized) BatchRead(args *common.BatchReadArgs, reply *common.BatchR
 	}
 
 	reply.Replies = myReply.Replies
-	//c.log.Println("BatchRead: exit")
+	c.log.Trace.Println("BatchRead: exit")
 	return nil
 }
 
 func (c *Centralized) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdatesReply) error {
-	//c.log.Println("GetUpdates: ")
+	c.log.Trace.Println("GetUpdates: ")
 	// @TODO
 	return nil
 }
@@ -186,7 +185,7 @@ func (c *Centralized) batchReads() {
 				go c.triggerBatchRead(c.ReadBatch)
 				c.ReadBatch = make([]*ReadRequest, 0)
 			} else {
-				//c.log.Printf("Read: add to batch, size=%v\n", len(c.ReadBatch))
+				c.log.Trace.Printf("Read: add to batch, size=%v\n", len(c.ReadBatch))
 			}
 			continue
 		case <-c.closeChan:
@@ -196,7 +195,7 @@ func (c *Centralized) batchReads() {
 }
 
 func (c *Centralized) triggerBatchRead(batch []*ReadRequest) {
-	//c.log.Println("triggerBatchRead: enter")
+	c.log.Trace.Println("triggerBatchRead: enter")
 	args := &common.BatchReadArgs{}
 	// Copy args
 	args.Args = make([]common.ReadArgs, len(batch), len(batch))
@@ -222,7 +221,7 @@ func (c *Centralized) triggerBatchRead(batch []*ReadRequest) {
 	var reply common.BatchReadReply
 	err := c.BatchRead(args, &reply)
 	if err != nil || reply.Err != "" {
-		c.log.Fatalf("Error doing BatchRead: err=%v, replyErr=%v\n", err, reply.Err)
+		c.log.Error.Fatalf("Error doing BatchRead: err=%v, replyErr=%v\n", err, reply.Err)
 		return
 	}
 
@@ -233,5 +232,5 @@ func (c *Centralized) triggerBatchRead(batch []*ReadRequest) {
 		batch[i].Reply(val.Data)
 	}
 
-	//c.log.Println("triggerBatchRead: exit")
+	c.log.Trace.Println("triggerBatchRead: exit")
 }
