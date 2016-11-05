@@ -174,6 +174,7 @@ int main(int argc, char** argv)
             shmdt(database);
           }
           if (newdbhndl != dbhndl) {
+            dbhndl = newdbhndl;
             database = shmat(dbhndl, NULL, SHM_RDONLY);
             if (database == (void*)-1) {
               printf("Failed to open shm ptr: %d.\n", errno);
