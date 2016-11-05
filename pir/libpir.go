@@ -101,7 +101,7 @@ func (s *PirServer) SetDB(db *PirDB) error {
 }
 
 func (db *PirDB) Free() error {
-	xusyscall.Shmrm(db.DB)
+	xusyscall.Shmrm(db.shmid)
 	return xusyscall.Shmdt(db.DB)
 }
 
