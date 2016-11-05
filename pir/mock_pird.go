@@ -20,7 +20,7 @@ func CreateMockServer(status chan int, socket string) error {
 	if err != nil {
 		fmt.Printf("Mock PIRD could not listen on specified socket. Yielding to existing listener.\n")
 		status <- -1
-		<-status
+		go emptyWatchdog(status)
 		return err
 	}
 	fmt.Printf("No running PIR Daemon found. Using unoptimized Golang mock daemon.\n")
@@ -40,16 +40,24 @@ func CreateMockServer(status chan int, socket string) error {
 	}
 }
 
+func emptyWatchdog(channel chan int) {
+	<- channel
+	channel <-0
+}
+
 func quitWatchdog(channel chan int, listener *net.Listener, active []net.Conn) {
 	<-channel
+	fmt.Printf("Mock PIR Daemon closing.\n")
 	(*listener).Close()
 	if active[0] != nil {
 		active[0].Close()
 	}
+	channel<-0
 }
 
 func handle(conn net.Conn) {
 	var database []byte
+	var curdbid int
 
 	CellLength := int(1024)
 	CellCount := int(1024)
@@ -112,11 +120,14 @@ func handle(conn net.Conn) {
 			conn.Read(shmidarr)
 			shmid := binary.LittleEndian.Uint32(shmidarr)
 			// attach shared memory
-			database, err = xusyscall.Shmat(int(shmid), true)
-			if err != nil {
-				fmt.Printf("Couldn't read database from ptr. %s", err)
-				conn.Close()
-				break
+			if curdbid != int(shmid) {
+				curdbid = int(shmid)
+				database, err = xusyscall.Shmat(int(shmid), true)
+				if err != nil {
+					fmt.Printf("Couldn't read database from ptr. %s", err)
+					conn.Close()
+					break
+				}
 			}
 			conn.Write([]byte{1,1})
 		}

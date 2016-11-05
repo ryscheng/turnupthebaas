@@ -50,7 +50,8 @@ func TestShardSanity(t *testing.T) {
 
 	shard.Write(&common.WriteArgs{0, 1, bytes.NewBufferString("Magic").Bytes(), []byte{}, 0}, &common.WriteReply{})
 
-	shard.Table.Flop()
+	// Force DB write.
+	shard.syncChan <- 1
 
 	replychan := make(chan *common.BatchReadReply)
 	reqs := make([]common.ReadArgs, 8)
@@ -72,6 +73,7 @@ func TestShardSanity(t *testing.T) {
 
 	shard.Close()
 	status <- 1
+	<- status
 }
 
 func BenchmarkShard(b *testing.B) {
@@ -89,9 +91,6 @@ func BenchmarkShard(b *testing.B) {
 		b.Error("Failed to create shard.")
 		return
 	}
-
-	// Initial DB
-	shard.Table.Flop()
 
 	replychan := make(chan *common.BatchReadReply)
 
@@ -131,4 +130,5 @@ func BenchmarkShard(b *testing.B) {
 	fmt.Printf("Benchmark called close w N=%d\n", b.N)
 	shard.Close()
 	status <- 1
+	<-status
 }

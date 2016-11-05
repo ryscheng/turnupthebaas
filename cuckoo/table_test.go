@@ -56,12 +56,12 @@ func TestBasic(t *testing.T) {
 	}
 
 	fmt.Printf("TestBasic: Check contains non-existent value...\n")
-	if table.Contains(&Item{GetBytes(""), 0, 1}) == true {
+	if table.Contains(&Item{0, GetBytes(""), 0, 1}) == true {
 		t.Fatalf("empty table returned true for Contains()\n")
 	}
 
 	fmt.Printf("TestBasic: remove non-existent value ...\n")
-	if table.Remove(&Item{GetBytes("value1"), 0, 1}) == true {
+	if table.Remove(&Item{1, GetBytes("value1"), 0, 1}) == true {
 		t.Fatalf("empty table returned true for Remove()\n")
 	}
 
@@ -71,18 +71,23 @@ func TestBasic(t *testing.T) {
 	}
 
 	fmt.Printf("TestBasic: Insert value ...\n")
-	ok, itm := table.Insert(&Item{GetBytes("value1"), 0, 1})
+	ok, itm := table.Insert(&Item{1, GetBytes("value1"), 0, 1})
 	if itm != nil || ok != true {
 		t.Fatalf("error inserting into table (0, 1, value1)\n")
 	}
 
 	fmt.Printf("TestBasic: Check inserted value...\n")
-	if table.Contains(&Item{GetBytes("value1"), 0, 1}) == false {
+	if table.Contains(&Item{1, GetBytes("value1"), 0, 1}) == false {
+		t.Fatalf("cannot find recently inserted value\n")
+	}
+
+	fmt.Printf("TestBasic: Check inserted value w/o full reference...\n")
+	if table.Contains(&Item{1, GetBytes(""), 0, 1}) == false {
 		t.Fatalf("cannot find recently inserted value\n")
 	}
 
 	fmt.Printf("TestBasic: Check non-existent value...\n")
-	if table.Contains(&Item{GetBytes("value2"), 0, 1}) == true {
+	if table.Contains(&Item{2, GetBytes("value2"), 0, 1}) == true {
 		t.Fatalf("contains a non-existent value\n")
 	}
 
@@ -92,7 +97,7 @@ func TestBasic(t *testing.T) {
 	}
 
 	fmt.Printf("TestBasic: remove existing value ...\n")
-	if table.Remove(&Item{GetBytes("value1"), 0, 1}) == false {
+	if table.Remove(&Item{1, GetBytes("value1"), 0, 1}) == false {
 		t.Fatalf("error removing existing value (0, 1, value1)\n")
 	}
 
@@ -102,7 +107,7 @@ func TestBasic(t *testing.T) {
 	}
 
 	fmt.Printf("TestBasic: remove recently removed value ...\n")
-	if table.Remove(&Item{GetBytes("value1"), 0, 1}) == true {
+	if table.Remove(&Item{1, GetBytes("value1"), 0, 1}) == true {
 		t.Fatalf("empty table returned true for Remove()\n")
 	}
 
@@ -118,7 +123,7 @@ func TestOutOfBounds(t *testing.T) {
 	table := NewTable("t", 10, 2, 64, nil, 0)
 
 	fmt.Printf("TestOutOfBounds: Insert() out of bounds...\n")
-	ok, itm := table.Insert(&Item{GetBytes("value1"), 100, 100})
+	ok, itm := table.Insert(&Item{1, GetBytes("value1"), 100, 100})
 	if ok == true {
 		t.Fatalf("Insert returned true with out of bound buckets\n")
 	}
@@ -127,12 +132,12 @@ func TestOutOfBounds(t *testing.T) {
 	}
 
 	fmt.Printf("TestOutOfBounds: Contains() out of bounds...\n")
-	if table.Contains(&Item{GetBytes("value1"), 100, 100}) == true {
+	if table.Contains(&Item{1, GetBytes("value1"), 100, 100}) == true {
 		t.Fatalf("Contains returned true with out of bound buckets\n")
 	}
 
 	fmt.Printf("TestOutOfBounds: Remove() out of bounds...\n")
-	if table.Remove(&Item{GetBytes("value1"), 100, 100}) == true {
+	if table.Remove(&Item{1, GetBytes("value1"), 100, 100}) == true {
 		t.Fatalf("Remove() returned true with out of bound buckets\n")
 	}
 
@@ -156,13 +161,14 @@ func TestFullTable(t *testing.T) {
 	for ok {
 		b1 = randBucket(numBuckets)
 		b2 = randBucket(numBuckets)
+		id := rand.Int()
 		val := GetBytes(strconv.Itoa(rand.Int()))
-		entries = append(entries, Item{val, b1, b2})
-		ok, evic = table.Insert(&Item{val, b1, b2})
+		entries = append(entries, Item{id, nil, b1, b2})
+		ok, evic = table.Insert(&Item{id, val, b1, b2})
 
 		if ok {
 			count += 1
-			if table.Contains(&Item{val, b1, b2}) == false {
+			if table.Contains(&Item{id, nil, b1, b2}) == false {
 				t.Fatalf("Insert() succeeded, but Contains failed\n")
 			}
 			if count != table.GetNumElements() {
@@ -176,6 +182,7 @@ func TestFullTable(t *testing.T) {
 	if count != table.GetNumElements() {
 		t.Fatalf("Number of successful Inserts(), %v, does not match GetNumElements(), %v \n", count, table.GetNumElements())
 	}
+	maxCount := count
 
 	// Remove elements one by one
 	fmt.Printf("TestFullTable: Remove each element...\n")
@@ -183,7 +190,7 @@ func TestFullTable(t *testing.T) {
 		if !entry.Equals(evic) {
 			ok = table.Remove(&entry)
 			if ok == false {
-				t.Fatalf("Cannot Remove() an element believed to be in the table")
+				t.Fatalf("Cannot Remove() an element believed to be in the table. item %d of %d", count, maxCount)
 			} else {
 				count -= 1
 				if count != table.GetNumElements() {
@@ -206,30 +213,30 @@ func TestDuplicateValues(t *testing.T) {
 	fmt.Printf("TestDuplicateValues: ...\n")
 	table := NewTable("t", 10, 2, 64, nil, 0)
 
-	ok, itm := table.Insert(&Item{GetBytes("v"), 0, 1})
+	ok, itm := table.Insert(&Item{1, GetBytes("v"), 0, 1})
 	if itm != nil || ok == false {
 		t.Fatalf("Error inserting value \n")
 	}
 
-	ok, itm = table.Insert(&Item{GetBytes("v"), 0, 1})
+	ok, itm = table.Insert(&Item{2, GetBytes("v"), 0, 1})
 	if itm != nil || ok == false {
 		t.Fatalf("Error inserting value again \n")
 	}
 
-	ok, itm = table.Insert(&Item{GetBytes("v"), 1, 2})
+	ok, itm = table.Insert(&Item{3, GetBytes("v"), 1, 2})
 	if itm != nil || ok == false {
 		t.Fatalf("Error inserting value in shifted buckets\n")
 	}
 
-	if table.Remove(&Item{GetBytes("v"), 0, 1}) == false {
+	if table.Remove(&Item{1, GetBytes("v"), 0, 1}) == false {
 		t.Fatalf("Error removing value 1st time\n")
 	}
 
-	if table.Remove(&Item{GetBytes("v"), 0, 1}) == false {
+	if table.Remove(&Item{2, GetBytes("v"), 0, 1}) == false {
 		t.Fatalf("Error removing value 2nd time\n")
 	}
 
-	if table.Remove(&Item{GetBytes("v"), 1, 2}) == false {
+	if table.Remove(&Item{3, GetBytes("v"), 1, 2}) == false {
 		t.Fatalf("Error removing value 3rd time\n")
 	}
 
@@ -248,7 +255,7 @@ func TestLoadFactor(t *testing.T) {
 		for ok {
 			count += 1
 			val := GetBytes(strconv.Itoa(rand.Int()))
-			ok, _ = table.Insert(&Item{val, randBucket(numBuckets), randBucket(numBuckets)})
+			ok, _ = table.Insert(&Item{rand.Int(), val, randBucket(numBuckets), randBucket(numBuckets)})
 		}
 
 		if table.GetNumElements() != count {

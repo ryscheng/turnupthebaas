@@ -29,6 +29,7 @@ func TestConnnect(t *testing.T) {
 	pirServer.Disconnect()
 
 	status <- 1
+	<-status
 }
 
 func TestPir(t *testing.T) {
@@ -72,6 +73,7 @@ func TestPir(t *testing.T) {
 	pirServer.Disconnect()
 
 	status <- 1
+	<- status
 }
 
 func BenchmarkPir(b *testing.B) {
@@ -130,4 +132,5 @@ func BenchmarkPir(b *testing.B) {
 	pirServer.Disconnect()
 
 	status <- 1
+	<-status
 }

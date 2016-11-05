@@ -43,7 +43,6 @@ func NewCentralized(name string, globalConfig common.GlobalConfig, follower comm
 	<-c.status
 	//c.shard = NewShard(name, "../pird/pir.socket", globalConfig)
 	c.shard = NewShard(name, sock, globalConfig)
-	c.shard.Table.Flop()
 
 	c.proposedSeqNo = 0
 	c.committedSeqNo = 0
@@ -61,6 +60,7 @@ func (c *Centralized) Close() {
 	c.shard.Close()
 	// stop pir daemon if there was one.
 	c.status <- 1
+	<- c.status
 }
 
 /** PUBLIC METHODS (threadsafe) **/
