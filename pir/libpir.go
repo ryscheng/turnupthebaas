@@ -46,6 +46,10 @@ func (s *PirServer) Configure(celllength int, cellcount int, batchsize int) erro
 	s.CellCount = cellcount
 	s.CellLength = celllength
 
+	if s.CellCount %8 != 0 || s.CellLength % 8 != 0 {
+		return errors.New("Invalid sizing of database. everything needs to be multiples of 8 bytes.")
+	}
+
 	buf := new(bytes.Buffer)
 	binary.Write(buf, binary.LittleEndian, int32(celllength))
 	binary.Write(buf, binary.LittleEndian, int32(cellcount))

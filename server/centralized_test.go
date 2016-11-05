@@ -12,7 +12,7 @@ func BenchmarkWrite(b *testing.B) {
 	trustDomainConfig0 := common.NewTrustDomainConfig("t0", "localhost:9000", true, false)
 	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9100", true, false)
 	globalConfig := common.GlobalConfig{0, 0, 0, 0, 0, 0, 0, time.Second, time.Second, []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1}}
-	globalConfig.NumBuckets = 100
+	globalConfig.NumBuckets = 128
 	globalConfig.BucketDepth = 4
 	globalConfig.DataSize = 256
 	globalConfig.BloomFalsePositive = 0.1

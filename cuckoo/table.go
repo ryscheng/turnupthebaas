@@ -16,7 +16,7 @@ type ItemLocation struct {
 }
 
 type Item struct {
-	id int
+	Id int
 	Data []byte
 	Bucket1 int
 	Bucket2 int
@@ -24,7 +24,7 @@ type Item struct {
 
 func (i Item) Copy() *Item {
 	other := &Item{}
-	other.id = i.id
+	other.Id = i.Id
 	other.Data = make([]byte, len(i.Data))
 	other.Bucket1 = i.Bucket1
 	other.Bucket2 = i.Bucket2
@@ -38,7 +38,7 @@ func (i *Item) Equals(other *Item) bool {
 	}
 	return i.Bucket1 == other.Bucket1 &&
 		i.Bucket2 == other.Bucket2 &&
-		i.id == other.id;
+		i.Id == other.Id;
 }
 
 type Table struct {
@@ -203,7 +203,7 @@ func (t *Table) isInBucket(bucketIndex int, item *Item) bool {
 		if t.index[idx].filled &&
 			t.index[idx].bucket1 == item.Bucket1 &&
 			t.index[idx].bucket2 == item.Bucket2 &&
-			t.index[idx].id == item.id {
+			t.index[idx].id == item.Id {
 			return true
 		}
 	}
@@ -220,7 +220,7 @@ func (t *Table) tryInsertToBucket(bucketIndex int, item *Item) bool {
 	for i := bucketIndex * t.bucketDepth; i < (bucketIndex + 1) * t.bucketDepth; i++ {
 		if !t.index[i].filled {
 			copy(t.data[i * t.itemSize:], item.Data)
-			t.index[i].id = item.id
+			t.index[i].id = item.Id
 			t.index[i].bucket1 = item.Bucket1
 			t.index[i].bucket2 = item.Bucket2
 			t.index[i].filled = true
