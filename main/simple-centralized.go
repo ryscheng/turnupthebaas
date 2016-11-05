@@ -46,8 +46,9 @@ func main() {
 	//c0 := libpdb.NewClient("c0", globalConfig, t0)
 	//c1 := libpdb.NewClient("c1", globalConfig, t0)
 	clients := make([]*libpdb.Client, *numClients)
+	clientLeaderSock :=common.NewLeaderRpc("c0->t0", trustDomainConfig0)
 	for i:=0; i < *numClients; i++ {
-		clients[i] = libpdb.NewClient("c" + string(i), *globalConfig, common.NewLeaderRpc("c0->t0", trustDomainConfig0))
+		clients[i] = libpdb.NewClient("c" + string(i), *globalConfig, clientLeaderSock)
 		clients[i].Ping()
 	}
 	//c1.Ping()
