@@ -36,6 +36,10 @@ func NewRequestManager(name string, leader common.LeaderInterface, globalConfig 
 		rm.log.Error.Fatalf("Error creating new HashDrbg: %v\n", randErr)
 	}
 	rm.rand = rand
+	rm.writeChan = make(chan *common.WriteRequest)
+	rm.writeQueue = make([]*common.WriteRequest, 0)
+	rm.readChan = make(chan *common.ReadRequest)
+	rm.readQueue = make([]*common.ReadRequest, 0)
 
 	rm.log.Info.Printf("NewRequestManager \n")
 	go rm.readPeriodic()
@@ -67,6 +71,7 @@ func (rm *RequestManager) writePeriodic() {
 	for rm.isDead() == false {
 		select {
 		case msg := <-rm.writeChan:
+			rm.log.Trace.Println("EnqueueWrite to writeQueue")
 			rm.writeQueue = append(rm.writeQueue, msg)
 		default:
 			globalConfig := rm.globalConfig.Load().(common.GlobalConfig)

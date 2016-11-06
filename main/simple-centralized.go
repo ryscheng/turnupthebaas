@@ -61,10 +61,14 @@ func main() {
 	//c0 := libpdb.NewClient("c0", globalConfig, t0)
 	//c1 := libpdb.NewClient("c1", globalConfig, t0)
 	clients := make([]*libpdb.Client, *numClients)
-	clientLeaderSock :=common.NewLeaderRpc("c0->t0", trustDomainConfig0)
-	for i:=0; i < *numClients; i++ {
-		clients[i] = libpdb.NewClient("c" + string(i), *globalConfig, clientLeaderSock)
+	clientLeaderSock := common.NewLeaderRpc("c0->t0", trustDomainConfig0)
+	for i := 0; i < *numClients; i++ {
+		clients[i] = libpdb.NewClient("c"+string(i), *globalConfig, clientLeaderSock)
 		clients[i].Ping()
+		seqNo := clients[i].PublishTrace()
+		fmt.Printf("!!! seqNo=%v\n", seqNo)
+		seqNoRange := clients[i].PollTrace()
+		fmt.Printf("!!! seqNo=%v, range=%v\n", seqNo, seqNoRange)
 	}
 	//c1.Ping()
 
@@ -79,7 +83,7 @@ func main() {
 	if *mockPIR {
 		status <- 1
 		status <- 1
-		<- status
-		<- status
+		<-status
+		<-status
 	}
 }
