@@ -82,7 +82,7 @@ func NewShard(name string, socket string, globalConfig common.GlobalConfig) *Sha
 	s.Entries = make([]cuckoo.Item, 0, int(globalConfig.NumBuckets)*globalConfig.BucketDepth)
 
 	//TODO: should be a parameter in globalconfig
-	s.outstandingLimit = int(float32(globalConfig.NumBuckets) * 0.10)
+	s.outstandingLimit = int(float32(globalConfig.NumBuckets*uint64(globalConfig.BucketDepth)) * 0.50)
 
 	go s.processReads()
 	go s.processWrites()
