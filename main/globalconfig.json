@@ -2,7 +2,7 @@
   "NumBuckets": 32768,
   "BucketDepth": 4,
   "DataSize": 256,
-  "ReadBatch": 1,
+  "ReadBatch": 16,
   "BloomFalsePositive": 0.001,
   "MaxLoadFactor": 0.90,
   "LoadFactorStep": 0.05,
