@@ -4,6 +4,7 @@ import (
 	"github.com/ryscheng/pdb/common"
 	"github.com/ryscheng/pdb/libpdb"
 	"log"
+	"math/rand"
 	"time"
 )
 
@@ -21,8 +22,10 @@ func main() {
 	globalConfig.TrustDomains = []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1}
 
 	leaderRpc := common.NewLeaderRpc("c0->t0", trustDomainConfig0)
-	for i := 0; i < 16000; i++ {
+	numClients := 10000
+	for i := 0; i < numClients; i++ {
 		_ = libpdb.NewClient("c", *globalConfig, leaderRpc)
+		time.Sleep(time.Duration(rand.Int()%(2000000/numClients)) * time.Microsecond)
 	}
 	//c.Ping()
 
