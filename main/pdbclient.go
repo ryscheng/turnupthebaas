@@ -15,10 +15,7 @@ func main() {
 
 	// Config
 	//trustDomainConfig0 := common.NewTrustDomainConfig("t0", "localhost:9000", true, false)
-	//trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9001", true, false)
 	trustDomainConfig0 := common.NewTrustDomainConfig("t0", "172.30.2.10:9000", true, false)
-	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "172.30.2.159:9000", true, false)
-	trustDomainConfig2 := common.NewTrustDomainConfig("t2", "172.30.2.221:9000", true, false)
 	globalConfig := common.GlobalConfigFromFile("globalconfig.json")
 	globalConfig.TrustDomains = []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1, trustDomainConfig2}
 
