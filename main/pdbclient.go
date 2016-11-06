@@ -27,6 +27,7 @@ func main() {
 		_ = libpdb.NewClient("c", *globalConfig, leaderRpc)
 		time.Sleep(time.Duration(rand.Int()%(2000000/numClients)) * time.Microsecond)
 	}
+	log.Printf("Generated %v clients\n", numClients)
 	//c.Ping()
 
 	for {
