@@ -68,10 +68,23 @@ func (c *Client) Subscribe(handle *Topic) bool {
 }
 
 func (c *Client) PublishTrace() uint64 {
-
-	return 0
+	globalConfig := c.globalConfig.Load().(common.GlobalConfig)
+	req := &common.WriteRequest{}
+	req.Args = &common.WriteArgs{}
+	req.ReplyChan = make(chan *common.WriteReply)
+	c.msgReqMan.generateRandomWrite(globalConfig, req.Args)
+	c.msgReqMan.EnqueueWrite(req)
+	reply := <-req.ReplyChan
+	return reply.GlobalSeqNo
 }
 
 func (c *Client) PollTrace() common.Range {
-	return common.Range{}
+	globalConfig := c.globalConfig.Load().(common.GlobalConfig)
+	req := &common.ReadRequest{}
+	req.Args = &common.ReadArgs{}
+	req.ReplyChan = make(chan *common.ReadReply)
+	c.msgReqMan.generateRandomRead(globalConfig, req.Args)
+	c.msgReqMan.EnqueueRead(req)
+	reply := <-req.ReplyChan
+	return reply.GlobalSeqNo
 }

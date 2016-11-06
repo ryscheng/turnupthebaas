@@ -46,3 +46,18 @@ func (r *Range) Equals(b Range) bool {
 	}
 	return true
 }
+
+func (r *Range) Contains(val uint64) bool {
+	if val < r.Start {
+		return false
+	}
+	if val >= r.End {
+		return false
+	}
+	for _, elt := range r.Aborted {
+		if val == elt {
+			return false
+		}
+	}
+	return true
+}
