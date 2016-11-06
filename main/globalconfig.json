@@ -1,11 +1,11 @@
 {
-  "NumBuckets": 32768,
-  "BucketDepth": 4,
+  "NumBuckets": 4096,
+  "BucketDepth": 32,
   "DataSize": 256,
-  "ReadBatch": 16,
+  "ReadBatch": 256,
   "BloomFalsePositive": 0.001,
   "MaxLoadFactor": 0.90,
   "LoadFactorStep": 0.05,
-  "WriteInterval": 1000000000,
-  "ReadInterval": 1000000000
+  "WriteInterval": 5000000000,
+  "ReadInterval": 5000000000
 }
