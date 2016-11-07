@@ -39,10 +39,11 @@ func main() {
 	c1 := libpdb.NewClient("c1", *globalConfig, leaderRpc)
 	startTime := time.Now()
 	seqNo := c0.PublishTrace()
-	for {
-		seqNoRange := c0.PollTrace()
+	for i := 0; i < 100000; i++ {
+		seqNoRange := c1.PollTrace()
 		if seqNoRange.Contains(seqNo) {
-			log.Printf("seqNo=%v in range=%v after %v\n", seqNo, seqNoRange, time.Since(startTime))
+			log.Printf("Poll#%v: seqNo=%v in range=%v after %v\n", i, seqNo, seqNoRange, time.Since(startTime))
+			break
 		}
 	}
 
