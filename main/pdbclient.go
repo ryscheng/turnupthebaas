@@ -5,8 +5,15 @@ import (
 	"github.com/ryscheng/pdb/libpdb"
 	"log"
 	"math/rand"
+	"sort"
 	"time"
 )
+
+type ByTime []time.Duration
+
+func (d ByTime) Len() int           { return len(d) }
+func (d ByTime) Swap(i, j int)      { d[i], d[j] = d[j], d[i] }
+func (d ByTime) Less(i, j int) bool { return d[i].Nanoseconds() < d[j].Nanoseconds() }
 
 func main() {
 	log.Println("------------------")
@@ -39,18 +46,27 @@ func main() {
 	time.Sleep(time.Duration(rand.Int()%int(globalConfig.WriteInterval)) * time.Nanosecond)
 	c1 := libpdb.NewClient("c1", *globalConfig, leaderRpc)
 	log.Println("Created c1")
-	time.Sleep(time.Duration(rand.Int()%int(globalConfig.WriteInterval)) * time.Nanosecond)
-	startTime := time.Now()
-	seqNo := c0.PublishTrace()
-	log.Printf("c0.Publish -> seqNo=%v after %v\n", seqNo, time.Since(startTime))
-	for i := 0; i < 100000; i++ {
-		seqNoRange := c1.PollTrace()
-		log.Printf("c1.Poll#%v: range=%v after %v\n", i, seqNoRange, time.Since(startTime))
-		if seqNoRange.Contains(seqNo) {
-			log.Printf("Poll#%v: seqNo=%v in range=%v after %v\n", i, seqNo, seqNoRange, time.Since(startTime))
-			break
+
+	totalTrials := 10
+	durations := make([]time.Duration, 0)
+	for trials := 0; trials < totalTrials; trials++ {
+		time.Sleep(time.Duration(rand.Int()%int(globalConfig.WriteInterval)) * time.Nanosecond)
+		startTime := time.Now()
+		seqNo := c0.PublishTrace()
+		log.Printf("c0.Publish -> seqNo=%v after %v\n", seqNo, time.Since(startTime))
+		for i := 0; true; i++ {
+			seqNoRange := c1.PollTrace()
+			log.Printf("c1.Poll#%v: range=%v after %v\n", i, seqNoRange, time.Since(startTime))
+			if seqNoRange.Contains(seqNo) {
+				log.Printf("Trial#%v: seqNo=%v in range=%v after %v\n", trials, seqNo, seqNoRange, time.Since(startTime))
+				durations = append(durations, time.Since(startTime))
+				break
+			}
 		}
 	}
+	log.Printf("Done\n")
+	sort.Sort(ByTime(durations))
+	log.Printf("min=%v, q1=%v, median=%v, q3=%v, max=%v\n", durations[0], durations[totalTrials/4], durations[totalTrials/2], durations[3*totalTrials/4], durations[totalTrials-1])
 
 	/**
 	// Go on forever
