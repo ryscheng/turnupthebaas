@@ -22,15 +22,34 @@ func main() {
 	globalConfig.TrustDomains = []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1, trustDomainConfig2}
 
 	leaderRpc := common.NewLeaderRpc("c0->t0", trustDomainConfig0)
+	/**
+	// Throughput
 	numClients := 10000
 	for i := 0; i < numClients; i++ {
 		_ = libpdb.NewClient("c", *globalConfig, leaderRpc)
 		time.Sleep(time.Duration(rand.Int()%(2*int(globalConfig.WriteInterval)/numClients)) * time.Nanosecond)
 	}
 	log.Printf("Generated %v clients\n", numClients)
+	**/
 	//c.Ping()
 
+	// Latency
+	c0 := libpdb.NewClient("c0", *globalConfig, leaderRpc)
+	time.Sleep(time.Duration(rand.Int()%int(globalConfig.WriteInterval)) * time.Nanosecond)
+	c1 := libpdb.NewClient("c1", *globalConfig, leaderRpc)
+	startTime := time.Now()
+	seqNo := c0.PublishTrace()
+	for {
+		seqNoRange := c0.PollTrace()
+		if seqNoRange.Contains(seqNo) {
+			log.Printf("seqNo=%v in range=%v after %v\n", seqNo, seqNoRange, time.Since(startTime))
+		}
+	}
+
+	/**
+	// Go on forever
 	for {
 		time.Sleep(10 * time.Second)
 	}
+	**/
 }
