@@ -39,12 +39,13 @@ func main() {
 	time.Sleep(time.Duration(rand.Int()%int(globalConfig.WriteInterval)) * time.Nanosecond)
 	c1 := libpdb.NewClient("c1", *globalConfig, leaderRpc)
 	log.Println("Created c1")
+	time.Sleep(time.Duration(rand.Int()%int(globalConfig.WriteInterval)) * time.Nanosecond)
 	startTime := time.Now()
 	seqNo := c0.PublishTrace()
-	log.Printf("c0.Publish -> seqNo=%v\n", seqNo)
+	log.Printf("c0.Publish -> seqNo=%v after %v\n", seqNo, time.Since(startTime))
 	for i := 0; i < 100000; i++ {
 		seqNoRange := c1.PollTrace()
-		log.Printf("c1.Poll#%v: range=%v\n", i, seqNoRange)
+		log.Printf("c1.Poll#%v: range=%v after %v\n", i, seqNoRange, time.Since(startTime))
 		if seqNoRange.Contains(seqNo) {
 			log.Printf("Poll#%v: seqNo=%v in range=%v after %v\n", i, seqNo, seqNoRange, time.Since(startTime))
 			break
