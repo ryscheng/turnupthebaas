@@ -10,6 +10,8 @@ void pir(__global unsigned long* buffer,
   int workgroup_index = get_local_id(0);
   int workgroup_num = get_group_id(0);
   int mask_offset = workgroup_num * (length / cell_length) / 8;
+  long current_mask;
+  short bitshift;
 
   // zero scratch
   for (int offset = workgroup_index; offset < cell_length; offset += workgroup_size) {
@@ -19,16 +21,15 @@ void pir(__global unsigned long* buffer,
 
   // Accumulate in parallel.
   for (int offset = workgroup_index; offset < length; offset += workgroup_size) {
-    if (mask[mask_offset + offset / cell_length / 8] & (1 << (offset / cell_length % 8))) {
-      scratch[offset % cell_length] ^= buffer[offset];
-    }
+    bitshift = offset / cell_length % 8;
+    current_mask = mask[mask_offset + offset / cell_length / 8] & (1 << bitshift);
+    current_mask = (current_mask >> bitshift) * -1;
+    scratch[offset % cell_length] ^= current_mask & buffer[offset];
   }
 
   // send to output.
   barrier(CLK_LOCAL_MEM_FENCE);
-  if (workgroup_index == 0) {
-    for (int offset = 0; offset < cell_length; offset += 1) {
-      output[workgroup_num * cell_length + offset] = scratch[offset];
-    }
+  for (int offset = workgroup_index; offset < cell_length; offset += workgroup_size) {
+    output[workgroup_num * cell_length + offset] = scratch[offset];
   }
 }
