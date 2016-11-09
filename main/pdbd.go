@@ -19,15 +19,15 @@ func main() {
 	// Config
 	//trustDomainConfig0 := common.NewTrustDomainConfig("t0", "localhost:9000", true, false)
 	//trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9001", true, false)
-	//trustDomainConfig0 := common.NewTrustDomainConfig("t0", "35.163.10.49:9000", true, false)
 	trustDomainConfig0 := common.NewTrustDomainConfig("t0", "172.30.2.10:9000", true, false)
-	//trustDomainConfig1 := common.NewTrustDomainConfig("t1", "35.163.8.29:9000", true, false)
-	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "172.30.2.221:9000", true, false)
+	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "172.30.2.159:9000", true, false)
+	trustDomainConfig2 := common.NewTrustDomainConfig("t2", "172.30.2.221:9000", true, false)
 	globalConfig := common.GlobalConfigFromFile("globalconfig.json")
-	globalConfig.TrustDomains = []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1}
+	globalConfig.TrustDomains = []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1, trustDomainConfig2}
 
-	s := server.NewCentralized("s", *globalConfig, nil, false)
-	//s := server.NewCentralized("s", globalConfig, common.NewFollowerRpc("t0->t1", trustDomainConfig1), true)
+	s := server.NewCentralized("s", "../pird/pir.socket", *globalConfig, nil, false)
+	//s := server.NewCentralized("s", "../pird/pir.socket", *globalConfig, common.NewFollowerRpc("t1->t2", trustDomainConfig2), false)
+	//s := server.NewCentralized("s", "../pird/pir.socket", *globalConfig, common.NewFollowerRpc("t0->t1", trustDomainConfig1), true)
 	_ = server.NewNetworkRpc(s, 9000)
 
 	log.Println(s)
