@@ -388,7 +388,11 @@ int main(int argc, char** argv)
           printf("Failed to read configuration.\n");
           break;
         }
-        configure(deviceid, configuration_params[0], configuration_params[1], configuration_params[2]);
+        configure(deviceid,
+                  configuration_params[0],
+                  configuration_params[1],
+                  configuration_params[2],
+                  client_sock);
       } else if (next_command == '3') { // write
         ret = read(client_sock, &newdbhndl, sizeof(newdbhndl));
         if (ret == -1) {
@@ -440,7 +444,7 @@ void listDevices() {
   }
 }
 
-int configure(int devid, int n_cell_length, int n_cell_count, int n_batch_size) {
+int configure(int devid, int n_cell_length, int n_cell_count, int n_batch_size, int client_sock) {
   int err;
 
   cell_length = n_cell_length;
@@ -465,6 +469,16 @@ int configure(int devid, int n_cell_length, int n_cell_count, int n_batch_size) 
     clReleaseCommandQueue(commands);
     clReleaseContext(context);
   }
+
+  // Set the socket buffer to as much of a capacity as we can.
+  int maxbuf = cell_count * batch_size / 8;
+  if (cell_length * batch_size > maxbuf) {
+    maxbuf = cell_length * batch_size;
+  }
+  maxbuf *= 2;
+  int buflen = sizeof(maxbuf);
+  setsockopt(client_sock, SOL_SOCKET, SO_RCVBUF, &maxbuf, &buflen);
+  setsockopt(client_sock, SOL_SOCKET, SO_SNDBUF, &maxbuf, &buflen);
 
   cl_device_id device_id[10];             // compute device id
   cl_platform_id cl_platform;
