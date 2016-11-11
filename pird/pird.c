@@ -31,27 +31,74 @@
 // 1. read. expects an input pir vector.
 // 2. configure. sets parameters for batching of groups.
 // 3. write. updates the database.
+//
+// Two sets of input/output buffers are present as an attempt to keep the GPU
+// busy at all times. This attempts to make use of the memory optimzations
+// recommended by nvidia:
+// * Frequent data transfer (read PIR vectors, and responding cells) will have
+//   highest bandwidth when performed on pinned main memory pages chosen by the
+//   gpu using CL_MEM_ALLOC_HOST_PTR.
+// * New gpu's support overlapped transfer and device computation, suggesting
+//   that input & output should occur asynchronously with kernel execution to
+//   optimize throughput. Since this is evidenced by the ability to potentially
+//   simultaneously copy in both directs and compute, we attempt to use this
+//   capability in two ways:
+//   * calls to clEnqueueReadBuffer and clEnqueueWriteBuffer are asynchronous to
+//   put both transfers and computation in the command queue at the same time.
+//   * there are two instances of the kernel with two parallel buffers, so that
+//   the output of one can be read back to the host and input to the next
+//   request copied to the device while the other is executing.
+//   If the two parallel executions are logically:
+//   read 1                  read 2
+//   compute 1               compute 2
+//   write 1                 write 2
+//   We optimize throughput by interleaving as:
+//   read 1
+//   compute 1
+//   read 2
+//   (steady-state)
+//   compute 2
+//   read 1
+//   write 1    <blocking>
+//   compute 1
+//   read 2
+//   write 2    <blocking>
+//   (end of steady-state)
+//
+//   The point here is to push the retreival of the write as late as possible
+//   so that work for the other execution instance is able to complete while
+//   it is happening. In doing so, it's okay for it to block, because we
+//   wouldn't be able to start the next computation until it's done anyway
+//   since doing so would overwrite the device buffer we're copying out.
 ////////////////////////////////////////////////////////////////////////////////
+
 int cell_length;
 int cell_count;
 int batch_size;
 size_t workgroup_size;
-char* invector;
+
+typedef struct {
+  bool input_loaded;
+  bool output_dirty;
+  unsigned char* input;
+  DATA_TYPE* output;
+  cl_mem input_pin;
+  cl_mem output_pin;
+  cl_mem gpu_input;
+  cl_mem gpu_output;
+  cl_kernel kernel;
+} pipeline_t;
+
 DATA_TYPE* database;
-DATA_TYPE* output;
 cl_context context;                 // compute context
 cl_command_queue commands;          // compute command queue
 cl_program program;                 // compute program
-cl_kernel kernel;                   // compute kernel
 cl_mem gpu_db;                      // device memory used for the database
-cl_mem gpu_input;
-cl_mem gpu_output;
+pipeline_t* pipelines;
 
 int configure(int, int, int, int);
 int do_write(DATA_TYPE*);
 void listDevices();
-DATA_TYPE* do_read(char*);
-
 
 static volatile char* socketpath;
 void intHandler(int dummy) {
@@ -59,136 +106,314 @@ void intHandler(int dummy) {
   exit(1);
 }
 
+// Set up a pipeline (read and write buffers + compute kernel.)
+// Prerequisite: the 'program' should have been compiled by TODO.
+int pipeline_init(pipeline_t* pipeline) {
+  pipeline.kernel = clCreateKernel(program, "pir", &err);
+  if (!pipeline.kernel || err != CL_SUCCESS) {
+    printf("Error: Failed to create compute kernel!\n");
+    return -1;
+  }
+
+  pipeline.input_pin = clCreateBuffer(context,
+                                      CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR,
+                                      cell_count * batch_size / 8,
+                                      NULL,
+                                      NULL);
+  pipeline.gpu_input = clCreateBuffer(context,
+                                      CL_MEM_READ_ONLY,
+                                      cell_count * batch_size / 8,
+                                      NULL,
+                                      NULL);
+
+  pipeline.output_pin = clCreateBuffer(context,
+                                       CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR,
+                                       cell_length * batch_size,
+                                       NULL,
+                                       NULL);
+  pipeline.gpu_output = clCreateBuffer(context,
+                                       CL_MEM_WRITE_ONLY,
+                                       cell_length * batch_size,
+                                       NULL,
+                                       NULL);
+  if (!pipeline.input_pin || !pipeline.output_pin ||
+      !pipeline.gpu_input || !pipeline.gpu_output) {
+    printf("Error: Failed to create pipeline buffers.\n");
+    return -2;
+  }
+
+  pipeline.input = (unsigned char *) clEnqueueMapBuffer(commands,
+      pipeline.input_pin,
+      CL_TRUE,
+      CL_MAP_WRITE,
+      0,
+      cell_count * batch_size / 8,
+      0,
+      NULL,
+      NULL,
+      NULL);
+  pipeline.output = (DATA_TYPE*) clEnqueueMapBuffer(commands,
+      pipeline.output_pin,
+      CL_TRUE,
+      CL_MAP_READ,
+      0,
+      cell_length * batch_size,
+      0,
+      NULL,
+      NULL,
+      NULL);
+  if (!pipeline.input || !pipeline.output) {
+    printf("Error: Failed to map pipeline buffers.\n");
+    return -3;
+  }
+
+  // set kernel args.
+  unsigned int db_cnt = cell_count * cell_length / sizeof(DATA_TYPE);
+  unsigned int db_cell_cnt = cell_length / sizeof(DATA_TYPE);
+  err = 0;
+  err  = clSetKernelArg(pipeline.kernel, 0, sizeof(cl_mem), &gpu_db);
+  err |= clSetKernelArg(pipeline.kernel, 1, sizeof(cl_mem), &pipeline.gpu_input);
+  err |= clSetKernelArg(pipeline.kernel, 2, cell_length, NULL);
+  err |= clSetKernelArg(pipeline.kernel, 3, sizeof(unsigned int), &db_cnt);
+  err |= clSetKernelArg(pipeline.kernel, 4, sizeof(unsigned int), &db_cell_cnt);
+  err |= clSetKernelArg(pipeline.kernel, 5, sizeof(cl_mem), &pipeline.gpu_output);
+  if (err != CL_SUCCESS)
+  {
+      printf("Error: Failed to set kernel arguments! %d\n", err);
+      return -4;
+  }
+
+  return 0;
+}
+
+int pipeline_free(pipeline_t* pipeline) {
+  clReleaseMemObject(piepline.input_pin);
+  clReleaseMemObject(piepline.output_pin);
+  clReleaseMemObject(piepline.gpu_input);
+  clReleaseMemObject(piepline.gpu_output);
+  clReleaseKernel(pipeline.kernel);
+
+  return 0;
+}
+
+int pipeline_enqueue(pipeline_t* pipeline, socket int) {
+  int err = 0;
+
+  if (pipeline.input_loaded) {
+    return -2;
+  }
+
+  // Read input into host-mapped memory.
+  int readamount = 0;
+  while (readamount < cell_count * batch_size / 8) {
+    err = read(socket, pipeline.input + readamount, cell_count * batch_size / 8 - readamount);
+    if (err < 0) {
+      return err;
+    }
+    readamount += err;
+  }
+
+  // enqueue transfer to gpu.
+  err = clEnqueueWriteBuffer(commands,
+                             pipeline.gpu_input,
+                             CL_FALSE,
+                             0,
+                             cell_count * batch_size / 8,
+                             pipeline.input,
+                             0,
+                             NULL,
+                             NULL);
+  if (err != CL_SUCCESS) {
+    printf("Failed to transfer input to GPU!\n");
+    return -1;
+  }
+  pipeline.input_loaded = true;
+
+  return 0;
+}
+
+int pipeline_dequeue(pipeline_t* pipeline, int socket) {
+  int err = 0;
+  int readamount = 0;
+  if (pipeline.output_dirty) {
+    err = clEnqueueReadBuffer(commands,
+                              pipeline.gpu_output,
+                              CL_TRUE,
+                              0,
+                              cell_length * batch_size,
+                              pipeline.output,
+                              0,
+                              NULL,
+                              NULL);
+    if (err != CL_SUCCESS) {
+      printf("Failed to read response from GPU!\n");
+      return -1;
+    }
+
+    // mark that we need to write to socket, but enqueue the next gpu
+    // next, and then return to clearing the host buffer.
+    readamount = 1;
+    pipeline.output_dirty = false;
+  }
+
+  if (pipeline.input_loaded) {
+    size_t totaljobs = workgroup_size * batch_size;
+    err = clEnqueueNDRangeKernel(commands,
+                                 pipeline.kernel,
+                                 CL_FALSE,
+                                 NULL,
+                                 &totaljobs,
+                                 &workgroup_size,
+                                 0,
+                                 NULL,
+                                 NULL);
+    if (err != CL_SUCCESS) {
+      prinf("Error: failed to execute pipeline computation!\n");
+      return -1;
+    }
+    pipeline.output_dirty = true;
+    pipeline.input_loaded = false;
+  }
+
+
+  // this is the return to clearing the host buffer, triggereed by output_dirty
+  // being set in the first part of this function.
+  if (readamount > 0) {
+    readamount = 0;
+    while (readamount < cell_length * batch_size) {
+      err = write(socket, pipeline.output + readamount, cell_length * batch_size - readamount);
+      if (err < 0) {
+        printf("Failed to write response to client!\n");
+        return err;
+      }
+      readamount += err;
+    }
+  }
+
+  return 0;
+}
+
 
 int main(int argc, char** argv)
 {
-    int err;
-    int c;
-    int listonly = 0;
-    socketpath = SOCKET_NAME;
-    int deviceid = 0;
-    while ((c = getopt(argc, argv, "s:d:l")) != -1) {
-      switch (c) {
-        case 'l':
-          listonly = 1;
-          break;
-        case 'd':
-          deviceid = atoi(optarg);
-          break;
-        case 's':
-          socketpath = optarg;
-          break;
-        default:
-          fprintf(stderr, "Usage: %s [-l] [-d <device id>] [-s <socket>].\n",
-              argv[0]);
-          return 1;
+  int err;
+  int c;
+  int listonly = 0;
+  socketpath = SOCKET_NAME;
+  int deviceid = 0;
+  while ((c = getopt(argc, argv, "s:d:l")) != -1) {
+    switch (c) {
+      case 'l':
+        listonly = 1;
+        break;
+      case 'd':
+        deviceid = atoi(optarg);
+        break;
+      case 's':
+        socketpath = optarg;
+        break;
+      default:
+        fprintf(stderr, "Usage: %s [-l] [-d <device id>] [-s <socket>].\n",
+            argv[0]);
+        return 1;
+    }
+  }
+
+  if (listonly) {
+    listDevices();
+    return 1;
+  }
+
+  signal(SIGINT, intHandler);
+
+  int socket_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+  int client_sock;
+  if (socket_fd == -1) {
+    printf("Error: Failed to create sockets!\n");
+    return EXIT_FAILURE;
+  }
+  pipelines = malloc(sizeof(pipeline_t) * 2);
+
+  // Bind the socket for communication.
+  unlink((char*)socketpath);
+  struct sockaddr_un socket_name;
+  memset(&socket_name, 0, sizeof(struct sockaddr_un));
+  socket_name.sun_family = AF_UNIX;
+  strncpy(socket_name.sun_path, (char*)socketpath, sizeof(socket_name.sun_path) - 1);
+  err = bind(socket_fd, (const struct sockaddr *) &socket_name, sizeof(struct sockaddr_un));
+  if (err == -1) {
+    printf("Error: Failed to bind socket!\n");
+    return EXIT_FAILURE;
+  }
+
+  err = listen(socket_fd, 1);
+  if (err == -1) {
+    printf("Error: Failed to listen on socket!\n");
+    return EXIT_FAILURE;
+  }
+
+
+  char next_command;
+  int next_pipeline = 0;
+  int ret;
+  int dbhndl;
+  int newdbhndl;
+  int configuration_params[3];
+  for (;;) {
+    client_sock = accept(socket_fd, NULL, NULL);
+    if (client_sock == -1) {
+      printf("Error: failed to accept client on listening socket!\n");
+      return EXIT_FAILURE;
+    }
+    for(;;) {
+      /* Wait for next data packet. */
+      ret = read(client_sock, &next_command, 1);
+      if (ret == -1 || ret == 0) {
+        printf("Client disconnected.\n");
+        break;
       }
-    }
-
-    if (listonly) {
-      listDevices();
-      return 1;
-    }
-
-    signal(SIGINT, intHandler);
-
-    int socket_fd = socket(AF_UNIX, SOCK_STREAM, 0);
-    int client_sock;
-    if (socket_fd == -1) {
-      printf("Error: Failed to create sockets!\n");
-      return EXIT_FAILURE;
-    }
-
-    // Bind the socket for communication.
-    unlink((char*)socketpath);
-    struct sockaddr_un socket_name;
-    memset(&socket_name, 0, sizeof(struct sockaddr_un));
-    socket_name.sun_family = AF_UNIX;
-    strncpy(socket_name.sun_path, (char*)socketpath, sizeof(socket_name.sun_path) - 1);
-    err = bind(socket_fd, (const struct sockaddr *) &socket_name, sizeof(struct sockaddr_un));
-    if (err == -1) {
-      printf("Error: Failed to bind socket!\n");
-      return EXIT_FAILURE;
-    }
-
-    err = listen(socket_fd, 1);
-    if (err == -1) {
-      printf("Error: Failed to listen on socket!\n");
-      return EXIT_FAILURE;
-    }
-
-
-    char next_command;
-    int readamount;
-    int ret;
-    int dbhndl;
-    int newdbhndl;
-    int configuration_params[3];
-    for (;;) {
-      client_sock = accept(socket_fd, NULL, NULL);
-      if (client_sock == -1) {
-        printf("Error: failed to accept client on listening socket!\n");
-        return EXIT_FAILURE;
-      }
-      for(;;) {
-        /* Wait for next data packet. */
-        ret = read(client_sock, &next_command, 1);
-        if (ret == -1 || ret == 0) {
-          printf("Client disconnected.\n");
+      if (next_command == '1') { //read
+        if (pipeline_enqueue(pipelines[next_pipeline], client_sock) != 0) {
+          printf("Failed to enqueue to pipeline.\n");
           break;
         }
-        if (next_command == '1') { //read
-          readamount = 0;
-          while (readamount < cell_count * batch_size / 8) {
-            ret = read(client_sock, invector, cell_count * batch_size / 8 - readamount);
-            if (ret == -1) {
-              printf("Failed to read configuration.\n");
-              break;
-            }
-            readamount += ret;
-          }
-          output = do_read(invector);
-          readamount = 0;
-          while (readamount < cell_length * batch_size) {
-            ret = write(client_sock, output, cell_length * batch_size - readamount);
-            if (ret == -1) {
-              printf("Failed to write response.\n");
-              break;
-            }
-            readamount += ret;
-          }
-        } else if (next_command == '2') { //configure
-          ret = read(client_sock, configuration_params, 3*sizeof(int));
-          if (ret == -1) {
-            printf("Failed to read configuration.\n");
-            break;
-          }
-          configure(deviceid, configuration_params[0], configuration_params[1], configuration_params[2]);
-        } else if (next_command == '3') { // write
-          ret = read(client_sock, &newdbhndl, sizeof(newdbhndl));
-          if (ret == -1) {
-            printf("Failed to learn shm id.\n");
-            break;
-          }
-          if (newdbhndl != dbhndl && dbhndl != 0) {
-            shmdt(database);
-          }
-          if (newdbhndl != dbhndl) {
-            dbhndl = newdbhndl;
-            database = shmat(dbhndl, NULL, SHM_RDONLY);
-            if (database == (void*)-1) {
-              printf("Failed to open shm ptr: %d.\n", errno);
-              break;
-            }
-          }
-          do_write(database);
-          write(client_sock, "ok", 2);
-        } else {
-          printf("Unexpected command: %c\n", next_command);
+        if (pipeline_dequeue(pipelines[next_pipeline], client_sock) != 0) {
+          printf("Failed to dequeue from pipeline.\n");
           break;
         }
+        next_pipeline ^= 1;
+      } else if (next_command == '2') { //configure
+        ret = read(client_sock, configuration_params, 3*sizeof(int));
+        if (ret == -1) {
+          printf("Failed to read configuration.\n");
+          break;
+        }
+        configure(deviceid, configuration_params[0], configuration_params[1], configuration_params[2]);
+      } else if (next_command == '3') { // write
+        ret = read(client_sock, &newdbhndl, sizeof(newdbhndl));
+        if (ret == -1) {
+          printf("Failed to learn shm id.\n");
+          break;
+        }
+        if (newdbhndl != dbhndl && dbhndl != 0) {
+          shmdt(database);
+        }
+        if (newdbhndl != dbhndl) {
+          dbhndl = newdbhndl;
+          database = shmat(dbhndl, NULL, SHM_RDONLY);
+          if (database == (void*)-1) {
+            printf("Failed to open shm ptr: %d.\n", errno);
+            break;
+          }
+        }
+        do_write(database);
+        write(client_sock, "ok", 2);
+      } else {
+        printf("Unexpected command: %c\n", next_command);
+        break;
       }
     }
+  }
 }
 
 void listDevices() {
@@ -222,14 +447,17 @@ int configure(int devid, int n_cell_length, int n_cell_count, int n_batch_size) 
   cell_count = n_cell_count;
   batch_size = n_batch_size;
 
-  if (output != NULL) {
-    free(output);
-    free(invector);
-    invector = NULL;
-    output = NULL;
+  if (pipelines[0].input_loaded || pipelines[0].output_dirty) {
+    // Stall until in-process stuff is done.
+    clFinish(commands);
+	  // respond to pending reads.
+    pipeline_dequeue(pipelines[0], client_sock);
+    pipeline_dequeue(pipelines[0], client_sock);
+    pipeline_dequeue(pipelines[1], client_sock);
+    pipeline_dequeue(pipelines[1], client_sock);
+    pipeline_free(pipelines[0]);
+    pipeline_free(pipelines[1]);
   }
-  output = malloc(cell_length * batch_size);
-  invector = malloc(cell_count * batch_size / 8);
 
   if (context != NULL) {
     clReleaseProgram(program);
@@ -295,14 +523,9 @@ int configure(int devid, int n_cell_length, int n_cell_count, int n_batch_size) 
       exit(1);
   }
 
-  // Create the compute kernels in the program we wish to run
-  //
-  kernel = clCreateKernel(program, "pir", &err);
-  if (!kernel || err != CL_SUCCESS)
-  {
-      printf("Error: Failed to create compute kernel!\n");
-      exit(1);
-  }
+  // set up pipelines.
+  pipeline_init(pipelines[0]);
+  pipeline_init(pipelines[1]);
 
   // learn about the device memory size:
   //err = clGetDeviceInfo(device_id, CL_DEVICE_MAX_MEM_ALLOC_SIZE, sizeof(cl_ulong), &buf_max_size, NULL);
@@ -311,7 +534,7 @@ int configure(int devid, int n_cell_length, int n_cell_count, int n_batch_size) 
 
   // Get the maximum work group size for executing the kernel on the device
   //
-  err = clGetKernelWorkGroupInfo(kernel, device_id[devid], CL_KERNEL_WORK_GROUP_SIZE, sizeof(workgroup_size), &workgroup_size, NULL);
+  err = clGetKernelWorkGroupInfo(pipelines[0].kernel, device_id[devid], CL_KERNEL_WORK_GROUP_SIZE, sizeof(workgroup_size), &workgroup_size, NULL);
   if (err != CL_SUCCESS)
   {
       printf("Error: Failed to retrieve kernel work group info! %d\n", err);
@@ -320,33 +543,13 @@ int configure(int devid, int n_cell_length, int n_cell_count, int n_batch_size) 
 
   if (gpu_db != NULL) {
     clReleaseMemObject(gpu_db);
-    clReleaseMemObject(gpu_input);
-    clReleaseMemObject(gpu_output);
   }
-  gpu_db = clCreateBuffer(context, CL_MEM_READ_ONLY, cell_length * cell_count, NULL, NULL);
-  gpu_input = clCreateBuffer(context,  CL_MEM_READ_ONLY, cell_count * batch_size / 8, NULL, NULL);
-  gpu_output = clCreateBuffer(context, CL_MEM_WRITE_ONLY, cell_length * batch_size, NULL, NULL);
+  gpu_db = clCreateBuffer(context,
+                          CL_MEM_READ_ONLY,
+                          cell_length * cell_count,
+                          NULL,
+                          NULL);
 
-  if (!gpu_db || !gpu_input || !gpu_output) {
-      printf("Error: Failed to allocate device memory!\n");
-      exit(1);
-  }
-
-  // set kernel args.
-  unsigned int db_cnt = cell_count * cell_length / sizeof(DATA_TYPE);
-  unsigned int db_cell_cnt = cell_length / sizeof(DATA_TYPE);
-  err = 0;
-  err  = clSetKernelArg(kernel, 0, sizeof(cl_mem), &gpu_db);
-  err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &gpu_input);
-  err |= clSetKernelArg(kernel, 2, cell_length, NULL);
-  err |= clSetKernelArg(kernel, 3, sizeof(unsigned int), &db_cnt);
-  err |= clSetKernelArg(kernel, 4, sizeof(unsigned int), &db_cell_cnt);
-  err |= clSetKernelArg(kernel, 5, sizeof(cl_mem), &gpu_output);
-  if (err != CL_SUCCESS)
-  {
-      printf("Error: Failed to set kernel arguments! %d\n", err);
-      exit(1);
-  }
   printf("Reconfigured. Database now %d items of %d bytes. Batches of %d requests.\n", cell_count, cell_length, batch_size);
 }
 
@@ -358,37 +561,4 @@ int do_write(DATA_TYPE* db) {
     exit(1);
   }
   printf("Database updated.\n");
-}
-
-DATA_TYPE* do_read(char* invector) {
-  int err;
-
-  // Write input vector.
-  err = clEnqueueWriteBuffer(commands, gpu_input, CL_TRUE, 0, cell_count * batch_size / 8, invector, 0, NULL, NULL);
-  if (err != CL_SUCCESS)
-  {
-      printf("Error: Failed to write to source array!\n");
-      exit(1);
-  }
-
-  // Execute the kernel over the entire range of our 1d input data set
-  // using the maximum number of work group items for this device
-  //
-  size_t totaljobs = workgroup_size * batch_size;
-  err = clEnqueueNDRangeKernel(commands, kernel, 1, NULL, &totaljobs, &workgroup_size, 0, NULL, NULL);
-  if (err) {
-      printf("Error: Failed to execute kernel!\n");
-      exit(1);
-  }
-
-  // Read back the results from the device to verify the output
-  //
-  err = clEnqueueReadBuffer(commands, gpu_output, CL_TRUE, 0, cell_length * batch_size, output, 0, NULL, NULL );
-  if (err != CL_SUCCESS)
-  {
-      printf("Error: Failed to read output array! %d\n", err);
-      exit(1);
-  }
-  //printf("Read Batch.\n");
-  return output;
 }
