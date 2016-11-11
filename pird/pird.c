@@ -77,6 +77,8 @@ int cell_count;
 int batch_size;
 size_t workgroup_size;
 
+typedef enum { FALSE, TRUE } bool;
+
 typedef struct {
   bool input_loaded;
   bool output_dirty;
@@ -96,7 +98,7 @@ cl_program program;                 // compute program
 cl_mem gpu_db;                      // device memory used for the database
 pipeline_t* pipelines;
 
-int configure(int, int, int, int);
+int configure(int, int, int, int, int);
 int do_write(DATA_TYPE*);
 void listDevices();
 
@@ -109,41 +111,42 @@ void intHandler(int dummy) {
 // Set up a pipeline (read and write buffers + compute kernel.)
 // Prerequisite: the 'program' should have been compiled by TODO.
 int pipeline_init(pipeline_t* pipeline) {
-  pipeline.kernel = clCreateKernel(program, "pir", &err);
-  if (!pipeline.kernel || err != CL_SUCCESS) {
+  int err;
+  pipeline->kernel = clCreateKernel(program, "pir", &err);
+  if (!pipeline->kernel || err != CL_SUCCESS) {
     printf("Error: Failed to create compute kernel!\n");
     return -1;
   }
 
-  pipeline.input_pin = clCreateBuffer(context,
+  pipeline->input_pin = clCreateBuffer(context,
                                       CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR,
                                       cell_count * batch_size / 8,
                                       NULL,
                                       NULL);
-  pipeline.gpu_input = clCreateBuffer(context,
+  pipeline->gpu_input = clCreateBuffer(context,
                                       CL_MEM_READ_ONLY,
                                       cell_count * batch_size / 8,
                                       NULL,
                                       NULL);
 
-  pipeline.output_pin = clCreateBuffer(context,
+  pipeline->output_pin = clCreateBuffer(context,
                                        CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR,
                                        cell_length * batch_size,
                                        NULL,
                                        NULL);
-  pipeline.gpu_output = clCreateBuffer(context,
+  pipeline->gpu_output = clCreateBuffer(context,
                                        CL_MEM_WRITE_ONLY,
                                        cell_length * batch_size,
                                        NULL,
                                        NULL);
-  if (!pipeline.input_pin || !pipeline.output_pin ||
-      !pipeline.gpu_input || !pipeline.gpu_output) {
+  if (!pipeline->input_pin || !pipeline->output_pin ||
+      !pipeline->gpu_input || !pipeline->gpu_output) {
     printf("Error: Failed to create pipeline buffers.\n");
     return -2;
   }
 
-  pipeline.input = (unsigned char *) clEnqueueMapBuffer(commands,
-      pipeline.input_pin,
+  pipeline->input = (unsigned char *) clEnqueueMapBuffer(commands,
+      pipeline->input_pin,
       CL_TRUE,
       CL_MAP_WRITE,
       0,
@@ -152,8 +155,8 @@ int pipeline_init(pipeline_t* pipeline) {
       NULL,
       NULL,
       NULL);
-  pipeline.output = (DATA_TYPE*) clEnqueueMapBuffer(commands,
-      pipeline.output_pin,
+  pipeline->output = (DATA_TYPE*) clEnqueueMapBuffer(commands,
+      pipeline->output_pin,
       CL_TRUE,
       CL_MAP_READ,
       0,
@@ -162,7 +165,7 @@ int pipeline_init(pipeline_t* pipeline) {
       NULL,
       NULL,
       NULL);
-  if (!pipeline.input || !pipeline.output) {
+  if (!pipeline->input || !pipeline->output) {
     printf("Error: Failed to map pipeline buffers.\n");
     return -3;
   }
@@ -171,12 +174,12 @@ int pipeline_init(pipeline_t* pipeline) {
   unsigned int db_cnt = cell_count * cell_length / sizeof(DATA_TYPE);
   unsigned int db_cell_cnt = cell_length / sizeof(DATA_TYPE);
   err = 0;
-  err  = clSetKernelArg(pipeline.kernel, 0, sizeof(cl_mem), &gpu_db);
-  err |= clSetKernelArg(pipeline.kernel, 1, sizeof(cl_mem), &pipeline.gpu_input);
-  err |= clSetKernelArg(pipeline.kernel, 2, cell_length, NULL);
-  err |= clSetKernelArg(pipeline.kernel, 3, sizeof(unsigned int), &db_cnt);
-  err |= clSetKernelArg(pipeline.kernel, 4, sizeof(unsigned int), &db_cell_cnt);
-  err |= clSetKernelArg(pipeline.kernel, 5, sizeof(cl_mem), &pipeline.gpu_output);
+  err  = clSetKernelArg(pipeline->kernel, 0, sizeof(cl_mem), &gpu_db);
+  err |= clSetKernelArg(pipeline->kernel, 1, sizeof(cl_mem), &pipeline->gpu_input);
+  err |= clSetKernelArg(pipeline->kernel, 2, cell_length, NULL);
+  err |= clSetKernelArg(pipeline->kernel, 3, sizeof(unsigned int), &db_cnt);
+  err |= clSetKernelArg(pipeline->kernel, 4, sizeof(unsigned int), &db_cell_cnt);
+  err |= clSetKernelArg(pipeline->kernel, 5, sizeof(cl_mem), &pipeline->gpu_output);
   if (err != CL_SUCCESS)
   {
       printf("Error: Failed to set kernel arguments! %d\n", err);
@@ -187,26 +190,26 @@ int pipeline_init(pipeline_t* pipeline) {
 }
 
 int pipeline_free(pipeline_t* pipeline) {
-  clReleaseMemObject(piepline.input_pin);
-  clReleaseMemObject(piepline.output_pin);
-  clReleaseMemObject(piepline.gpu_input);
-  clReleaseMemObject(piepline.gpu_output);
-  clReleaseKernel(pipeline.kernel);
+  clReleaseMemObject(pipeline->input_pin);
+  clReleaseMemObject(pipeline->output_pin);
+  clReleaseMemObject(pipeline->gpu_input);
+  clReleaseMemObject(pipeline->gpu_output);
+  clReleaseKernel(pipeline->kernel);
 
   return 0;
 }
 
-int pipeline_enqueue(pipeline_t* pipeline, socket int) {
+int pipeline_enqueue(pipeline_t* pipeline, int sock) {
   int err = 0;
 
-  if (pipeline.input_loaded) {
+  if (pipeline->input_loaded == TRUE) {
     return -2;
   }
 
   // Read input into host-mapped memory.
   int readamount = 0;
   while (readamount < cell_count * batch_size / 8) {
-    err = read(socket, pipeline.input + readamount, cell_count * batch_size / 8 - readamount);
+    err = read(sock, pipeline->input + readamount, cell_count * batch_size / 8 - readamount);
     if (err < 0) {
       return err;
     }
@@ -215,11 +218,11 @@ int pipeline_enqueue(pipeline_t* pipeline, socket int) {
 
   // enqueue transfer to gpu.
   err = clEnqueueWriteBuffer(commands,
-                             pipeline.gpu_input,
+                             pipeline->gpu_input,
                              CL_FALSE,
                              0,
                              cell_count * batch_size / 8,
-                             pipeline.input,
+                             pipeline->input,
                              0,
                              NULL,
                              NULL);
@@ -227,21 +230,21 @@ int pipeline_enqueue(pipeline_t* pipeline, socket int) {
     printf("Failed to transfer input to GPU!\n");
     return -1;
   }
-  pipeline.input_loaded = true;
+  pipeline->input_loaded = TRUE;
 
   return 0;
 }
 
-int pipeline_dequeue(pipeline_t* pipeline, int socket) {
+int pipeline_dequeue(pipeline_t* pipeline, int sock) {
   int err = 0;
   int readamount = 0;
-  if (pipeline.output_dirty) {
+  if (pipeline->output_dirty == TRUE) {
     err = clEnqueueReadBuffer(commands,
-                              pipeline.gpu_output,
+                              pipeline->gpu_output,
                               CL_TRUE,
                               0,
                               cell_length * batch_size,
-                              pipeline.output,
+                              pipeline->output,
                               0,
                               NULL,
                               NULL);
@@ -253,13 +256,13 @@ int pipeline_dequeue(pipeline_t* pipeline, int socket) {
     // mark that we need to write to socket, but enqueue the next gpu
     // next, and then return to clearing the host buffer.
     readamount = 1;
-    pipeline.output_dirty = false;
+    pipeline->output_dirty = FALSE;
   }
 
-  if (pipeline.input_loaded) {
+  if (pipeline->input_loaded == TRUE) {
     size_t totaljobs = workgroup_size * batch_size;
     err = clEnqueueNDRangeKernel(commands,
-                                 pipeline.kernel,
+                                 pipeline->kernel,
                                  CL_FALSE,
                                  NULL,
                                  &totaljobs,
@@ -268,11 +271,11 @@ int pipeline_dequeue(pipeline_t* pipeline, int socket) {
                                  NULL,
                                  NULL);
     if (err != CL_SUCCESS) {
-      prinf("Error: failed to execute pipeline computation!\n");
+      printf("Error: failed to execute pipeline computation!\n");
       return -1;
     }
-    pipeline.output_dirty = true;
-    pipeline.input_loaded = false;
+    pipeline->output_dirty = TRUE;
+    pipeline->input_loaded = FALSE;
   }
 
 
@@ -281,7 +284,7 @@ int pipeline_dequeue(pipeline_t* pipeline, int socket) {
   if (readamount > 0) {
     readamount = 0;
     while (readamount < cell_length * batch_size) {
-      err = write(socket, pipeline.output + readamount, cell_length * batch_size - readamount);
+      err = write(sock, pipeline->output + readamount, cell_length * batch_size - readamount);
       if (err < 0) {
         printf("Failed to write response to client!\n");
         return err;
@@ -373,11 +376,11 @@ int main(int argc, char** argv)
         break;
       }
       if (next_command == '1') { //read
-        if (pipeline_enqueue(pipelines[next_pipeline], client_sock) != 0) {
+        if (pipeline_enqueue(&pipelines[next_pipeline], client_sock) != 0) {
           printf("Failed to enqueue to pipeline.\n");
           break;
         }
-        if (pipeline_dequeue(pipelines[next_pipeline], client_sock) != 0) {
+        if (pipeline_dequeue(&pipelines[next_pipeline], client_sock) != 0) {
           printf("Failed to dequeue from pipeline.\n");
           break;
         }
@@ -451,21 +454,20 @@ int configure(int devid, int n_cell_length, int n_cell_count, int n_batch_size, 
   cell_count = n_cell_count;
   batch_size = n_batch_size;
 
-  if (pipelines[0].input_loaded || pipelines[0].output_dirty) {
+  if (pipelines[0].input_loaded == TRUE|| pipelines[0].output_dirty == TRUE) {
     // Stall until in-process stuff is done.
     clFinish(commands);
 	  // respond to pending reads.
-    pipeline_dequeue(pipelines[0], client_sock);
-    pipeline_dequeue(pipelines[0], client_sock);
-    pipeline_dequeue(pipelines[1], client_sock);
-    pipeline_dequeue(pipelines[1], client_sock);
-    pipeline_free(pipelines[0]);
-    pipeline_free(pipelines[1]);
+    pipeline_dequeue(&pipelines[0], client_sock);
+    pipeline_dequeue(&pipelines[0], client_sock);
+    pipeline_dequeue(&pipelines[1], client_sock);
+    pipeline_dequeue(&pipelines[1], client_sock);
+    pipeline_free(&pipelines[0]);
+    pipeline_free(&pipelines[1]);
   }
 
   if (context != NULL) {
     clReleaseProgram(program);
-    clReleaseKernel(kernel);
     clReleaseCommandQueue(commands);
     clReleaseContext(context);
   }
@@ -477,8 +479,8 @@ int configure(int devid, int n_cell_length, int n_cell_count, int n_batch_size, 
   }
   maxbuf *= 2;
   int buflen = sizeof(maxbuf);
-  setsockopt(client_sock, SOL_SOCKET, SO_RCVBUF, &maxbuf, &buflen);
-  setsockopt(client_sock, SOL_SOCKET, SO_SNDBUF, &maxbuf, &buflen);
+  setsockopt(client_sock, SOL_SOCKET, SO_RCVBUF, &maxbuf, buflen);
+  setsockopt(client_sock, SOL_SOCKET, SO_SNDBUF, &maxbuf, buflen);
 
   cl_device_id device_id[10];             // compute device id
   cl_platform_id cl_platform;
@@ -538,8 +540,8 @@ int configure(int devid, int n_cell_length, int n_cell_count, int n_batch_size, 
   }
 
   // set up pipelines.
-  pipeline_init(pipelines[0]);
-  pipeline_init(pipelines[1]);
+  pipeline_init(&pipelines[0]);
+  pipeline_init(&pipelines[1]);
 
   // learn about the device memory size:
   //err = clGetDeviceInfo(device_id, CL_DEVICE_MAX_MEM_ALLOC_SIZE, sizeof(cl_ulong), &buf_max_size, NULL);
