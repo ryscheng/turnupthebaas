@@ -1,5 +1,6 @@
 package pir
 
+import "errors"
 import "fmt"
 import "math/rand"
 import "os"
@@ -56,13 +57,20 @@ func TestPir(t *testing.T) {
 
 	pirServer.SetDB(db)
 
+	responseChan := make(chan []byte)
 	masks := make([]byte, 512)
 	masks[0] = 0x01
 
-	response, err := pirServer.Read(masks)
+	err = pirServer.Read(masks, responseChan)
 
-	if err != nil || response == nil {
+	if err != nil {
 		t.Error(err)
+		return
+	}
+
+	response := <- responseChan
+	if response == nil {
+		t.Error(errors.New("No response received."))
 		return
 	}
 
@@ -73,7 +81,7 @@ func TestPir(t *testing.T) {
 	pirServer.Disconnect()
 
 	status <- 1
-	<- status
+	<-status
 }
 
 func BenchmarkPir(b *testing.B) {
@@ -113,6 +121,7 @@ func BenchmarkPir(b *testing.B) {
 
 	pirServer.SetDB(db)
 
+	responseChan := make(chan []byte)
 	masks := make([]byte, cellCount*batchSize/8)
 	for i := 0; i < len(masks); i++ {
 		masks[i] = byte(rand.Int())
@@ -120,14 +129,24 @@ func BenchmarkPir(b *testing.B) {
 
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
-		response, err := pirServer.Read(masks)
+	signalChan := make(chan int)
+	go func() {
+		for j := 0; j < b.N; j++ {
+			response := <-responseChan
+			b.SetBytes(int64(len(response)))
+		}
+		signalChan <- 1
+	}()
 
-		if err != nil || response == nil {
+	for i := 0; i < b.N; i++ {
+		err := pirServer.Read(masks, responseChan)
+
+		if err != nil {
 			b.Error(err)
 		}
-		b.SetBytes(int64(len(response)))
 	}
+
+	<-signalChan
 
 	pirServer.Disconnect()
 

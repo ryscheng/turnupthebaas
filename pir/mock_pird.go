@@ -41,8 +41,8 @@ func CreateMockServer(status chan int, socket string) error {
 }
 
 func emptyWatchdog(channel chan int) {
-	<- channel
-	channel <-0
+	<-channel
+	channel <- 0
 }
 
 func quitWatchdog(channel chan int, listener *net.Listener, active []net.Conn) {
@@ -52,7 +52,7 @@ func quitWatchdog(channel chan int, listener *net.Listener, active []net.Conn) {
 	if active[0] != nil {
 		active[0].Close()
 	}
-	channel<-0
+	channel <- 0
 }
 
 func handle(conn net.Conn) {
@@ -129,7 +129,6 @@ func handle(conn net.Conn) {
 					break
 				}
 			}
-			conn.Write([]byte{1,1})
 		}
 	}
 }
