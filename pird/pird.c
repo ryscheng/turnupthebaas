@@ -6,10 +6,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <sys/types.h>
+#include <sys/select.h>
 #include <sys/shm.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <sys/un.h>
 #include <time.h>
 #include <unistd.h>
@@ -362,6 +363,10 @@ int main(int argc, char** argv)
   int dbhndl;
   int newdbhndl;
   int configuration_params[3];
+
+  fd_set readset;
+  struct timeval tv;
+
   for (;;) {
     client_sock = accept(socket_fd, NULL, NULL);
     if (client_sock == -1) {
@@ -370,11 +375,28 @@ int main(int argc, char** argv)
     }
     for(;;) {
       /* Wait for next data packet. */
+      FD_ZERO(&readset);
+      FD_SET(client_sock, &readset);
+      tv.tv_sec = 0;
+      tv.tv_usec = 500 * 1000;
+      ret = select(client_sock + 1, &readset, NULL, NULL, &tv);
+      if (ret == 0) {
+        if (pipeline_dequeue(&pipelines[next_pipeline], client_sock) != 0){
+          printf("Failed to dequeue from pipeline.\n");
+          break;
+        }
+        if (pipeline_dequeue(&pipelines[next_pipeline ^ 1], client_sock) != 0){
+          printf("Failed to dequeue from pipeline.\n");
+          break;
+        }
+        continue;
+      }
       ret = read(client_sock, &next_command, 1);
       if (ret == -1 || ret == 0) {
         printf("Client disconnected.\n");
         break;
       }
+
       if (next_command == '1') { //read
         if (pipeline_enqueue(&pipelines[next_pipeline], client_sock) != 0) {
           printf("Failed to enqueue to pipeline.\n");
@@ -414,7 +436,6 @@ int main(int argc, char** argv)
           }
         }
         do_write(database);
-        write(client_sock, "ok", 2);
       } else {
         printf("Unexpected command: %c\n", next_command);
         break;
