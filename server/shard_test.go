@@ -25,8 +25,8 @@ func testConf() common.GlobalConfig {
 	return common.GlobalConfig{
 		uint64(fromEnvOrDefault("NUM_BUCKETS", 512)), // num buckets
 		fromEnvOrDefault("BUCKET_DEPTH", 4),          // depth
-		fromEnvOrDefault("DATA_SIZE", 512), // data size
-		fromEnvOrDefault("BATCH_SIZE", 8),  // batch size
+		fromEnvOrDefault("DATA_SIZE", 512),           // data size
+		fromEnvOrDefault("BATCH_SIZE", 8),            // batch size
 		0.95,        // bloom false positive
 		0.95,        // max load
 		0.02,        // load step
@@ -73,7 +73,7 @@ func TestShardSanity(t *testing.T) {
 
 	shard.Close()
 	status <- 1
-	<- status
+	<-status
 }
 
 func BenchmarkShard(b *testing.B) {

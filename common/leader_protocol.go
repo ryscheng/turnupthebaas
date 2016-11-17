@@ -26,25 +26,12 @@ type WriteArgs struct {
 	InterestVector []byte
 	//Internal
 	GlobalSeqNo uint64
+	ReplyChan chan *WriteReply
 }
 
 type WriteReply struct {
 	Err         string
 	GlobalSeqNo uint64
-}
-
-/**
- * Embodies a single read request
- * Reads require a response on the ReplyChan
- */
-type WriteRequest struct {
-	Args      *WriteArgs
-	ReplyChan chan *WriteReply
-}
-
-func (w *WriteRequest) Reply(reply *WriteReply) {
-	w.ReplyChan <- reply
-	close(w.ReplyChan)
 }
 
 type PirArgs struct {

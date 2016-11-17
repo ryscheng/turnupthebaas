@@ -132,7 +132,8 @@ func (c *Centralized) BatchRead(args *common.BatchReadArgs, reply *common.BatchR
 	// Start local computation
 	var fReply common.BatchReadReply
 	myReplyChan := make(chan *common.BatchReadReply)
-	c.shard.BatchRead(args, myReplyChan)
+	args.ReplyChan = myReplyChan
+	c.shard.BatchRead(args)
 
 	// Send to followers
 	if c.follower != nil {

@@ -37,9 +37,11 @@ type Shard struct {
 	globalConfig atomic.Value //common.GlobalConfig
 
 	// Channels
-	writeChan chan *common.WriteArgs
-	readChan  chan *common.BatchReadRequest
-	syncChan  chan int
+	writeChan        chan *common.WriteArgs
+	readChan         chan *common.BatchReadArgs
+	outstandingReads chan chan *common.BatchReadReply
+	readReplies      chan []byte
+	syncChan         chan int
 
 	sinceFlip        int
 	outstandingLimit int
@@ -52,8 +54,10 @@ func NewShard(name string, socket string, globalConfig common.GlobalConfig) *Sha
 
 	s.globalConfig.Store(globalConfig)
 	s.writeChan = make(chan *common.WriteArgs)
-	s.readChan = make(chan *common.BatchReadRequest)
+	s.readChan = make(chan *common.BatchReadArgs)
 	s.syncChan = make(chan int)
+	s.outstandingReads = make(chan chan *common.BatchReadReply, 5)
+	s.readReplies = make(chan []byte)
 
 	// TODO: per-server config of where the local PIR socket is.
 	pirServer, err := pir.Connect(socket)
@@ -85,6 +89,7 @@ func NewShard(name string, socket string, globalConfig common.GlobalConfig) *Sha
 	s.outstandingLimit = int(float32(globalConfig.NumBuckets*uint64(globalConfig.BucketDepth)) * 0.50)
 
 	go s.processReads()
+	go s.processReplies()
 	go s.processWrites()
 	return s
 }
@@ -112,11 +117,8 @@ func (s *Shard) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdates
 	return nil
 }
 
-func (s *Shard) BatchRead(args *common.BatchReadArgs, replyChan chan *common.BatchReadReply) error {
-	s.log.Trace.Println("BatchRead: ")
-	batchReq := &common.BatchReadRequest{args, replyChan}
-	s.readChan <- batchReq
-	return nil
+func (s *Shard) BatchRead(args *common.BatchReadArgs) {
+	s.readChan <- args
 }
 
 func (s *Shard) Close() {
@@ -130,10 +132,11 @@ func (s *Shard) Close() {
 /** PRIVATE METHODS (singlethreaded) **/
 func (s *Shard) processReads() {
 	// The read thread searializs all access to the underlying DB
-	var batchReadReq *common.BatchReadRequest
+	var batchReadReq *common.BatchReadArgs
 
 	defer s.PirDB.Free()
 	defer s.PirServer.Disconnect()
+	conf := s.globalConfig.Load().(common.GlobalConfig)
 	for {
 		select {
 		case batchReadReq = <-s.readChan:
@@ -142,10 +145,31 @@ func (s *Shard) processReads() {
 				s.syncChan <- 0
 				return
 			}
-			s.batchRead(batchReadReq)
+			s.batchRead(batchReadReq, conf)
 			continue
 		case <-s.syncChan:
 			s.PirServer.SetDB(s.PirDB)
+		}
+	}
+}
+
+func (s *Shard) processReplies() {
+	var outputChannel chan *common.BatchReadReply
+	conf := s.globalConfig.Load().(common.GlobalConfig)
+	itemLength := conf.DataSize * conf.BucketDepth
+
+	for {
+		select {
+		case reply := <-s.readReplies:
+			// get the corresponding read request.
+			outputChannel = <-s.outstandingReads
+
+			response := &common.BatchReadReply{"", make([]common.ReadReply, conf.ReadBatch)}
+			for i := 0; i < conf.ReadBatch; i += 1 {
+				response.Replies[i].Data = reply[i*itemLength : (i+1)*itemLength]
+				//TODO: reply.GlobalSeqNo
+			}
+			outputChannel <- response
 		}
 	}
 }
@@ -203,39 +227,31 @@ func asCuckooItem(wa *common.WriteArgs) *cuckoo.Item {
 	return &cuckoo.Item{int(wa.GlobalSeqNo), wa.Data, int(wa.Bucket1), int(wa.Bucket2)}
 }
 
-func (s *Shard) batchRead(req *common.BatchReadRequest) {
+func (s *Shard) batchRead(req *common.BatchReadArgs, conf common.GlobalConfig) {
 	s.log.Trace.Printf("batchRead: enter\n")
-	// @todo --- garbage collection
-	conf := s.globalConfig.Load().(common.GlobalConfig)
-	reply := new(common.BatchReadReply)
-	reply.Replies = make([]common.ReadReply, 0, len(req.Args.Args))
 
 	// Run PIR
 	reqlength := int(conf.NumBuckets) / 8
 	pirvector := make([]byte, reqlength*conf.ReadBatch)
-	for batch := 0; batch < len(req.Args.Args); batch += conf.ReadBatch {
-		for i := 0; i < conf.ReadBatch; i += 1 {
-			offset := batch + i
-			reqVector := req.Args.Args[offset].ForTd[0].RequestVector
-			//TODO: what's the deal with trust domains? (the forTD parameter)
-			copy(pirvector[reqlength*i:reqlength*(i+1)], reqVector)
-		}
-		responses, err := s.PirServer.Read(pirvector)
-		if err != nil {
-			s.log.Error.Fatalf("Reading from PIR Server failed: %v", err)
-			req.Reply(&common.BatchReadReply{fmt.Sprintf("Failed to read: %v", err), nil})
-			return
-		}
 
-		replies := make([]common.ReadReply, conf.ReadBatch)
-		responseSize := conf.BucketDepth * conf.DataSize
-		for i := 0; i < conf.ReadBatch; i += 1 {
-			replies[i].Data = responses[i*responseSize : (i+1)*responseSize]
-		}
-		reply.Replies = append(reply.Replies, replies...)
+	if len(req.Args) != conf.ReadBatch {
+		s.log.Info.Printf("Read operation failed: incorrect number of reads.")
+		req.ReplyChan <- &common.BatchReadReply{fmt.Sprintf("Invalid batch size."), nil}
+		return
 	}
 
-	// Return results
-	req.Reply(reply)
+	for i := 0; i < conf.ReadBatch; i += 1 {
+		//TODO: what's the deal with trust domains? (the forTD parameter)
+		reqVector := req.Args[i].ForTd[0].RequestVector
+		copy(pirvector[reqlength*i:reqlength*(i+1)], reqVector)
+	}
+	err := s.PirServer.Read(pirvector, s.readReplies)
+	if err != nil {
+		s.log.Error.Fatalf("Reading from PIR Server failed: %v", err)
+		req.ReplyChan <- &common.BatchReadReply{fmt.Sprintf("Failed to read: %v", err), nil}
+		return
+	}
+	s.outstandingReads <- req.ReplyChan
+
 	s.log.Trace.Printf("batchRead: exit\n")
 }
