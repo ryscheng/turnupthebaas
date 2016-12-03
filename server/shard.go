@@ -102,10 +102,9 @@ func (s *Shard) Ping(args *common.PingArgs, reply *common.PingReply) error {
 	return nil
 }
 
-func (s *Shard) Write(args *common.WriteArgs, reply *common.WriteReply) error {
+func (s *Shard) Write(args *common.WriteArgs) error {
 	s.log.Trace.Println("Write: ")
 	s.writeChan <- args
-	reply.Err = ""
 	return nil
 }
 

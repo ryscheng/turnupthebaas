@@ -18,8 +18,8 @@ type RequestManager struct {
 	dead         int32
 	rand         *drbg.HashDrbg
 	// Channels
-	writeChan  chan *common.WriteRequest
-	writeQueue []*common.WriteRequest
+	writeChan  chan *common.WriteArgs
+	writeQueue []*common.WriteArgs
 	readChan   chan *common.ReadRequest
 	readQueue  []*common.ReadRequest
 }
@@ -36,8 +36,8 @@ func NewRequestManager(name string, leader common.LeaderInterface, globalConfig 
 		rm.log.Error.Fatalf("Error creating new HashDrbg: %v\n", randErr)
 	}
 	rm.rand = rand
-	rm.writeChan = make(chan *common.WriteRequest)
-	rm.writeQueue = make([]*common.WriteRequest, 0)
+	rm.writeChan = make(chan *common.WriteArgs)
+	rm.writeQueue = make([]*common.WriteArgs, 0)
 	rm.readChan = make(chan *common.ReadRequest)
 	rm.readQueue = make([]*common.ReadRequest, 0)
 
@@ -53,7 +53,7 @@ func (rm *RequestManager) Kill() {
 	atomic.StoreInt32(&rm.dead, 1)
 }
 
-func (rm *RequestManager) EnqueueWrite(req *common.WriteRequest) {
+func (rm *RequestManager) EnqueueWrite(req *common.WriteArgs) {
 	rm.writeChan <- req
 }
 
@@ -75,22 +75,20 @@ func (rm *RequestManager) writePeriodic() {
 			rm.writeQueue = append(rm.writeQueue, msg)
 		default:
 			globalConfig := rm.globalConfig.Load().(common.GlobalConfig)
-			var req *common.WriteRequest = nil
-			var args *common.WriteArgs
+			var req *common.WriteArgs = nil
 			var reply common.WriteReply
 			if len(rm.writeQueue) > 0 {
 				req = rm.writeQueue[0]
-				args = req.Args
 				rm.writeQueue = rm.writeQueue[1:]
-				rm.log.Info.Printf("writePeriodic: Real request to %v, %v \n", args.Bucket1, args.Bucket2)
+				rm.log.Info.Printf("writePeriodic: Real request to %v, %v \n", req.Bucket1, req.Bucket2)
 			} else {
-				args = &common.WriteArgs{}
-				rm.generateRandomWrite(globalConfig, args)
-				rm.log.Info.Printf("writePeriodic: Dummy request to %v, %v \n", args.Bucket1, args.Bucket2)
+				req = &common.WriteArgs{}
+				rm.generateRandomWrite(globalConfig, req)
+				rm.log.Info.Printf("writePeriodic: Dummy request to %v, %v \n", req.Bucket1, req.Bucket2)
 			}
 			//@todo Do something with response
 			startTime := time.Now()
-			err := rm.leader.Write(args, &reply)
+			err := rm.leader.Write(req, &reply)
 			elapsedTime := time.Since(startTime)
 
 			if err != nil {
@@ -103,7 +101,7 @@ func (rm *RequestManager) writePeriodic() {
 			}
 
 			if req != nil {
-				req.Reply(&reply)
+				req.ReplyChan <- &reply
 			}
 			time.Sleep(globalConfig.WriteInterval)
 		}

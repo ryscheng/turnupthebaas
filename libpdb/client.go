@@ -69,10 +69,9 @@ func (c *Client) Subscribe(handle *Topic) bool {
 
 func (c *Client) PublishTrace() uint64 {
 	globalConfig := c.globalConfig.Load().(common.GlobalConfig)
-	req := &common.WriteRequest{}
-	req.Args = &common.WriteArgs{}
+	req := &common.WriteArgs{}
 	req.ReplyChan = make(chan *common.WriteReply)
-	c.msgReqMan.generateRandomWrite(globalConfig, req.Args)
+	c.msgReqMan.generateRandomWrite(globalConfig, req)
 	c.msgReqMan.EnqueueWrite(req)
 	reply := <-req.ReplyChan
 	return reply.GlobalSeqNo

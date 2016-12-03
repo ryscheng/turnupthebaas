@@ -91,7 +91,7 @@ func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) er
 		args.GlobalSeqNo = seqNo
 	}
 
-	c.shard.Write(args, &common.WriteReply{})
+	c.shard.Write(args)
 	if c.follower != nil {
 		var fReply common.WriteReply
 		fErr := c.follower.Write(args, &fReply)
