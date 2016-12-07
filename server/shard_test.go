@@ -55,15 +55,15 @@ func TestShardSanity(t *testing.T) {
 	shard.syncChan <- 1
 
 	replychan := make(chan *common.BatchReadReply)
-	reqs := make([]common.ReadArgs, 8)
 
 	rv := make([]byte, 512)
 	rv[0] = 0xff
 	req := common.PirArgs{rv, nil}
+	reqs := make[]common.PirArgs, 8)
 	for i := 0; i < 8; i++ {
-		reqs[i] = common.ReadArgs{[]common.PirArgs{req}}
+		reqs[i] = req
 	}
-	shard.BatchRead(&common.BatchReadArgs{reqs, common.Range{0, 0, nil}, 0, replychan})
+	shard.BatchRead(&common.BatchReadRequest{reqs, common.Range{0, 0, nil}, 0, replychan})
 
 	reply := <-replychan
 	if reply.Replies[0].Data[0] != bytes.NewBufferString("Magic").Bytes()[0] {
@@ -99,16 +99,16 @@ func BenchmarkShard(b *testing.B) {
 	stdWrite := &common.WriteArgs{0, 1, bytes.NewBufferString("Magic").Bytes(), []byte{}, 0, nil}
 
 	//A default read request
-	reqs := make([]common.ReadArgs, conf.ReadBatch)
+	reqs := make([]common.PirArgs, conf.ReadBatch)
 	rv := make([]byte, int(conf.NumBuckets))
 	for i := 0; i < len(rv); i++ {
 		rv[i] = byte(rand.Int())
 	}
 	req := common.PirArgs{rv, nil}
 	for i := 0; i < conf.ReadBatch; i++ {
-		reqs[i] = common.ReadArgs{[]common.PirArgs{req}}
+		reqs[i] = req
 	}
-	stdRead := &common.BatchReadArgs{reqs, common.Range{0, 0, nil}, 0, replychan}
+	stdRead := &common.BatchReadRequest{reqs, common.Range{0, 0, nil}, 0, replychan}
 
 	b.ResetTimer()
 

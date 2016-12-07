@@ -125,7 +125,7 @@ func (c *Centralized) Read(args *common.ReadArgs, reply *common.ReadReply) error
 	return nil
 }
 
-func (c *Centralized) BatchRead(args *common.BatchReadArgs, reply *common.BatchReadReply) error {
+func (c *Centralized) BatchRead(args *common.BatchReadRequest, reply *common.BatchReadReply) error {
 	c.log.Trace.Println("BatchRead: enter")
 	tr := trace.New("centralized.batchread", "BatchRead")
 	defer tr.Finish()
@@ -192,11 +192,11 @@ func (c *Centralized) batchReads() {
 
 func (c *Centralized) triggerBatchRead(batch []*common.ReadRequest) {
 	c.log.Trace.Println("triggerBatchRead: enter")
-	args := &common.BatchReadArgs{}
+	args := &common.BatchReadRequest{}
 	// Copy args
-	args.Args = make([]common.ReadArgs, len(batch), len(batch))
+	args.Args = make([]common.PirArgs, len(batch), len(batch))
 	for i, val := range batch {
-		args.Args[i] = *val.Args
+		args.Args[i] = *val.Args.ForTd[0]
 	}
 
 	// Choose a SeqNoRange

@@ -76,7 +76,7 @@ func (f *FollowerRpc) Write(args *WriteArgs, reply *WriteReply) error {
 	return err
 }
 
-func (f *FollowerRpc) BatchRead(args *BatchReadArgs, reply *BatchReadReply) error {
+func (f *FollowerRpc) BatchRead(args *BatchReadRequest, reply *BatchReadReply) error {
 	//f.log.Printf("BatchRead: enter\n")
 	err := f.Call(f.methodPrefix+".BatchRead", args, reply)
 	return err

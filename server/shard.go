@@ -38,7 +38,7 @@ type Shard struct {
 
 	// Channels
 	writeChan        chan *common.WriteArgs
-	readChan         chan *common.BatchReadArgs
+	readChan         chan *common.BatchReadRequest
 	outstandingReads chan chan *common.BatchReadReply
 	readReplies      chan []byte
 	syncChan         chan int
@@ -116,7 +116,7 @@ func (s *Shard) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdates
 	return nil
 }
 
-func (s *Shard) BatchRead(args *common.BatchReadArgs) {
+func (s *Shard) BatchRead(args *common.BatchReadRequest) {
 	s.readChan <- args
 }
 
@@ -131,7 +131,7 @@ func (s *Shard) Close() {
 /** PRIVATE METHODS (singlethreaded) **/
 func (s *Shard) processReads() {
 	// The read thread searializs all access to the underlying DB
-	var batchReadReq *common.BatchReadArgs
+	var batchReadReq *common.BatchReadRequest
 
 	defer s.PirDB.Free()
 	defer s.PirServer.Disconnect()
@@ -226,7 +226,7 @@ func asCuckooItem(wa *common.WriteArgs) *cuckoo.Item {
 	return &cuckoo.Item{int(wa.GlobalSeqNo), wa.Data, int(wa.Bucket1), int(wa.Bucket2)}
 }
 
-func (s *Shard) batchRead(req *common.BatchReadArgs, conf common.GlobalConfig) {
+func (s *Shard) batchRead(req *common.BatchReadRequest, conf common.GlobalConfig) {
 	s.log.Trace.Printf("batchRead: enter\n")
 
 	// Run PIR
@@ -241,7 +241,7 @@ func (s *Shard) batchRead(req *common.BatchReadArgs, conf common.GlobalConfig) {
 
 	for i := 0; i < conf.ReadBatch; i += 1 {
 		//TODO: what's the deal with trust domains? (the forTD parameter)
-		reqVector := req.Args[i].ForTd[0].RequestVector
+		reqVector := req.Args[i].RequestVector
 		copy(pirvector[reqlength*i:reqlength*(i+1)], reqVector)
 	}
 	err := s.PirServer.Read(pirvector, s.readReplies)
