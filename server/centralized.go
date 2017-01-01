@@ -196,7 +196,7 @@ func (c *Centralized) triggerBatchRead(batch []*common.ReadRequest) {
 	// Copy args
 	args.Args = make([]common.PirArgs, len(batch), len(batch))
 	for i, val := range batch {
-		args.Args[i] = *val.Args.ForTd[0]
+		args.Args[i] = val.Args.ForTd[0]
 	}
 
 	// Choose a SeqNoRange

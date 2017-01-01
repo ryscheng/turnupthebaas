@@ -54,7 +54,7 @@ func NewShard(name string, socket string, globalConfig common.GlobalConfig) *Sha
 
 	s.globalConfig.Store(globalConfig)
 	s.writeChan = make(chan *common.WriteArgs)
-	s.readChan = make(chan *common.BatchReadArgs)
+	s.readChan = make(chan *common.BatchReadRequest)
 	s.syncChan = make(chan int)
 	s.outstandingReads = make(chan chan *common.BatchReadReply, 5)
 	s.readReplies = make(chan []byte)

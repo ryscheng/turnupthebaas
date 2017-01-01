@@ -59,7 +59,7 @@ func TestShardSanity(t *testing.T) {
 	rv := make([]byte, 512)
 	rv[0] = 0xff
 	req := common.PirArgs{rv, nil}
-	reqs := make[]common.PirArgs, 8)
+	reqs := make([]common.PirArgs, 8)
 	for i := 0; i < 8; i++ {
 		reqs[i] = req
 	}
