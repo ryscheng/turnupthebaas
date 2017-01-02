@@ -98,15 +98,15 @@ func (t *Topic) GeneratePublish(commonConfig *common.CommonConfig, seqNo uint64,
 	return args, nil
 }
 
-func (t *Topic) generatePoll(commonConfig *common.CommonConfig, seqNo uint64) (*common.ReadArgs, *common.ReadArgs, error) {
+func (t *Topic) generatePoll(config *ClientConfig, seqNo uint64) (*common.ReadArgs, *common.ReadArgs, error) {
 	args := make([]*common.ReadArgs, 2)
 	seqNoBytes := make([]byte, 12)
 	_ = binary.PutUvarint(seqNoBytes, seqNo)
 
 	args[0] = &common.ReadArgs{}
-	args[0].ForTd = make([]common.PirArgs, len(commonConfig.TrustDomains))
-	for j := 0; j < len(commonConfig.TrustDomains); j++ {
-		args[0].ForTd[j].RequestVector = make([]byte, commonConfig.NumBuckets/8+1)
+	args[0].ForTd = make([]common.PirArgs, len(config.TrustDomains))
+	for j := 0; j < len(config.TrustDomains); j++ {
+		args[0].ForTd[j].RequestVector = make([]byte, config.CommonConfig.NumBuckets/8+1)
 		t.drbg.FillBytes(args[0].ForTd[j].RequestVector)
 		args[0].ForTd[j].PadSeed = make([]byte, drbg.SeedLength)
 		t.drbg.FillBytes(args[0].ForTd[j].PadSeed)
@@ -116,9 +116,9 @@ func (t *Topic) generatePoll(commonConfig *common.CommonConfig, seqNo uint64) (*
 	//bucket1 := siphash.Hash(k0, k1, seqNoBytes) % globalConfig.NumBuckets
 
 	args[1] = &common.ReadArgs{}
-	args[1].ForTd = make([]common.PirArgs, len(commonConfig.TrustDomains))
-	for j := 0; j < len(commonConfig.TrustDomains); j++ {
-		args[1].ForTd[j].RequestVector = make([]byte, commonConfig.NumBuckets/8+1)
+	args[1].ForTd = make([]common.PirArgs, len(config.TrustDomains))
+	for j := 0; j < len(config.TrustDomains); j++ {
+		args[1].ForTd[j].RequestVector = make([]byte, config.CommonConfig.NumBuckets/8+1)
 		t.drbg.FillBytes(args[1].ForTd[j].RequestVector)
 		args[1].ForTd[j].PadSeed = make([]byte, drbg.SeedLength)
 		t.drbg.FillBytes(args[1].ForTd[j].PadSeed)

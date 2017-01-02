@@ -30,11 +30,10 @@ func testConf() ServerConfig {
 			0.95,        // bloom false positive
 			0.95,        // max load
 			0.02,        // load step
-			time.Second, //write interval
-			time.Second, //read interval
-			nil,         // trust domains
 		},
 		fromEnvOrDefault("BATCH_SIZE", 8),            // batch size
+		time.Second, //write interval
+		time.Second, //read interval
 		nil,
 	}
 }

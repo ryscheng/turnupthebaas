@@ -3,7 +3,6 @@ package common
 import (
 	"encoding/json"
 	"io/ioutil"
-	"time"
 )
 
 type CommonConfig struct {
@@ -19,15 +18,6 @@ type CommonConfig struct {
 	MaxLoadFactor float32
 	// What fraction of items should be removed from the DB when items are removed?
 	LoadFactorStep float32
-
-	// How often should pending writes be applied to the database.
-	WriteInterval  time.Duration
-
-	// What is the minimum interval with which reads should occur.
-	ReadInterval   time.Duration
-
-	// Where are the different servers?
-	TrustDomains   []*TrustDomainConfig `json:"-"`
 }
 
 func (cc *CommonConfig) WindowSize() int {

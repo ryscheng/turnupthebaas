@@ -14,7 +14,7 @@ type RequestManager struct {
 	log    *common.Logger
 	leader common.LeaderInterface
 	// Protected by `atomic`
-	commonConfig *atomic.Value //*common.CommonConfig
+	config *atomic.Value //*ClientConfig
 	dead         int32
 	rand         *drbg.HashDrbg
 	// Channels
@@ -24,11 +24,11 @@ type RequestManager struct {
 	readQueue  []*common.ReadRequest
 }
 
-func NewRequestManager(name string, leader common.LeaderInterface, commonConfig *atomic.Value) *RequestManager {
+func NewRequestManager(name string, leader common.LeaderInterface, config *atomic.Value) *RequestManager {
 	rm := &RequestManager{}
 	rm.log = common.NewLogger(name)
 	rm.leader = leader
-	rm.commonConfig = commonConfig
+	rm.config = config
 	rm.dead = 0
 
 	rand, randErr := drbg.NewHashDrbg(nil)
@@ -74,7 +74,7 @@ func (rm *RequestManager) writePeriodic() {
 			rm.log.Trace.Println("EnqueueWrite to writeQueue")
 			rm.writeQueue = append(rm.writeQueue, msg)
 		default:
-			config := rm.commonConfig.Load().(common.CommonConfig)
+			config := rm.config.Load().(ClientConfig)
 			var req *common.WriteArgs = nil
 			var reply common.WriteReply
 			if len(rm.writeQueue) > 0 {
@@ -115,7 +115,7 @@ func (rm *RequestManager) readPeriodic() {
 		case msg := <-rm.readChan:
 			rm.readQueue = append(rm.readQueue, msg)
 		default:
-			config := rm.commonConfig.Load().(common.CommonConfig)
+			config := rm.config.Load().(ClientConfig)
 			var req *common.ReadRequest = nil
 			var args *common.ReadArgs
 			var reply common.ReadReply
@@ -151,17 +151,17 @@ func (rm *RequestManager) readPeriodic() {
 	}
 }
 
-func (rm *RequestManager) generateRandomWrite(commonConfig common.CommonConfig, args *common.WriteArgs) {
-	args.Bucket1 = rm.rand.RandomUint64() % commonConfig.NumBuckets
-	args.Bucket2 = rm.rand.RandomUint64() % commonConfig.NumBuckets
-	args.Data = make([]byte, commonConfig.DataSize, commonConfig.DataSize)
+func (rm *RequestManager) generateRandomWrite(config ClientConfig, args *common.WriteArgs) {
+	args.Bucket1 = rm.rand.RandomUint64() % config.CommonConfig.NumBuckets
+	args.Bucket2 = rm.rand.RandomUint64() % config.CommonConfig.NumBuckets
+	args.Data = make([]byte, config.CommonConfig.DataSize, config.CommonConfig.DataSize)
 	rm.rand.FillBytes(args.Data)
 }
 
-func (rm *RequestManager) generateRandomRead(commonConfig common.CommonConfig, args *common.ReadArgs) {
-	numTds := len(commonConfig.TrustDomains)
-	numBytes := (uint32(commonConfig.NumBuckets) / uint32(8)) + 1
-	if (uint32(commonConfig.NumBuckets) % uint32(8)) > 0 {
+func (rm *RequestManager) generateRandomRead(config ClientConfig, args *common.ReadArgs) {
+	numTds := len(config.TrustDomains)
+	numBytes := (uint32(config.CommonConfig.NumBuckets) / uint32(8)) + 1
+	if (uint32(config.CommonConfig.NumBuckets) % uint32(8)) > 0 {
 		numBytes = numBytes + 1
 	}
 	args.ForTd = make([]common.PirArgs, numTds, numTds)

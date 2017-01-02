@@ -64,8 +64,8 @@ func TestGeneratePublish(t *testing.T) {
 
 func TestGeneratePoll(t *testing.T) {
 	fmt.Printf("TestGeneratePoll:\n")
-	config := &common.CommonConfig{}
-	config.NumBuckets = 1000000
+	config := &ClientConfig{&common.CommonConfig{}, 0, 0, nil}
+	config.CommonConfig.NumBuckets = 1000000
 	config.TrustDomains = make([]*common.TrustDomainConfig, 3)
 
 	password := ""
@@ -182,9 +182,9 @@ func BenchmarkGeneratePollN1M(b *testing.B) {
 }
 
 func HelperBenchmarkGeneratePoll(b *testing.B, NumBuckets uint64) {
-	config := &common.CommonConfig{}
+	config := &ClientConfig{&common.CommonConfig{}, 0, 0, nil}
 	config.TrustDomains = make([]*common.TrustDomainConfig, 3)
-	config.NumBuckets = NumBuckets
+	config.CommonConfig.NumBuckets = NumBuckets
 
 	password := ""
 	th, err := NewTopic(password)
@@ -200,9 +200,9 @@ func HelperBenchmarkGeneratePoll(b *testing.B, NumBuckets uint64) {
 }
 
 func BenchmarkRetrieveResponse(b *testing.B) {
-	config := &common.CommonConfig{}
+	config := &ClientConfig{&common.CommonConfig{}, 0, 0, nil}
 	config.TrustDomains = make([]*common.TrustDomainConfig, 3)
-	config.NumBuckets = 10
+	config.CommonConfig.NumBuckets = 10
 
 	password := ""
 	th, err := NewTopic(password)

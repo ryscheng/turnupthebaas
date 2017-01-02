@@ -1,29 +1,33 @@
-package server
+package libpdb
 
 import (
 	"encoding/json"
 	"github.com/ryscheng/pdb/common"
 	"io/ioutil"
+  "time"
 )
 
-type ServerConfig struct {
+type ClientConfig struct {
 	*common.CommonConfig `json:"-"`
 
-	// How many read requests should be made of the PIR server at a time?
-	ReadBatch int
-	// The names of the different servers participating as leader/followers within
-	// a single trust domain
-	ServerAddrs map[string]map[string]string //groupName -> serverName -> serverAddr
+  // How often should Writes be made to the server
+	WriteInterval  time.Duration
+
+	// How often should reads be made to the server
+	ReadInterval   time.Duration
+
+	// Where are the different servers?
+	TrustDomains   []*common.TrustDomainConfig `json:"-"`
 }
 
 // Load configuration from a JSON file. returns the config on success or nil if
 // loading or parsing the file fails.
-func ServerConfigFromFile(file string, commonBase *common.CommonConfig) *ServerConfig {
+func ClientConfigFromFile(file string, commonBase *common.CommonConfig) *ClientConfig {
 	configString, err := ioutil.ReadFile(file)
 	if err != nil {
 		return nil
 	}
-	config := new(ServerConfig)
+	config := new(ClientConfig)
 	if err := json.Unmarshal(configString, config); err != nil {
 		return nil
 	}

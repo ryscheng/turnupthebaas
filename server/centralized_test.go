@@ -6,13 +6,10 @@ import (
 	"github.com/ryscheng/pdb/libpdb"
 	"github.com/ryscheng/pdb/pir"
 	"testing"
-	"time"
 )
 
 func BenchmarkWrite(b *testing.B) {
-	trustDomainConfig0 := common.NewTrustDomainConfig("t0", "localhost:9000", true, false)
-	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9100", true, false)
-	config := common.CommonConfig{0, 0, 0, 0, 0, 0, time.Second, time.Second, []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1}}
+	config := common.CommonConfig{0, 0, 0, 0, 0, 0}
 	config.NumBuckets = 128
 	config.BucketDepth = 4
 	config.DataSize = 256
@@ -39,13 +36,13 @@ func BenchmarkWrite(b *testing.B) {
 	t1c := make(chan int)
 	go pir.CreateMockServer(t1c, t1s)
 	<-t1c
-	t1 := NewCentralized("t1", t1s, ServerConfig{&config, 1, nil}, nil, false)
+	t1 := NewCentralized("t1", t1s, ServerConfig{&config, 1, 0, 0, nil}, nil, false)
 
 	t0s := getSocket()
 	t0c := make(chan int)
 	go pir.CreateMockServer(t0c, t0s)
 	<-t0c
-	t0 := NewCentralized("t0", t0s, ServerConfig{&config, 1, nil}, t1, true)
+	t0 := NewCentralized("t0", t0s, ServerConfig{&config, 1, 0, 0, nil}, t1, true)
 
 	// Start timing
 	b.ResetTimer()
