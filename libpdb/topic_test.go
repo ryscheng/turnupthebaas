@@ -167,7 +167,7 @@ func HelperBenchmarkGeneratePublish(b *testing.B, BucketDepth int) {
 	// Start timing
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = th.generatePublish(config, uint64(i), plaintext)
+		_, _ = th.GeneratePublish(config, uint64(i), plaintext)
 	}
 }
 

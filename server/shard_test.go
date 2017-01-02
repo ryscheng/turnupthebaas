@@ -21,18 +21,21 @@ func fromEnvOrDefault(envKey string, default_val int) int {
 	return default_val
 }
 
-func testConf() common.CommonConfig {
-	return common.CommonConfig{
-		uint64(fromEnvOrDefault("NUM_BUCKETS", 512)), // num buckets
-		fromEnvOrDefault("BUCKET_DEPTH", 4),          // depth
-		fromEnvOrDefault("DATA_SIZE", 512),           // data size
+func testConf() ServerConfig {
+	return ServerConfig{
+		&common.CommonConfig{
+			uint64(fromEnvOrDefault("NUM_BUCKETS", 512)), // num buckets
+			fromEnvOrDefault("BUCKET_DEPTH", 4),          // depth
+			fromEnvOrDefault("DATA_SIZE", 512),           // data size
+			0.95,        // bloom false positive
+			0.95,        // max load
+			0.02,        // load step
+			time.Second, //write interval
+			time.Second, //read interval
+			nil,         // trust domains
+		},
 		fromEnvOrDefault("BATCH_SIZE", 8),            // batch size
-		0.95,        // bloom false positive
-		0.95,        // max load
-		0.02,        // load step
-		time.Second, //write interval
-		time.Second, //read interval
-		nil,         // trust domains
+		nil,
 	}
 }
 

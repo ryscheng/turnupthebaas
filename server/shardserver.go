@@ -25,7 +25,7 @@ func NewShardServer(group string, name string, rpcPort int, serverConfig *Server
 	s.rpcPort = rpcPort
 	s.serverConfig = serverConfig
 
-	s.shard = NewShard(name, "pir.socket", *serverConfig.CommonConfig)
+	s.shard = NewShard(name, "pir.socket", *serverConfig)
 	if rpcPort != 0 {
 		s.netRpc = NewNetworkRpc(s.shard, rpcPort)
 	}

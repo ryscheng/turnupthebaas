@@ -34,7 +34,8 @@ func main() {
 	// Config
 	trustDomainConfig0 := common.NewTrustDomainConfig("t0", "localhost:9000", true, false)
 	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9001", true, false)
-	config := common.CommonConfigFromFile("globalconfig.json")
+	config := common.CommonConfigFromFile("commonconfig.json")
+	serverConfig := server.ServerConfigFromFile("serverconfig.json", config)
 	config.TrustDomains = []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1}
 
 	status := make(chan int)
@@ -49,12 +50,12 @@ func main() {
 	}
 
 	// Trust Domain 1
-	t1 := server.NewCentralized("t1", *followerPIR, *config, nil, false)
+	t1 := server.NewCentralized("t1", *followerPIR, *serverConfig, nil, false)
 	s["t1"] = server.NewNetworkRpc(t1, 9001)
 
 	// Trust Domain 0
 	//t0 := server.NewCentralized("t0", config, t1, true)
-	t0 := server.NewCentralized("t0", *leaderPIR, *config, common.NewFollowerRpc("t0->t1", trustDomainConfig1), true)
+	t0 := server.NewCentralized("t0", *leaderPIR, *serverConfig, common.NewFollowerRpc("t0->t1", trustDomainConfig1), true)
 	s["t0"] = server.NewNetworkRpc(t0, 9000)
 
 	// Client

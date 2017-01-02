@@ -13,8 +13,6 @@ type CommonConfig struct {
 	BucketDepth int
 	// How many bytes are in an item?
 	DataSize int // Number of bytes
-	// How many read requests should be made of the PIR server at a time?
-	ReadBatch int
 	// At what false positive rate should the bloom filter be extended?
 	BloomFalsePositive float64
 	// At what fraction of DB capacity should items be removed?

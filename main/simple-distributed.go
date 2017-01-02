@@ -20,29 +20,33 @@ func main() {
 	trustDomainConfig0 := common.NewTrustDomainConfig("t0", "localhost:9000", true, true)
 	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9100", true, true)
 	emptyTrustDomainConfig := common.NewTrustDomainConfig("", "", false, true)
-	config := common.CommonConfigFromFile("globalconfig.json")
+	config := common.CommonConfigFromFile("commonconfig.json")
+	serverConfig := server.ServerConfigFromFile("serverconfig.json", config)
 	config.TrustDomains = []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1}
 
 	// Trust Domain 1
-	serverConfig1 := &server.ServerConfig{map[string]map[string]string{
+	serverConfig1 := *serverConfig
+	serverConfig1.ServerAddrs = map[string]map[string]string{
 		"t1g0": map[string]string{
 			"t1g0s0": "localhost:9101",
 		},
-	}}
-	s["t1g0s0"] = server.NewShardServer("t1g0", "t1g0s0", 9101, serverConfig1)
-	s["t1fe0"] = server.NewFrontendServer("t1fe0", 9100, serverConfig1, emptyTrustDomainConfig, false)
+	}
+	s["t1g0s0"] = server.NewShardServer("t1g0", "t1g0s0", 9101, &serverConfig1)
+	s["t1fe0"] = server.NewFrontendServer("t1fe0", 9100, &serverConfig1, emptyTrustDomainConfig, false)
 
 	// Trust Domain 0
-	serverConfig0 := &server.ServerConfig{map[string]map[string]string{
+	serverConfig0 := *serverConfig
+	serverConfig0.ServerAddrs = map[string]map[string]string{
 		"t0g0": map[string]string{
 			"t0g0s0": "localhost:9001",
 		},
-	}}
-	s["t0g0s0"] = server.NewShardServer("t0g0", "t0g0s0", 9001, serverConfig0)
-	s["t0fe0"] = server.NewFrontendServer("t0fe0", 9000, serverConfig0, trustDomainConfig1, true)
+	}
+	s["t0g0s0"] = server.NewShardServer("t0g0", "t0g0s0", 9001, &serverConfig0)
+	s["t0fe0"] = server.NewFrontendServer("t0fe0", 9000, &serverConfig0, trustDomainConfig1, true)
 
 	// Client
-	c := libpdb.NewClient("c1", *config)
+	clientLeaderSock := common.NewLeaderRpc("c0->t0", trustDomainConfig1)
+	c := libpdb.NewClient("c1", *config, clientLeaderSock)
 	c.Ping()
 	time.Sleep(10 * time.Second)
 
