@@ -10,22 +10,22 @@ type ShardServer struct {
 	group           string
 	name            string
 	rpcPort         int
-	dataLayerConfig *DataLayerConfig
+	serverConfig    *ServerConfig
 
 	shard   *Shard
 	netRpc  *NetworkRpc
 	netHttp *NetworkHttp
 }
 
-func NewShardServer(group string, name string, rpcPort int, dataLayerConfig *DataLayerConfig) *ShardServer {
+func NewShardServer(group string, name string, rpcPort int, serverConfig *ServerConfig) *ShardServer {
 	s := &ShardServer{}
 	s.log = log.New(os.Stdout, "[ShardServer:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	s.group = group
 	s.name = name
 	s.rpcPort = rpcPort
-	s.dataLayerConfig = dataLayerConfig
+	s.serverConfig = serverConfig
 
-	s.shard = NewShard(name, "pir.socket", *dataLayerConfig.GlobalConfig)
+	s.shard = NewShard(name, "pir.socket", *serverConfig.CommonConfig)
 	if rpcPort != 0 {
 		s.netRpc = NewNetworkRpc(s.shard, rpcPort)
 	}

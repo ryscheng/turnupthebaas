@@ -16,7 +16,7 @@ type Centralized struct {
 	status   chan int
 
 	// Thread-safe
-	globalConfig   atomic.Value //common.GlobalConfig
+	commonConfig   atomic.Value //common.CommonConfig
 	shard          *Shard
 	proposedSeqNo  uint64 // Use atomic.AddUint64, atomic.LoadUint64
 	committedSeqNo uint64 // Use atomic.AddUint64, atomic.LoadUint64
@@ -26,17 +26,17 @@ type Centralized struct {
 	closeChan chan int
 }
 
-func NewCentralized(name string, socket string, globalConfig common.GlobalConfig, follower common.FollowerInterface, isLeader bool) *Centralized {
+func NewCentralized(name string, socket string, commonConfig common.CommonConfig, follower common.FollowerInterface, isLeader bool) *Centralized {
 	c := &Centralized{}
 	c.log = common.NewLogger(name)
 	c.name = name
 	c.follower = follower
 	c.isLeader = isLeader
 
-	c.globalConfig.Store(globalConfig)
+	c.commonConfig.Store(commonConfig)
 
 	c.closeChan = make(chan int)
-	c.shard = NewShard(name, socket, globalConfig)
+	c.shard = NewShard(name, socket, commonConfig)
 
 	c.proposedSeqNo = 0
 	c.committedSeqNo = 0
@@ -171,15 +171,15 @@ func (c *Centralized) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetU
 
 /** PRIVATE METHODS (singlethreaded) **/
 func (c *Centralized) batchReads() {
-	globalConfig := c.globalConfig.Load().(common.GlobalConfig)
+	config := c.commonConfig.Load().(common.CommonConfig)
 	var readReq *common.ReadRequest
 	for {
 		select {
 		case readReq = <-c.ReadChan:
 			c.ReadBatch = append(c.ReadBatch, readReq)
-			if len(c.ReadBatch) >= globalConfig.ReadBatch {
+			if len(c.ReadBatch) >= config.ReadBatch {
 				go c.triggerBatchRead(c.ReadBatch)
-				c.ReadBatch = make([]*common.ReadRequest, 0, globalConfig.ReadBatch)
+				c.ReadBatch = make([]*common.ReadRequest, 0, config.ReadBatch)
 			} else {
 				c.log.Trace.Printf("Read: add to batch, size=%v\n", len(c.ReadBatch))
 			}
@@ -201,12 +201,12 @@ func (c *Centralized) triggerBatchRead(batch []*common.ReadRequest) {
 
 	// Choose a SeqNoRange
 	currSeqNo := atomic.LoadUint64(&c.committedSeqNo) + 1
-	globalConfig := c.globalConfig.Load().(common.GlobalConfig)
+	config := c.commonConfig.Load().(common.CommonConfig)
 	args.SeqNoRange = common.Range{}
-	if currSeqNo <= uint64(globalConfig.WindowSize()) {
+	if currSeqNo <= uint64(config.WindowSize()) {
 		args.SeqNoRange.Start = 1 // Minimum of 1
 	} else {
-		args.SeqNoRange.Start = currSeqNo - uint64(globalConfig.WindowSize()) // Inclusive
+		args.SeqNoRange.Start = currSeqNo - uint64(config.WindowSize()) // Inclusive
 	}
 	args.SeqNoRange.End = currSeqNo // Exclusive
 	args.SeqNoRange.Aborted = make([]uint64, 0, 0)

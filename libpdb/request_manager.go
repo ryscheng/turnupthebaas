@@ -14,7 +14,7 @@ type RequestManager struct {
 	log    *common.Logger
 	leader common.LeaderInterface
 	// Protected by `atomic`
-	globalConfig *atomic.Value //*common.GlobalConfig
+	commonConfig *atomic.Value //*common.CommonConfig
 	dead         int32
 	rand         *drbg.HashDrbg
 	// Channels
@@ -24,11 +24,11 @@ type RequestManager struct {
 	readQueue  []*common.ReadRequest
 }
 
-func NewRequestManager(name string, leader common.LeaderInterface, globalConfig *atomic.Value) *RequestManager {
+func NewRequestManager(name string, leader common.LeaderInterface, commonConfig *atomic.Value) *RequestManager {
 	rm := &RequestManager{}
 	rm.log = common.NewLogger(name)
 	rm.leader = leader
-	rm.globalConfig = globalConfig
+	rm.commonConfig = commonConfig
 	rm.dead = 0
 
 	rand, randErr := drbg.NewHashDrbg(nil)
@@ -74,7 +74,7 @@ func (rm *RequestManager) writePeriodic() {
 			rm.log.Trace.Println("EnqueueWrite to writeQueue")
 			rm.writeQueue = append(rm.writeQueue, msg)
 		default:
-			globalConfig := rm.globalConfig.Load().(common.GlobalConfig)
+			config := rm.commonConfig.Load().(common.CommonConfig)
 			var req *common.WriteArgs = nil
 			var reply common.WriteReply
 			if len(rm.writeQueue) > 0 {
@@ -83,7 +83,7 @@ func (rm *RequestManager) writePeriodic() {
 				rm.log.Info.Printf("writePeriodic: Real request to %v, %v \n", req.Bucket1, req.Bucket2)
 			} else {
 				req = &common.WriteArgs{}
-				rm.generateRandomWrite(globalConfig, req)
+				rm.generateRandomWrite(config, req)
 				rm.log.Info.Printf("writePeriodic: Dummy request to %v, %v \n", req.Bucket1, req.Bucket2)
 			}
 			//@todo Do something with response
@@ -103,7 +103,7 @@ func (rm *RequestManager) writePeriodic() {
 			if req != nil {
 				req.ReplyChan <- &reply
 			}
-			time.Sleep(globalConfig.WriteInterval)
+			time.Sleep(config.WriteInterval)
 		}
 	}
 }
@@ -115,7 +115,7 @@ func (rm *RequestManager) readPeriodic() {
 		case msg := <-rm.readChan:
 			rm.readQueue = append(rm.readQueue, msg)
 		default:
-			globalConfig := rm.globalConfig.Load().(common.GlobalConfig)
+			config := rm.commonConfig.Load().(common.CommonConfig)
 			var req *common.ReadRequest = nil
 			var args *common.ReadArgs
 			var reply common.ReadReply
@@ -126,7 +126,7 @@ func (rm *RequestManager) readPeriodic() {
 				rm.log.Info.Printf("readPeriodic: Real request \n")
 			} else {
 				args = &common.ReadArgs{}
-				rm.generateRandomRead(globalConfig, args)
+				rm.generateRandomRead(config, args)
 				rm.log.Info.Printf("readPeriodic: Dummy request \n")
 			}
 			//@todo Do something with response
@@ -146,22 +146,22 @@ func (rm *RequestManager) readPeriodic() {
 			if req != nil {
 				req.Reply(&reply)
 			}
-			time.Sleep(globalConfig.ReadInterval)
+			time.Sleep(config.ReadInterval)
 		}
 	}
 }
 
-func (rm *RequestManager) generateRandomWrite(globalConfig common.GlobalConfig, args *common.WriteArgs) {
-	args.Bucket1 = rm.rand.RandomUint64() % globalConfig.NumBuckets
-	args.Bucket2 = rm.rand.RandomUint64() % globalConfig.NumBuckets
-	args.Data = make([]byte, globalConfig.DataSize, globalConfig.DataSize)
+func (rm *RequestManager) generateRandomWrite(commonConfig common.CommonConfig, args *common.WriteArgs) {
+	args.Bucket1 = rm.rand.RandomUint64() % commonConfig.NumBuckets
+	args.Bucket2 = rm.rand.RandomUint64() % commonConfig.NumBuckets
+	args.Data = make([]byte, commonConfig.DataSize, commonConfig.DataSize)
 	rm.rand.FillBytes(args.Data)
 }
 
-func (rm *RequestManager) generateRandomRead(globalConfig common.GlobalConfig, args *common.ReadArgs) {
-	numTds := len(globalConfig.TrustDomains)
-	numBytes := (uint32(globalConfig.NumBuckets) / uint32(8)) + 1
-	if (uint32(globalConfig.NumBuckets) % uint32(8)) > 0 {
+func (rm *RequestManager) generateRandomRead(commonConfig common.CommonConfig, args *common.ReadArgs) {
+	numTds := len(commonConfig.TrustDomains)
+	numBytes := (uint32(commonConfig.NumBuckets) / uint32(8)) + 1
+	if (uint32(commonConfig.NumBuckets) % uint32(8)) > 0 {
 		numBytes = numBytes + 1
 	}
 	args.ForTd = make([]common.PirArgs, numTds, numTds)

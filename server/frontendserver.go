@@ -16,7 +16,7 @@ type FrontendServer struct {
 	netHttp  *NetworkHttp
 }
 
-func NewFrontendServer(name string, rpcPort int, dataLayerConfig *DataLayerConfig, follower *common.TrustDomainConfig, isLeader bool) *FrontendServer {
+func NewFrontendServer(name string, rpcPort int, serverConfig *ServerConfig, follower *common.TrustDomainConfig, isLeader bool) *FrontendServer {
 	fe := &FrontendServer{}
 	fe.log = log.New(os.Stdout, "[FrontendServer:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	fe.name = name

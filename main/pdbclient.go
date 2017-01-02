@@ -25,32 +25,32 @@ func main() {
 	trustDomainConfig0 := common.NewTrustDomainConfig("t0", "172.30.2.10:9000", true, false)
 	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "172.30.2.159:9000", true, false)
 	trustDomainConfig2 := common.NewTrustDomainConfig("t2", "172.30.2.221:9000", true, false)
-	globalConfig := common.GlobalConfigFromFile("globalconfig.json")
-	globalConfig.TrustDomains = []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1, trustDomainConfig2}
+	config := common.CommonConfigFromFile("globalconfig.json")
+	config.TrustDomains = []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1, trustDomainConfig2}
 
 	leaderRpc := common.NewLeaderRpc("c0->t0", trustDomainConfig0)
 	/**
 	// Throughput
 	numClients := 10000
 	for i := 0; i < numClients; i++ {
-		_ = libpdb.NewClient("c", *globalConfig, leaderRpc)
-		time.Sleep(time.Duration(rand.Int()%(2*int(globalConfig.WriteInterval)/numClients)) * time.Nanosecond)
+		_ = libpdb.NewClient("c", *config, leaderRpc)
+		time.Sleep(time.Duration(rand.Int()%(2*int(config.WriteInterval)/numClients)) * time.Nanosecond)
 	}
 	log.Printf("Generated %v clients\n", numClients)
 	**/
 	//c.Ping()
 
 	// Latency
-	c0 := libpdb.NewClient("c0", *globalConfig, leaderRpc)
+	c0 := libpdb.NewClient("c0", *config, leaderRpc)
 	log.Println("Created c0")
-	time.Sleep(time.Duration(rand.Int()%int(globalConfig.WriteInterval)) * time.Nanosecond)
-	c1 := libpdb.NewClient("c1", *globalConfig, leaderRpc)
+	time.Sleep(time.Duration(rand.Int()%int(config.WriteInterval)) * time.Nanosecond)
+	c1 := libpdb.NewClient("c1", *config, leaderRpc)
 	log.Println("Created c1")
 
 	totalTrials := 10
 	durations := make([]time.Duration, 0)
 	for trials := 0; trials < totalTrials; trials++ {
-		time.Sleep(time.Duration(rand.Int()%int(globalConfig.WriteInterval)) * time.Nanosecond)
+		time.Sleep(time.Duration(rand.Int()%int(config.WriteInterval)) * time.Nanosecond)
 		startTime := time.Now()
 		seqNo := c0.PublishTrace()
 		log.Printf("c0.Publish -> seqNo=%v after %v\n", seqNo, time.Since(startTime))

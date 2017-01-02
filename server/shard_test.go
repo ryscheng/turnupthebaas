@@ -21,8 +21,8 @@ func fromEnvOrDefault(envKey string, default_val int) int {
 	return default_val
 }
 
-func testConf() common.GlobalConfig {
-	return common.GlobalConfig{
+func testConf() common.CommonConfig {
+	return common.CommonConfig{
 		uint64(fromEnvOrDefault("NUM_BUCKETS", 512)), // num buckets
 		fromEnvOrDefault("BUCKET_DEPTH", 4),          // depth
 		fromEnvOrDefault("DATA_SIZE", 512),           // data size

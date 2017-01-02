@@ -34,7 +34,7 @@ type Shard struct {
 	Entries []cuckoo.Item
 	*cuckoo.Table
 
-	globalConfig atomic.Value //common.GlobalConfig
+	commonConfig atomic.Value //common.CommonConfig
 
 	// Channels
 	writeChan        chan *common.WriteArgs
@@ -47,12 +47,12 @@ type Shard struct {
 	outstandingLimit int
 }
 
-func NewShard(name string, socket string, globalConfig common.GlobalConfig) *Shard {
+func NewShard(name string, socket string, commonConfig common.CommonConfig) *Shard {
 	s := &Shard{}
 	s.log = common.NewLogger(name)
 	s.name = name
 
-	s.globalConfig.Store(globalConfig)
+	s.commonConfig.Store(commonConfig)
 	s.writeChan = make(chan *common.WriteArgs)
 	s.readChan = make(chan *common.BatchReadRequest)
 	s.syncChan = make(chan int)
@@ -66,7 +66,7 @@ func NewShard(name string, socket string, globalConfig common.GlobalConfig) *Sha
 		return nil
 	}
 	s.PirServer = pirServer
-	err = s.PirServer.Configure(globalConfig.DataSize*globalConfig.BucketDepth, int(globalConfig.NumBuckets), globalConfig.ReadBatch)
+	err = s.PirServer.Configure(commonConfig.DataSize*commonConfig.BucketDepth, int(commonConfig.NumBuckets), commonConfig.ReadBatch)
 	if err != nil {
 		s.log.Error.Fatalf("Could not start PIR back end with correct parameters: %v", err)
 		return nil
@@ -82,11 +82,11 @@ func NewShard(name string, socket string, globalConfig common.GlobalConfig) *Sha
 	s.PirServer.SetDB(s.PirDB)
 
 	// TODO: rand seed
-	s.Table = cuckoo.NewTable(name+"-Table", int(globalConfig.NumBuckets), globalConfig.BucketDepth, globalConfig.DataSize, db.DB, 0)
-	s.Entries = make([]cuckoo.Item, 0, int(globalConfig.NumBuckets)*globalConfig.BucketDepth)
+	s.Table = cuckoo.NewTable(name+"-Table", int(commonConfig.NumBuckets), commonConfig.BucketDepth, commonConfig.DataSize, db.DB, 0)
+	s.Entries = make([]cuckoo.Item, 0, int(commonConfig.NumBuckets)*commonConfig.BucketDepth)
 
 	//TODO: should be a parameter in globalconfig
-	s.outstandingLimit = int(float32(globalConfig.NumBuckets*uint64(globalConfig.BucketDepth)) * 0.50)
+	s.outstandingLimit = int(float32(commonConfig.NumBuckets*uint64(commonConfig.BucketDepth)) * 0.50)
 
 	go s.processReads()
 	go s.processReplies()
@@ -135,7 +135,7 @@ func (s *Shard) processReads() {
 
 	defer s.PirDB.Free()
 	defer s.PirServer.Disconnect()
-	conf := s.globalConfig.Load().(common.GlobalConfig)
+	conf := s.commonConfig.Load().(common.CommonConfig)
 	for {
 		select {
 		case batchReadReq = <-s.readChan:
@@ -154,7 +154,7 @@ func (s *Shard) processReads() {
 
 func (s *Shard) processReplies() {
 	var outputChannel chan *common.BatchReadReply
-	conf := s.globalConfig.Load().(common.GlobalConfig)
+	conf := s.commonConfig.Load().(common.CommonConfig)
 	itemLength := conf.DataSize * conf.BucketDepth
 
 	for {
@@ -175,7 +175,7 @@ func (s *Shard) processReplies() {
 
 func (s *Shard) processWrites() {
 	var writeReq *common.WriteArgs
-	conf := s.globalConfig.Load().(common.GlobalConfig)
+	conf := s.commonConfig.Load().(common.CommonConfig)
 	for {
 		select {
 		case writeReq = <-s.writeChan:
@@ -210,7 +210,7 @@ func (s *Shard) processWrites() {
 }
 
 func (s *Shard) evictOldItems() {
-	conf := s.globalConfig.Load().(common.GlobalConfig)
+	conf := s.commonConfig.Load().(common.CommonConfig)
 	toRemove := int(float32(int(conf.NumBuckets)*conf.BucketDepth) * conf.LoadFactorStep)
 	if toRemove >= len(s.Entries) {
 		toRemove = len(s.Entries) - 1
@@ -226,7 +226,7 @@ func asCuckooItem(wa *common.WriteArgs) *cuckoo.Item {
 	return &cuckoo.Item{int(wa.GlobalSeqNo), wa.Data, int(wa.Bucket1), int(wa.Bucket2)}
 }
 
-func (s *Shard) batchRead(req *common.BatchReadRequest, conf common.GlobalConfig) {
+func (s *Shard) batchRead(req *common.BatchReadRequest, conf common.CommonConfig) {
 	s.log.Trace.Printf("batchRead: enter\n")
 
 	// Run PIR

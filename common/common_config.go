@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-type GlobalConfig struct {
+type CommonConfig struct {
 	// How many Buckets are in the server?
 	NumBuckets uint64
 	// How many items are in a bucket?
@@ -21,23 +21,29 @@ type GlobalConfig struct {
 	MaxLoadFactor float32
 	// What fraction of items should be removed from the DB when items are removed?
 	LoadFactorStep float32
+
+	// How often should pending writes be applied to the database.
 	WriteInterval  time.Duration
+
+	// What is the minimum interval with which reads should occur.
 	ReadInterval   time.Duration
+
+	// Where are the different servers?
 	TrustDomains   []*TrustDomainConfig `json:"-"`
 }
 
-func (g *GlobalConfig) WindowSize() int {
-	return int(float32(int(g.NumBuckets) * g.BucketDepth) * g.MaxLoadFactor)
+func (cc *CommonConfig) WindowSize() int {
+	return int(float32(int(cc.NumBuckets) * cc.BucketDepth) * cc.MaxLoadFactor)
 }
 
 // Load configuration from a JSON file. returns the config on success or nil if
 // loading or parsing the file fails.
-func GlobalConfigFromFile(file string) *GlobalConfig {
+func CommonConfigFromFile(file string) *CommonConfig {
 	configString, err := ioutil.ReadFile(file)
 	if err != nil {
 		return nil
 	}
-	config := new(GlobalConfig)
+	config := new(CommonConfig)
 	if err := json.Unmarshal(configString, config); err != nil {
 		return nil
 	}
