@@ -40,6 +40,7 @@ func TestGeneratePublish(t *testing.T) {
 	config.NumBuckets = 100
 	config.BucketDepth = 2
 	config.DataSize = 1024
+	config.MaxLoadFactor = 1.0
 	config.BloomFalsePositive = 0.1
 
 	plaintext := make([]byte, config.DataSize, config.DataSize)
@@ -153,6 +154,7 @@ func HelperBenchmarkGeneratePublish(b *testing.B, BucketDepth int) {
 	config.NumBuckets = 100
 	config.BucketDepth = BucketDepth
 	config.DataSize = 1024
+	config.MaxLoadFactor = 1.0
 	config.BloomFalsePositive = 0.0001
 	plaintext := make([]byte, config.DataSize, config.DataSize)
 	_, err := rand.Read(plaintext)
