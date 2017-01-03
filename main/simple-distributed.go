@@ -31,7 +31,9 @@ func main() {
 			"t1g0s0": "localhost:9101",
 		},
 	}
-	s["t1g0s0"] = server.NewShardServer("t1g0", "t1g0s0", 9101, &serverConfig1)
+	NewShard("t1g0s0", "pir.socket", serverConfig1)
+	shard1 := server.NewShard("t1g0s0", "pir.socket", serverConfig1)
+	s["t1g0s0"] = server.NewNetworkRpc(shard1, 9101)
 	s["t1fe0"] = server.NewFrontendServer("t1fe0", 9100, &serverConfig1, emptyTrustDomainConfig, false)
 
 	// Trust Domain 0
@@ -41,7 +43,8 @@ func main() {
 			"t0g0s0": "localhost:9001",
 		},
 	}
-	s["t0g0s0"] = server.NewShardServer("t0g0", "t0g0s0", 9001, &serverConfig0)
+	shard0 := server.NewShard("t0g0s0", "pir2.socket", serverConfig0)
+	s["t0g0s0"] = server.NewNetworkRpc(shard0, 9001)
 	s["t0fe0"] = server.NewFrontendServer("t0fe0", 9000, &serverConfig0, trustDomainConfig1, true)
 
 	// Client
