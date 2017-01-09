@@ -3,6 +3,7 @@ package libpdb
 import (
 	"github.com/ryscheng/pdb/common"
 	"sync/atomic"
+	"sync"
 )
 
 /**
@@ -17,8 +18,14 @@ type Client struct {
 	config atomic.Value //ClientConfig
 	leader       common.LeaderInterface
 	msgReqMan    *RequestManager
+
+	subscribedTopics []Topic
+	pendingRequest *common.ReadRequest
+	pendingRequestTopic *RequestResponder
+	topicMutex sync.Mutex
 }
 
+//TODO: client needs to know the different trust domains security parameters.
 func NewClient(name string, config ClientConfig, leader common.LeaderInterface) *Client {
 	c := &Client{}
 	c.log = common.NewLogger(name)
@@ -27,6 +34,8 @@ func NewClient(name string, config ClientConfig, leader common.LeaderInterface) 
 	c.leader = leader
 
 	c.msgReqMan = NewRequestManager(name, c.leader, &c.config)
+	c.msgReqMan.SetReadGenerator(c)
+	c.topicMutex = sync.Mutex{}
 
 	c.log.Info.Println("NewClient: starting new client - " + name)
 	return c
@@ -50,23 +59,86 @@ func (c *Client) Ping() bool {
 	}
 }
 
-func (c *Client) CreateTopic() (*Topic, error) {
-	password := ""
-	handle, err := NewTopic(password)
-	//@todo
-	return handle, err
-}
+func (c *Client) Publish(handle *Topic, data []byte) error {
+	config := c.config.Load().(ClientConfig)
+	write_args, err := handle.GeneratePublish(config, seqNo, data)
+  if error != nil {
+		return err
+	}
 
-func (c *Client) Publish(data []byte) bool {
-	//@todo using EnqueueWrite
+	c.msgReqMan.EnqueueWrite(write_args)
 	return true
 }
 
 func (c *Client) Subscribe(handle *Topic) bool {
-	//@todo using EnqueueRead
+	// Check if already subscribed.
+	c.topicMutex.Lock()
+	for x := range c.subscribedTopics {
+		if x == handle {
+			c.topicMutex.Unlock()
+			return false;
+		}
+	}
+	c.subscribedTopics = append(c.subscribedTopics, handle)
+	c.topicMutex.Unlock()
+
 	return true
 }
 
+func (c *Client) Unsubscribe(handle *Topic) bool {
+	c.topicMutex.Lock()
+  for i := 0; i < len(c.subscribedTopics); i++ {
+		if c.subscribedTopics[i] == handle {
+			c.subscribedTopics[i] = c.subscribedTopics[len(c.subscribedTopics) - 1]
+			c.subscribedTopics = c.subscribedTopics[:len(c.subscribedTopics) - 1]
+			c.topicMutex.Unlock()
+			return true
+		}
+	}
+	c.topicMutex.Unlock()
+	return false
+}
+
+// Implement RequestGenerator interface for the request manager
+func (c *Client) NextRequest() *common.ReadRequest {
+	c.topicMutex.Lock()
+	if c.pendingRequest != nil {
+		rec := c.pendingRequest
+		rr := c.pendingRequestTopic
+		c.pendingRequest = nil
+		c.topicMutex.Unlock()
+		return req, rr
+	}
+
+	if len(c.subscribedTopics) > 0 {
+		nextTopic := c.subscribedTopics[0]
+		c.subscribedTopics = c.subscribedTopics[1:]
+		c.subscribedTopics = append(c.subscribedTopics, nextTopic)
+
+		ra1, ra2, err := nextTopic.generatePoll(config, seqNo)
+		if err {
+			c.topicMutex.Unlock()
+			c.log.Error(err)
+			return nil
+		}
+		c.pendingRequest = ra2
+		c.pendingRequestTopic = nextTopic
+		c.topicMutex.Unlock()
+		return ra1, nextTopic
+	}
+	c.topicMutex.Unlock()
+	return nil
+}
+
+func (c *Client) nextPoll() {
+	c.topicMutex.Lock()
+	if len(c.subscribedTopics) > 0 {
+
+	}
+	c.topicMutex.Unlock()
+}
+
+// Debug only. For learning latencies.
 func (c *Client) PublishTrace() uint64 {
 	config := c.config.Load().(ClientConfig)
 	req := &common.WriteArgs{}

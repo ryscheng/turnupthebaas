@@ -24,9 +24,13 @@ type Topic struct {
 	salt       []byte
 	iterations int
 	keyLen     int
+
+	// Last seen sequence number
+	Seqno      uint64
+	updates    chan<- []byte
 }
 
-func NewTopic(password string) (*Topic, error) {
+func NewTopic(password string, approximateSeqNo uint64, updates chan<- []byte) (*Topic, error) {
 	t := &Topic{}
 
 	// Random values
@@ -67,6 +71,9 @@ func NewTopic(password string) (*Topic, error) {
 	// public: salt, iterations, keySize
 	t.EncrKey = pbkdf2.Key([]byte(password), t.salt, t.iterations, t.keyLen, sha1.New)
 
+	t.Seqno = approximateSeqNo
+	t.updates = updates
+
 	return t, nil
 }
 
@@ -81,7 +88,7 @@ func (t *Topic) GeneratePublish(commonConfig *common.CommonConfig, seqNo uint64,
 	k0, k1 = t.Seed2.KeyUint128()
 	args.Bucket2 = siphash.Hash(k0, k1, seqNoBytes) % commonConfig.NumBuckets
 
-	ciphertext, err := t.Encrypt(message, seqNoBytes)
+	ciphertext, err := t.encrypt(message, seqNoBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -130,6 +137,14 @@ func (t *Topic) generatePoll(config *ClientConfig, seqNo uint64) (*common.ReadAr
 	return args[0], args[1], nil
 }
 
+func (t *Topic) OnResponse(args *common.ReadArgs, reply *common.ReadReply) {
+	msg := retrieveResponse(args, reply)
+	if msg != nil && updates != nil {
+		updates <- msg
+	}
+}
+
+// TODO: checksum msgs at topic level so if something random comes back it is filtered out.
 func (t *Topic) retrieveResponse(args *common.ReadArgs, reply *common.ReadReply) []byte {
 	data := reply.Data
 
@@ -146,7 +161,7 @@ func (t *Topic) retrieveResponse(args *common.ReadArgs, reply *common.ReadReply)
 }
 
 //@todo - can we use seqNo as the nonce?
-func (t *Topic) Encrypt(plaintext []byte, nonce []byte) ([]byte, error) {
+func (t *Topic) encrypt(plaintext []byte, nonce []byte) ([]byte, error) {
 	// The key argument should be the AES key, either 16 or 32 bytes
 	// to select AES-128 or AES-256.
 	block, err := aes.NewCipher(t.EncrKey)

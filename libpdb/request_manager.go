@@ -7,6 +7,17 @@ import (
 	"time"
 )
 
+// The interface for the class that will determine what the next read should
+// be at each time stamp.
+type RequestGenerator interface {
+	NextRequest() (*common.ReadRequest, *RequestResponder)
+}
+
+// The interface for the class that will handle the response for a given read.
+type RequestResponder interface {
+	OnResponse(*common.ReadArgs, *common.ReadReply)
+}
+
 //const defaultReadInterval = int64(time.Second)
 //const defaultWriteInterval = int64(time.Second)
 
@@ -20,8 +31,8 @@ type RequestManager struct {
 	// Channels
 	writeChan  chan *common.WriteArgs
 	writeQueue []*common.WriteArgs
-	readChan   chan *common.ReadRequest
-	readQueue  []*common.ReadRequest
+	readQueue  []*common.ReadArgs
+	ReadGenerator
 }
 
 func NewRequestManager(name string, leader common.LeaderInterface, config *atomic.Value) *RequestManager {
@@ -57,8 +68,8 @@ func (rm *RequestManager) EnqueueWrite(req *common.WriteArgs) {
 	rm.writeChan <- req
 }
 
-func (rm *RequestManager) EnqueueRead(req *common.ReadRequest) {
-	rm.readChan <- req
+func (rm *RequestManager) SetReadGenerator(gen RequestGenerator) {
+	rm.ReadGenerator = gen
 }
 
 /** PRIVATE METHODS **/
@@ -111,43 +122,41 @@ func (rm *RequestManager) writePeriodic() {
 func (rm *RequestManager) readPeriodic() {
 
 	for rm.isDead() == false {
-		select {
-		case msg := <-rm.readChan:
-			rm.readQueue = append(rm.readQueue, msg)
-		default:
-			config := rm.config.Load().(ClientConfig)
-			var req *common.ReadRequest = nil
-			var args *common.ReadArgs
-			var reply common.ReadReply
-			if len(rm.readQueue) > 0 {
-				req = rm.readQueue[0]
-				args = req.Args
-				rm.readQueue = rm.readQueue[1:]
-				rm.log.Info.Printf("readPeriodic: Real request \n")
-			} else {
-				args = &common.ReadArgs{}
-				rm.generateRandomRead(config, args)
-				rm.log.Info.Printf("readPeriodic: Dummy request \n")
-			}
-			//@todo Do something with response
-			startTime := time.Now()
-			err := rm.leader.Read(args, &reply)
-			elapsedTime := time.Since(startTime)
+		var args *common.ReadArgs
+		var replier *RequestResponder
+		reply := common.ReadReply{}
 
-			if err != nil {
-				reply.Err = err.Error()
-			}
-			if reply.Err != "" {
-				rm.log.Error.Printf("readPeriodic error: %v, reply=%v, time=%v\n", err, reply, elapsedTime)
-			} else {
-				rm.log.Info.Printf("readPeriodic reply: range=%v, time=%v\n", reply.GlobalSeqNo, elapsedTime)
-			}
-
-			if req != nil {
-				req.Reply(&reply)
-			}
-			time.Sleep(config.ReadInterval)
+		if rm.ReadGenerator != nil {
+			args, replier := rm.ReadGenerator.NextRequest()
 		}
+
+		config := rm.config.Load().(ClientConfig)
+
+		if args != nil {
+			rm.log.Info.Printf("readPeriodic: Real request \n")
+		} else {
+			args = &common.ReadArgs{}
+			rm.generateRandomRead(config, args)
+			rm.log.Info.Printf("readPeriodic: Dummy request \n")
+		}
+		//@todo Do something with response
+		startTime := time.Now()
+		err := rm.leader.Read(args, &reply)
+		elapsedTime := time.Since(startTime)
+
+		if err != nil {
+			reply.Err = err.Error()
+		}
+		if reply.Err != "" {
+			rm.log.Error.Printf("readPeriodic error: %v, reply=%v, time=%v\n", err, reply, elapsedTime)
+		} else {
+			rm.log.Info.Printf("readPeriodic reply: range=%v, time=%v\n", reply.GlobalSeqNo, elapsedTime)
+		}
+
+		if replier != nil {
+			replier.OnResponse(args, &reply)
+		}
+		time.Sleep(config.ReadInterval)
 	}
 }
 
