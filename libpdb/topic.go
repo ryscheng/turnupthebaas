@@ -27,7 +27,6 @@ type Topic struct {
 
 	// Last seen sequence number
 	Seqno      uint64
-	updates    chan<- []byte
 }
 
 func NewTopic(password string, approximateSeqNo uint64, updates chan<- []byte) (*Topic, error) {
@@ -71,9 +70,6 @@ func NewTopic(password string, approximateSeqNo uint64, updates chan<- []byte) (
 	// public: salt, iterations, keySize
 	t.EncrKey = pbkdf2.Key([]byte(password), t.salt, t.iterations, t.keyLen, sha1.New)
 
-	t.Seqno = approximateSeqNo
-	t.updates = updates
-
 	return t, nil
 }
 
@@ -103,61 +99,6 @@ func (t *Topic) GeneratePublish(commonConfig *common.CommonConfig, seqNo uint64,
 	//args.InterestVector, _ = bloomFilter.GobEncode()
 
 	return args, nil
-}
-
-func (t *Topic) generatePoll(config *ClientConfig, seqNo uint64) (*common.ReadArgs, *common.ReadArgs, error) {
-	args := make([]*common.ReadArgs, 2)
-	seqNoBytes := make([]byte, 12)
-	_ = binary.PutUvarint(seqNoBytes, seqNo)
-
-	args[0] = &common.ReadArgs{}
-	args[0].ForTd = make([]common.PirArgs, len(config.TrustDomains))
-	for j := 0; j < len(config.TrustDomains); j++ {
-		args[0].ForTd[j].RequestVector = make([]byte, config.CommonConfig.NumBuckets/8+1)
-		t.drbg.FillBytes(args[0].ForTd[j].RequestVector)
-		args[0].ForTd[j].PadSeed = make([]byte, drbg.SeedLength)
-		t.drbg.FillBytes(args[0].ForTd[j].PadSeed)
-	}
-	// @todo - XOR this into the last request vector
-	//k0, k1 := t.Seed1.KeyUint128()
-	//bucket1 := siphash.Hash(k0, k1, seqNoBytes) % globalConfig.NumBuckets
-
-	args[1] = &common.ReadArgs{}
-	args[1].ForTd = make([]common.PirArgs, len(config.TrustDomains))
-	for j := 0; j < len(config.TrustDomains); j++ {
-		args[1].ForTd[j].RequestVector = make([]byte, config.CommonConfig.NumBuckets/8+1)
-		t.drbg.FillBytes(args[1].ForTd[j].RequestVector)
-		args[1].ForTd[j].PadSeed = make([]byte, drbg.SeedLength)
-		t.drbg.FillBytes(args[1].ForTd[j].PadSeed)
-	}
-	// @todo - XOR this into the last request vector
-	//k0, k1 = t.Seed2.KeyUint128()
-	//bucket2 := siphash.Hash(k0, k1, seqNoBytes) % globalConfig.NumBuckets
-
-	return args[0], args[1], nil
-}
-
-func (t *Topic) OnResponse(args *common.ReadArgs, reply *common.ReadReply) {
-	msg := retrieveResponse(args, reply)
-	if msg != nil && updates != nil {
-		updates <- msg
-	}
-}
-
-// TODO: checksum msgs at topic level so if something random comes back it is filtered out.
-func (t *Topic) retrieveResponse(args *common.ReadArgs, reply *common.ReadReply) []byte {
-	data := reply.Data
-
-	for i := 0; i < len(args.ForTd); i++ {
-		pad := make([]byte, len(data))
-		seed, _ := drbg.ImportSeed(args.ForTd[i].PadSeed)
-		hashDrbg, _ := drbg.NewHashDrbg(seed)
-		hashDrbg.FillBytes(pad)
-		for j := 0; j < len(data); j++ {
-			data[j] ^= pad[j]
-		}
-	}
-	return data
 }
 
 //@todo - can we use seqNo as the nonce?
@@ -207,4 +148,13 @@ func (t *Topic) Decrypt(ciphertext []byte, nonce []byte) ([]byte, error) {
 
 	//fmt.Printf("%s\n", string(plaintext))
 	return plaintext, nil
+}
+
+/** Implement BinaryMarshaler / BinaryUnmarshaler for serialization **/
+func (t *Topic) MarshalBinary() (data []byte, err error) {
+
+}
+
+func (t *Topic) UnmarshalBinary(data []byte) error {
+
 }

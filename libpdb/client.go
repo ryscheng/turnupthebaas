@@ -19,10 +19,10 @@ type Client struct {
 	leader       common.LeaderInterface
 	msgReqMan    *RequestManager
 
-	subscribedTopics []Topic
+	subscriptions []Subscription
 	pendingRequest *common.ReadRequest
-	pendingRequestTopic *RequestResponder
-	topicMutex sync.Mutex
+	pendingRequestSub *RequestResponder
+	subscriptionMutex sync.Mutex
 }
 
 //TODO: client needs to know the different trust domains security parameters.
@@ -35,7 +35,7 @@ func NewClient(name string, config ClientConfig, leader common.LeaderInterface) 
 
 	c.msgReqMan = NewRequestManager(name, c.leader, &c.config)
 	c.msgReqMan.SetReadGenerator(c)
-	c.topicMutex = sync.Mutex{}
+	c.subscriptionMutex = sync.Mutex{}
 
 	c.log.Info.Println("NewClient: starting new client - " + name)
 	return c
@@ -70,72 +70,64 @@ func (c *Client) Publish(handle *Topic, data []byte) error {
 	return true
 }
 
-func (c *Client) Subscribe(handle *Topic) bool {
+func (c *Client) Subscribe(handle *Subscription) bool {
 	// Check if already subscribed.
-	c.topicMutex.Lock()
-	for x := range c.subscribedTopics {
+	c.subscriptionMutex.Lock()
+	for x := range c.subscriptions {
 		if x == handle {
-			c.topicMutex.Unlock()
+			c.subscriptionMutex.Unlock()
 			return false;
 		}
 	}
-	c.subscribedTopics = append(c.subscribedTopics, handle)
-	c.topicMutex.Unlock()
+	c.subscriptions = append(c.subscriptions, handle)
+	c.subscriptionMutex.Unlock()
 
 	return true
 }
 
-func (c *Client) Unsubscribe(handle *Topic) bool {
-	c.topicMutex.Lock()
-  for i := 0; i < len(c.subscribedTopics); i++ {
-		if c.subscribedTopics[i] == handle {
-			c.subscribedTopics[i] = c.subscribedTopics[len(c.subscribedTopics) - 1]
-			c.subscribedTopics = c.subscribedTopics[:len(c.subscribedTopics) - 1]
-			c.topicMutex.Unlock()
+func (c *Client) Unsubscribe(handle *Subscription) bool {
+	c.subscriptionMutex.Lock()
+  for i := 0; i < len(c.subscriptions); i++ {
+		if c.subscriptions[i] == handle {
+			c.subscriptions[i] = c.subscriptionMutex[len(c.subscriptions) - 1]
+			c.subscriptions = c.subscriptions[:len(c.subscriptions) - 1]
+			c.subscriptionMutex.Unlock()
 			return true
 		}
 	}
-	c.topicMutex.Unlock()
+	c.subscriptionMutex.Unlock()
 	return false
 }
 
 // Implement RequestGenerator interface for the request manager
 func (c *Client) NextRequest() *common.ReadRequest {
-	c.topicMutex.Lock()
+	c.subscriptionMutex.Lock()
 	if c.pendingRequest != nil {
 		rec := c.pendingRequest
-		rr := c.pendingRequestTopic
+		rr := c.pendingRequestSub
 		c.pendingRequest = nil
-		c.topicMutex.Unlock()
+		c.subscriptionMutex.Unlock()
 		return req, rr
 	}
 
-	if len(c.subscribedTopics) > 0 {
-		nextTopic := c.subscribedTopics[0]
-		c.subscribedTopics = c.subscribedTopics[1:]
-		c.subscribedTopics = append(c.subscribedTopics, nextTopic)
+	if len(c.subscriptions) > 0 {
+		nextTopic := c.subscriptions[0]
+		c.subscriptions = c.subscriptions[1:]
+		c.subscriptions = append(c.subscriptions, nextTopic)
 
 		ra1, ra2, err := nextTopic.generatePoll(config, seqNo)
 		if err {
-			c.topicMutex.Unlock()
+			c.subscriptionMutex.Unlock()
 			c.log.Error(err)
 			return nil
 		}
 		c.pendingRequest = ra2
-		c.pendingRequestTopic = nextTopic
-		c.topicMutex.Unlock()
+		c.pendingRequestSub = nextTopic
+		c.subscriptionMutex.Unlock()
 		return ra1, nextTopic
 	}
-	c.topicMutex.Unlock()
+	c.subscriptionMutex.Unlock()
 	return nil
-}
-
-func (c *Client) nextPoll() {
-	c.topicMutex.Lock()
-	if len(c.subscribedTopics) > 0 {
-
-	}
-	c.topicMutex.Unlock()
 }
 
 // Debug only. For learning latencies.
