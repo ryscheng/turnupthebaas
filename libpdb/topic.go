@@ -1,11 +1,13 @@
 package libpdb
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha1"
 	"encoding/binary"
+	"encoding/gob"
 	"github.com/dchest/siphash"
 	"github.com/ryscheng/pdb/bloom"
 	"github.com/ryscheng/pdb/common"
@@ -26,14 +28,13 @@ type Topic struct {
 	keyLen     int
 
 	// Last seen sequence number
-	Seqno      uint64
+	Seqno uint64
 }
 
-func NewTopic(password string, approximateSeqNo uint64, updates chan<- []byte) (*Topic, error) {
+func NewTopic(password string, approximateSeqNo uint64) (*Topic, error) {
 	t := &Topic{}
 
 	// Random values
-	hashDrbg, drbgErr := drbg.NewHashDrbg(nil)
 	salt := make([]byte, 16)
 	_, saltErr := rand.Read(salt)
 	id := make([]byte, 8)
@@ -42,9 +43,6 @@ func NewTopic(password string, approximateSeqNo uint64, updates chan<- []byte) (
 	seed2, seed2Err := drbg.NewSeed()
 
 	// Return errors from crypto.rand
-	if drbgErr != nil {
-		return nil, drbgErr
-	}
 	if saltErr != nil {
 		return nil, saltErr
 	}
@@ -58,7 +56,6 @@ func NewTopic(password string, approximateSeqNo uint64, updates chan<- []byte) (
 		return nil, seed2Err
 	}
 
-	t.drbg = hashDrbg
 	t.salt = salt
 	t.iterations = 4096
 	t.keyLen = 32
@@ -150,11 +147,50 @@ func (t *Topic) Decrypt(ciphertext []byte, nonce []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
+type binaryTopic struct {
+	Id      uint64
+	Seed1   []byte
+	Seed2   []byte
+	EncrKey []byte
+	// for use with KDF
+	Salt       []byte
+	Iterations int
+	KeyLen     int
+
+	// Last seen sequence number
+	Seqno uint64
+}
+
 /** Implement BinaryMarshaler / BinaryUnmarshaler for serialization **/
 func (t *Topic) MarshalBinary() (data []byte, err error) {
-
+	forExport := binaryTopic{t.Id, t.Seed1.Export(), t.Seed2.Export(), t.EncrKey, t.salt, t.iterations, t.keyLen, t.Seqno}
+	var output bytes.Buffer
+	enc := gob.NewEncoder(&output)
+	err := enc.Encode(forExport)
+	if err != nil {
+		return nil, err
+	}
+	return output.Bytes(), nil
 }
 
 func (t *Topic) UnmarshalBinary(data []byte) error {
-
+	buf := bytes.NewBuffer(data)
+	dec := gob.NewDecoder(buf)
+	var forImport binaryTopic
+	err := dec.Decode(&forImport)
+	if err != nil {
+		return err
+	}
+	t.Id = forImport.Id
+	if t.Seed1, err = drbg.ImportSeed(forImport.Seed1); err != nil {
+		return err
+	}
+	if t.Seed2, err = drbg.ImportSeed(forImport.Seed2); err != nil {
+		return err
+	}
+	t.EncrKey = forImport.EncrKey
+	t.salt = forImport.Salt
+	t.iterations = forImport.Iterations
+	t.keyLen = forImport.KeyLen
+	t.Seqno = forImport.Seqno
 }

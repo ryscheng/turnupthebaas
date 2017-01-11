@@ -26,8 +26,8 @@ type RequestManager struct {
 	leader common.LeaderInterface
 	// Protected by `atomic`
 	config *atomic.Value //*ClientConfig
-	dead         int32
-	rand         *drbg.HashDrbg
+	dead   int32
+	rand   *drbg.HashDrbg
 	// Channels
 	writeChan  chan *common.WriteArgs
 	writeQueue []*common.WriteArgs

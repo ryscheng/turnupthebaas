@@ -4,20 +4,20 @@ import (
 	"encoding/json"
 	"github.com/ryscheng/pdb/common"
 	"io/ioutil"
-  "time"
+	"time"
 )
 
 type ClientConfig struct {
 	*common.CommonConfig `json:"-"`
 
-  // How often should Writes be made to the server
-	WriteInterval  time.Duration
+	// How often should Writes be made to the server
+	WriteInterval time.Duration
 
 	// How often should reads be made to the server
-	ReadInterval   time.Duration
+	ReadInterval time.Duration
 
 	// Where are the different servers?
-	TrustDomains   []*common.TrustDomainConfig `json:"-"`
+	TrustDomains []*common.TrustDomainConfig `json:"-"`
 }
 
 // Load configuration from a JSON file. returns the config on success or nil if

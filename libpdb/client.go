@@ -2,8 +2,8 @@ package libpdb
 
 import (
 	"github.com/ryscheng/pdb/common"
-	"sync/atomic"
 	"sync"
+	"sync/atomic"
 )
 
 /**
@@ -13,14 +13,14 @@ import (
  * - 1x RequestManager.readPeriodic
  */
 type Client struct {
-	log          *common.Logger
-	name         string
-	config atomic.Value //ClientConfig
-	leader       common.LeaderInterface
-	msgReqMan    *RequestManager
+	log       *common.Logger
+	name      string
+	config    atomic.Value //ClientConfig
+	leader    common.LeaderInterface
+	msgReqMan *RequestManager
 
-	subscriptions []Subscription
-	pendingRequest *common.ReadRequest
+	subscriptions     []Subscription
+	pendingRequest    *common.ReadRequest
 	pendingRequestSub *RequestResponder
 	subscriptionMutex sync.Mutex
 }
@@ -62,7 +62,7 @@ func (c *Client) Ping() bool {
 func (c *Client) Publish(handle *Topic, data []byte) error {
 	config := c.config.Load().(ClientConfig)
 	write_args, err := handle.GeneratePublish(config, seqNo, data)
-  if error != nil {
+	if error != nil {
 		return err
 	}
 
@@ -76,7 +76,7 @@ func (c *Client) Subscribe(handle *Subscription) bool {
 	for x := range c.subscriptions {
 		if x == handle {
 			c.subscriptionMutex.Unlock()
-			return false;
+			return false
 		}
 	}
 	c.subscriptions = append(c.subscriptions, handle)
@@ -87,10 +87,10 @@ func (c *Client) Subscribe(handle *Subscription) bool {
 
 func (c *Client) Unsubscribe(handle *Subscription) bool {
 	c.subscriptionMutex.Lock()
-  for i := 0; i < len(c.subscriptions); i++ {
+	for i := 0; i < len(c.subscriptions); i++ {
 		if c.subscriptions[i] == handle {
-			c.subscriptions[i] = c.subscriptionMutex[len(c.subscriptions) - 1]
-			c.subscriptions = c.subscriptions[:len(c.subscriptions) - 1]
+			c.subscriptions[i] = c.subscriptionMutex[len(c.subscriptions)-1]
+			c.subscriptions = c.subscriptions[:len(c.subscriptions)-1]
 			c.subscriptionMutex.Unlock()
 			return true
 		}

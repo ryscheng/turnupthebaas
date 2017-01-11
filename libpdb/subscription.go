@@ -1,25 +1,37 @@
+package libpdb
+
+import (
+	"crypto/aes"
+	"crypto/rand"
+	"crypto/sha1"
+	"encoding/binary"
+	"encoding/gob"
+	"github.com/ryscheng/pdb/common"
+	"github.com/ryscheng/pdb/drbg"
+)
+
 type Subscription struct {
-  // for PIR
+	// for PIR
 	drbg *drbg.HashDrbg
 
-  // Last seen sequence number
-  Seqno      uint64
-  Updates    chan []byte
+	// Last seen sequence number
+	Seqno   uint64
+	Updates chan []byte
 }
 
 //TODO: what sort of topic knowledge does a subscription need?
 func NewSubscription(approximateSeqNo uint64) (*Subscription, error) {
-  s := &Subscription{}
-  s.Seqno = approximateSeqNo
-  s.Updates := make(chan []bytes)
+	s := &Subscription{}
+	s.Seqno = approximateSeqNo
+	s.Updates = make(chan []bytes)
 
 	hashDrbg, drbgErr := drbg.NewHashDrbg(nil)
-  if drbgErr != nil {
+	if drbgErr != nil {
 		return nil, drbgErr
 	}
 	s.drbg = hashDrbg
 
-  return s
+	return s
 }
 
 func (s *Subscription) generatePoll(config *ClientConfig, seqNo uint64) (*common.ReadArgs, *common.ReadArgs, error) {
