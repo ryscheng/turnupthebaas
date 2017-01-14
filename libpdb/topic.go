@@ -166,7 +166,7 @@ func (t *Topic) MarshalBinary() (data []byte, err error) {
 	forExport := binaryTopic{t.Id, t.Seed1.Export(), t.Seed2.Export(), t.EncrKey, t.salt, t.iterations, t.keyLen, t.Seqno}
 	var output bytes.Buffer
 	enc := gob.NewEncoder(&output)
-	err := enc.Encode(forExport)
+	err = enc.Encode(forExport)
 	if err != nil {
 		return nil, err
 	}

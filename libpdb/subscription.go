@@ -1,11 +1,7 @@
 package libpdb
 
 import (
-	"crypto/aes"
-	"crypto/rand"
-	"crypto/sha1"
 	"encoding/binary"
-	"encoding/gob"
 	"github.com/ryscheng/pdb/common"
 	"github.com/ryscheng/pdb/drbg"
 )

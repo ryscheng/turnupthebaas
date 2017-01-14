@@ -32,7 +32,9 @@ type RequestManager struct {
 	writeChan  chan *common.WriteArgs
 	writeQueue []*common.WriteArgs
 	readQueue  []*common.ReadArgs
-	ReadGenerator
+	RequestGenerator
+	// Observed state
+	lastSeqNo uint64
 }
 
 func NewRequestManager(name string, leader common.LeaderInterface, config *atomic.Value) *RequestManager {
@@ -72,6 +74,12 @@ func (rm *RequestManager) SetReadGenerator(gen RequestGenerator) {
 	rm.ReadGenerator = gen
 }
 
+// Return the most recently observed sequence number seen in the response to
+// a request.
+func (rm *RequestManager) LatestSeqNo() uint64 {
+	return rm.lastSeqNo
+}
+
 /** PRIVATE METHODS **/
 func (rm *RequestManager) isDead() bool {
 	return atomic.LoadInt32(&rm.dead) != 0
@@ -109,6 +117,9 @@ func (rm *RequestManager) writePeriodic() {
 				rm.log.Warn.Printf("writePeriodic error: %v, reply=%v, time=%v\n", err, reply, elapsedTime)
 			} else {
 				rm.log.Info.Printf("writePeriodic seqNo=%v, time=%v\n", reply.GlobalSeqNo, elapsedTime)
+			}
+			if reply.GlobalSeqNo > rm.lastSeqNo {
+				rm.lastSeqNo = reply.GlobalSeqNo
 			}
 
 			if req != nil {
@@ -151,6 +162,10 @@ func (rm *RequestManager) readPeriodic() {
 			rm.log.Error.Printf("readPeriodic error: %v, reply=%v, time=%v\n", err, reply, elapsedTime)
 		} else {
 			rm.log.Info.Printf("readPeriodic reply: range=%v, time=%v\n", reply.GlobalSeqNo, elapsedTime)
+		}
+
+		if reply.GlobalSeqNo.End > rm.lastSeqNo {
+			rm.lastSeqNo = reply.GlobalSeqNo.End
 		}
 
 		if replier != nil {

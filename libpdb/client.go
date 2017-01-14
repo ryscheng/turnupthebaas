@@ -25,7 +25,7 @@ type Client struct {
 	subscriptionMutex sync.Mutex
 }
 
-//TODO: client needs to know the different trust domains security parameters.
+//TODO: client needs to know the different trust domain security parameters.
 func NewClient(name string, config ClientConfig, leader common.LeaderInterface) *Client {
 	c := &Client{}
 	c.log = common.NewLogger(name)
@@ -61,35 +61,35 @@ func (c *Client) Ping() bool {
 
 func (c *Client) Publish(handle *Topic, data []byte) error {
 	config := c.config.Load().(ClientConfig)
-	write_args, err := handle.GeneratePublish(config, seqNo, data)
-	if error != nil {
+	write_args, err := handle.GeneratePublish(config.CommonConfig, c.msgReqMan.LatestSeqNo(), data)
+	if err != nil {
 		return err
 	}
 
 	c.msgReqMan.EnqueueWrite(write_args)
-	return true
+	return nil
 }
 
-func (c *Client) Subscribe(handle *Subscription) bool {
+func (c *Client) Poll(handle *Subscription) chan []byte {
 	// Check if already subscribed.
 	c.subscriptionMutex.Lock()
 	for x := range c.subscriptions {
-		if x == handle {
+		if &c.subscriptions[x] == handle {
 			c.subscriptionMutex.Unlock()
-			return false
+			return nil
 		}
 	}
-	c.subscriptions = append(c.subscriptions, handle)
+	c.subscriptions = append(c.subscriptions, *handle)
 	c.subscriptionMutex.Unlock()
 
-	return true
+	return handle.Updates
 }
 
-func (c *Client) Unsubscribe(handle *Subscription) bool {
+func (c *Client) Done(handle *Subscription) bool {
 	c.subscriptionMutex.Lock()
 	for i := 0; i < len(c.subscriptions); i++ {
-		if c.subscriptions[i] == handle {
-			c.subscriptions[i] = c.subscriptionMutex[len(c.subscriptions)-1]
+		if &c.subscriptions[i] == handle {
+			c.subscriptions[i] = c.subscriptions[len(c.subscriptions)-1]
 			c.subscriptions = c.subscriptions[:len(c.subscriptions)-1]
 			c.subscriptionMutex.Unlock()
 			return true
@@ -100,14 +100,14 @@ func (c *Client) Unsubscribe(handle *Subscription) bool {
 }
 
 // Implement RequestGenerator interface for the request manager
-func (c *Client) NextRequest() *common.ReadRequest {
+func (c *Client) NextRequest() (*common.ReadRequest, *RequestResponder) {
 	c.subscriptionMutex.Lock()
 	if c.pendingRequest != nil {
 		rec := c.pendingRequest
 		rr := c.pendingRequestSub
 		c.pendingRequest = nil
 		c.subscriptionMutex.Unlock()
-		return req, rr
+		return rec, rr
 	}
 
 	if len(c.subscriptions) > 0 {
