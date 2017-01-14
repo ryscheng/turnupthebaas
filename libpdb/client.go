@@ -20,8 +20,8 @@ type Client struct {
 	msgReqMan *RequestManager
 
 	subscriptions     []Subscription
-	pendingRequest    *common.ReadRequest
-	pendingRequestSub *RequestResponder
+	pendingRequest    *common.ReadArgs
+	pendingRequestSub RequestResponder
 	subscriptionMutex sync.Mutex
 }
 
@@ -100,7 +100,9 @@ func (c *Client) Done(handle *Subscription) bool {
 }
 
 // Implement RequestGenerator interface for the request manager
-func (c *Client) NextRequest() (*common.ReadRequest, *RequestResponder) {
+func (c *Client) NextRequest() (*common.ReadArgs, RequestResponder) {
+	config := c.config.Load().(ClientConfig)
+
 	c.subscriptionMutex.Lock()
 	if c.pendingRequest != nil {
 		rec := c.pendingRequest
@@ -115,19 +117,19 @@ func (c *Client) NextRequest() (*common.ReadRequest, *RequestResponder) {
 		c.subscriptions = c.subscriptions[1:]
 		c.subscriptions = append(c.subscriptions, nextTopic)
 
-		ra1, ra2, err := nextTopic.generatePoll(config, seqNo)
-		if err {
+		ra1, ra2, err := nextTopic.generatePoll(&config, c.msgReqMan.LatestSeqNo())
+		if err != nil {
 			c.subscriptionMutex.Unlock()
-			c.log.Error(err)
-			return nil
+			c.log.Error.Fatal(err)
+			return nil, nil
 		}
 		c.pendingRequest = ra2
-		c.pendingRequestSub = nextTopic
+		c.pendingRequestSub = &nextTopic
 		c.subscriptionMutex.Unlock()
-		return ra1, nextTopic
+		return ra1, &nextTopic
 	}
 	c.subscriptionMutex.Unlock()
-	return nil
+	return nil, nil
 }
 
 // Debug only. For learning latencies.
@@ -143,11 +145,12 @@ func (c *Client) PublishTrace() uint64 {
 
 func (c *Client) PollTrace() common.Range {
 	config := c.config.Load().(ClientConfig)
-	req := &common.ReadRequest{}
-	req.Args = &common.ReadArgs{}
-	req.ReplyChan = make(chan *common.ReadReply)
-	c.msgReqMan.generateRandomRead(config, req.Args)
-	c.msgReqMan.EnqueueRead(req)
-	reply := <-req.ReplyChan
-	return reply.GlobalSeqNo
+	sub, _ := NewSubscription(0)
+	sub.Updates = make(chan []byte, 0)
+	itm1, _, _ := sub.generatePoll(&config, 0)
+	c.pendingRequest = itm1
+	c.pendingRequestSub = sub
+	c.msgReqMan.readPeriodic()
+	<-sub.Updates
+	return common.Range{0 , c.msgReqMan.LatestSeqNo(), nil}
 }

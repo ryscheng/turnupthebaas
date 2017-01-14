@@ -19,7 +19,7 @@ type Subscription struct {
 func NewSubscription(approximateSeqNo uint64) (*Subscription, error) {
 	s := &Subscription{}
 	s.Seqno = approximateSeqNo
-	s.Updates = make(chan []bytes)
+	s.Updates = make(chan []byte)
 
 	hashDrbg, drbgErr := drbg.NewHashDrbg(nil)
 	if drbgErr != nil {
@@ -27,7 +27,7 @@ func NewSubscription(approximateSeqNo uint64) (*Subscription, error) {
 	}
 	s.drbg = hashDrbg
 
-	return s
+	return s, nil
 }
 
 func (s *Subscription) generatePoll(config *ClientConfig, seqNo uint64) (*common.ReadArgs, *common.ReadArgs, error) {
@@ -63,8 +63,8 @@ func (s *Subscription) generatePoll(config *ClientConfig, seqNo uint64) (*common
 }
 
 func (s *Subscription) OnResponse(args *common.ReadArgs, reply *common.ReadReply) {
-	msg := retrieveResponse(args, reply)
-	if msg != nil && updates != nil {
+	msg := s.retrieveResponse(args, reply)
+	if msg != nil && s.Updates != nil {
 		s.Updates <- msg
 	}
 }

@@ -18,7 +18,7 @@ func TestEncryptDecrypt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating topic handle: %v\n", err)
 	}
-	ciphertext, err := th.Encrypt([]byte(plaintext), nonce)
+	ciphertext, err := th.encrypt([]byte(plaintext), nonce)
 	if err != nil {
 		t.Fatalf("Error encrypting plaintext: %v\n", err)
 	}
@@ -65,7 +65,7 @@ func TestGeneratePublish(t *testing.T) {
 
 func BenchmarkNewTopic(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_, _ = NewTopic(strconv.Itoa(i))
+		_, _ = NewTopic(strconv.Itoa(i), 0)
 	}
 }
 
@@ -84,7 +84,7 @@ func BenchmarkEncrypt(b *testing.B) {
 	// Start timing
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err = th.Encrypt(plaintext, nonce)
+		_, err = th.encrypt(plaintext, nonce)
 		if err != nil {
 			b.Fatalf("Error encrypting %v: %v\n", i, err)
 		}
@@ -107,7 +107,7 @@ func BenchmarkEncryptDecrypt(b *testing.B) {
 	// Start timing
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ciphertext, err = th.Encrypt(plaintext, nonce)
+		ciphertext, err = th.encrypt(plaintext, nonce)
 		if err != nil {
 			b.Fatalf("Error encrypting %v: %v\n", i, err)
 		}

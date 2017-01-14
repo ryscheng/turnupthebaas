@@ -12,7 +12,6 @@ func TestGeneratePoll(t *testing.T) {
 	config.CommonConfig.NumBuckets = 1000000
 	config.TrustDomains = make([]*common.TrustDomainConfig, 3)
 
-	password := ""
 	sub, err := NewSubscription(0)
 	if err != nil {
 		t.Fatalf("Error creating subscription handle: %v\n", err)
@@ -43,7 +42,6 @@ func HelperBenchmarkGeneratePoll(b *testing.B, NumBuckets uint64) {
 	config.TrustDomains = make([]*common.TrustDomainConfig, 3)
 	config.CommonConfig.NumBuckets = NumBuckets
 
-	password := ""
 	sub, err := NewSubscription(0)
 	if err != nil {
 		b.Fatalf("Error creating subscription handle: %v\n", err)
@@ -61,7 +59,6 @@ func BenchmarkRetrieveResponse(b *testing.B) {
 	config.TrustDomains = make([]*common.TrustDomainConfig, 3)
 	config.CommonConfig.NumBuckets = 10
 
-	password := ""
 	sub, err := NewSubscription(0)
 	if err != nil {
 		b.Fatalf("Error creating topic handle: %v\n", err)

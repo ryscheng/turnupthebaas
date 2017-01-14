@@ -182,15 +182,20 @@ func (t *Topic) UnmarshalBinary(data []byte) error {
 		return err
 	}
 	t.Id = forImport.Id
-	if t.Seed1, err = drbg.ImportSeed(forImport.Seed1); err != nil {
+	seed1, err := drbg.ImportSeed(forImport.Seed1)
+	if err != nil || seed1 == nil {
 		return err
 	}
-	if t.Seed2, err = drbg.ImportSeed(forImport.Seed2); err != nil {
+	t.Seed1 = *seed1
+	seed2, err := drbg.ImportSeed(forImport.Seed2)
+	if err != nil || seed2 == nil {
 		return err
 	}
+	t.Seed2 = *seed2
 	t.EncrKey = forImport.EncrKey
 	t.salt = forImport.Salt
 	t.iterations = forImport.Iterations
 	t.keyLen = forImport.KeyLen
 	t.Seqno = forImport.Seqno
+	return nil
 }

@@ -10,7 +10,7 @@ import (
 // The interface for the class that will determine what the next read should
 // be at each time stamp.
 type RequestGenerator interface {
-	NextRequest() (*common.ReadRequest, *RequestResponder)
+	NextRequest() (*common.ReadArgs, RequestResponder)
 }
 
 // The interface for the class that will handle the response for a given read.
@@ -51,8 +51,7 @@ func NewRequestManager(name string, leader common.LeaderInterface, config *atomi
 	rm.rand = rand
 	rm.writeChan = make(chan *common.WriteArgs)
 	rm.writeQueue = make([]*common.WriteArgs, 0)
-	rm.readChan = make(chan *common.ReadRequest)
-	rm.readQueue = make([]*common.ReadRequest, 0)
+	rm.readQueue = make([]*common.ReadArgs, 0)
 
 	rm.log.Info.Printf("NewRequestManager \n")
 	go rm.readPeriodic()
@@ -71,7 +70,7 @@ func (rm *RequestManager) EnqueueWrite(req *common.WriteArgs) {
 }
 
 func (rm *RequestManager) SetReadGenerator(gen RequestGenerator) {
-	rm.ReadGenerator = gen
+	rm.RequestGenerator = gen
 }
 
 // Return the most recently observed sequence number seen in the response to
@@ -134,11 +133,11 @@ func (rm *RequestManager) readPeriodic() {
 
 	for rm.isDead() == false {
 		var args *common.ReadArgs
-		var replier *RequestResponder
+		var replier RequestResponder
 		reply := common.ReadReply{}
 
-		if rm.ReadGenerator != nil {
-			args, replier := rm.ReadGenerator.NextRequest()
+		if rm.RequestGenerator != nil {
+			args, replier = rm.RequestGenerator.NextRequest()
 		}
 
 		config := rm.config.Load().(ClientConfig)
