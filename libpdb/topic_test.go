@@ -34,6 +34,29 @@ func TestEncryptDecrypt(t *testing.T) {
 	fmt.Printf("... done \n")
 }
 
+func TestSerializeRestore(t *testing.T) {
+	topic, err := NewTopic("password", 0)
+	if err != nil {
+		t.Fatalf("Error creating topic: %v\n", err)
+	}
+	data, err := topic.MarshalBinary()
+	if err != nil {
+		t.Fatalf("Unable to serialize topic: %v\n", err)
+	}
+	clone := Topic{}
+	err = clone.UnmarshalBinary(data)
+	if err != nil {
+		t.Fatalf("Unable to restore topic: %v\n", err)
+	}
+
+	topic.Seqno = 100
+	data, err = topic.MarshalBinary()
+	err = clone.UnmarshalBinary(data)
+	if err != nil || clone.Seqno != 100 {
+		t.Fatalf("Sequence number not saved with topic.\n")
+	}
+}
+
 func TestGeneratePublish(t *testing.T) {
 	fmt.Printf("TestGeneratePublish:\n")
 	config := &common.CommonConfig{}
