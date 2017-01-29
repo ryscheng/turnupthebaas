@@ -12,10 +12,17 @@ func TestGeneratePoll(t *testing.T) {
 	config.CommonConfig.NumBuckets = 1000000
 	config.TrustDomains = make([]*common.TrustDomainConfig, 3)
 
-	sub, err := NewSubscription(0)
+	sub, err := NewSubscription()
 	if err != nil {
 		t.Fatalf("Error creating subscription handle: %v\n", err)
 	}
+	_, _, err = sub.generatePoll(config, 1)
+	if err == nil {
+		t.Fatalf("Could generate a poll from an un-configured subscription")
+	}
+
+	topic, err := NewTopic()
+	sub, err = topic.CreateSubscription()
 	args0, _, err := sub.generatePoll(config, 1)
 	if err != nil {
 		t.Fatalf("Error creating ReadArgs: %v\n", err)
@@ -25,7 +32,6 @@ func TestGeneratePoll(t *testing.T) {
 
 	fmt.Printf("... done \n")
 }
-
 
 func BenchmarkGeneratePollN10K(b *testing.B) {
 	HelperBenchmarkGeneratePoll(b, 10000/4)
@@ -42,7 +48,8 @@ func HelperBenchmarkGeneratePoll(b *testing.B, NumBuckets uint64) {
 	config.TrustDomains = make([]*common.TrustDomainConfig, 3)
 	config.CommonConfig.NumBuckets = NumBuckets
 
-	sub, err := NewSubscription(0)
+	topic, err := NewTopic()
+	sub, err := topic.CreateSubscription()
 	if err != nil {
 		b.Fatalf("Error creating subscription handle: %v\n", err)
 	}
@@ -59,7 +66,8 @@ func BenchmarkRetrieveResponse(b *testing.B) {
 	config.TrustDomains = make([]*common.TrustDomainConfig, 3)
 	config.CommonConfig.NumBuckets = 10
 
-	sub, err := NewSubscription(0)
+	topic, err := NewTopic()
+	sub, err := topic.CreateSubscription()
 	if err != nil {
 		b.Fatalf("Error creating topic handle: %v\n", err)
 	}

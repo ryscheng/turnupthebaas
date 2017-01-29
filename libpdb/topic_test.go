@@ -4,30 +4,32 @@ import (
 	"crypto/rand"
 	"fmt"
 	"github.com/ryscheng/pdb/common"
-	"strconv"
-	"strings"
 	"testing"
 )
 
 func TestEncryptDecrypt(t *testing.T) {
 	fmt.Printf("TestEncryptDecrypt:\n")
-	password := ""
 	plaintext := "Hello world"
-	nonce := []byte("012345678901")
-	th, err := NewTopic(password, 0)
+	var nonce [24]byte
+	copy(nonce[:],[]byte("012345678901"))
+	th, err := NewTopic()
 	if err != nil {
 		t.Fatalf("Error creating topic handle: %v\n", err)
 	}
-	ciphertext, err := th.encrypt([]byte(plaintext), nonce)
+	sub, err := th.CreateSubscription()
+	if err != nil {
+		t.Fatalf("Failed to derive subscription from topic: %v\n", err)
+	}
+	ciphertext, err := th.encrypt([]byte(plaintext), &nonce)
 	if err != nil {
 		t.Fatalf("Error encrypting plaintext: %v\n", err)
 	}
-	result, err := th.Decrypt(ciphertext, nonce)
+	result, err := sub.Decrypt(ciphertext, &nonce)
 	if err != nil {
-		t.Fatalf("Error decrypting ciphertext: %v\n", err)
+		t.Fatalf("Error decrypting ciphertext: %v, %v\n", ciphertext, err)
 	}
-	if strings.Compare(plaintext, string(result)) != 0 {
-		t.Fatalf("Invalid decrypted value: %v. Expected:%v\n", string(result), plaintext)
+	if plaintext != string(result) {
+		t.Fatalf("Invalid decrypted value: %v, %v", len(plaintext), len(result))
 	}
 
 	//fmt.Printf("%v", string(result))
@@ -35,7 +37,7 @@ func TestEncryptDecrypt(t *testing.T) {
 }
 
 func TestSerializeRestore(t *testing.T) {
-	topic, err := NewTopic("password", 0)
+	topic, err := NewTopic()
 	if err != nil {
 		t.Fatalf("Error creating topic: %v\n", err)
 	}
@@ -71,12 +73,11 @@ func TestGeneratePublish(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating plaintext: %v\n", err)
 	}
-	password := ""
-	th, err := NewTopic(password, 0)
+	th, err := NewTopic()
 	if err != nil {
 		t.Fatalf("Error creating topic handle: %v\n", err)
 	}
-	args, err := th.GeneratePublish(config, 1, plaintext)
+	args, err := th.GeneratePublish(config, plaintext)
 	if err != nil {
 		t.Fatalf("Error creating WriteArgs: %v\n", err)
 	}
@@ -88,26 +89,26 @@ func TestGeneratePublish(t *testing.T) {
 
 func BenchmarkNewTopic(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_, _ = NewTopic(strconv.Itoa(i), 0)
+		_, _ = NewTopic()
 	}
 }
 
 func BenchmarkEncrypt(b *testing.B) {
-	password := ""
 	plaintext := make([]byte, 1024, 1024)
 	_, err := rand.Read(plaintext)
 	if err != nil {
 		b.Fatalf("Error creating plaintext: %v\n", err)
 	}
-	nonce := []byte("012345678901")
-	th, err := NewTopic(password, 0)
+	var nonce [24]byte
+	copy(nonce[:], []byte("012345678901"))
+	th, err := NewTopic()
 	if err != nil {
 		b.Fatalf("Error creating topic handle: %v\n", err)
 	}
 	// Start timing
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err = th.encrypt(plaintext, nonce)
+		_, err = th.encrypt(plaintext, &nonce)
 		if err != nil {
 			b.Fatalf("Error encrypting %v: %v\n", i, err)
 		}
@@ -115,26 +116,27 @@ func BenchmarkEncrypt(b *testing.B) {
 }
 
 func BenchmarkEncryptDecrypt(b *testing.B) {
-	password := ""
 	var ciphertext []byte
 	plaintext := make([]byte, 1024, 1024)
 	_, err := rand.Read(plaintext)
 	if err != nil {
 		b.Fatalf("Error creating plaintext: %v\n", err)
 	}
-	nonce := []byte("012345678901")
-	th, err := NewTopic(password, 0)
+	var nonce [24]byte
+	copy(nonce[:], []byte("012345678901"))
+	th, err := NewTopic()
 	if err != nil {
 		b.Fatalf("Error creating topic handle: %v\n", err)
 	}
+	sub, err := th.CreateSubscription()
 	// Start timing
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ciphertext, err = th.encrypt(plaintext, nonce)
+		ciphertext, err = th.encrypt(plaintext, &nonce)
 		if err != nil {
 			b.Fatalf("Error encrypting %v: %v\n", i, err)
 		}
-		_, err = th.Decrypt(ciphertext, nonce)
+		_, err = sub.Decrypt(ciphertext, &nonce)
 		if err != nil {
 			b.Fatalf("Error decrypting %v: %v\n", i, err)
 		}
@@ -163,14 +165,13 @@ func HelperBenchmarkGeneratePublish(b *testing.B, BucketDepth int) {
 	if err != nil {
 		b.Fatalf("Error creating plaintext: %v\n", err)
 	}
-	password := ""
-	th, err := NewTopic(password, 0)
+	th, err := NewTopic()
 	if err != nil {
 		b.Fatalf("Error creating topic handle: %v\n", err)
 	}
 	// Start timing
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = th.GeneratePublish(config, uint64(i), plaintext)
+		_, _ = th.GeneratePublish(config, plaintext)
 	}
 }

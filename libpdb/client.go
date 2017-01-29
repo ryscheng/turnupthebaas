@@ -61,7 +61,7 @@ func (c *Client) Ping() bool {
 
 func (c *Client) Publish(handle *Topic, data []byte) error {
 	config := c.config.Load().(ClientConfig)
-	write_args, err := handle.GeneratePublish(config.CommonConfig, c.msgReqMan.LatestSeqNo(), data)
+	write_args, err := handle.GeneratePublish(config.CommonConfig, data)
 	if err != nil {
 		return err
 	}
@@ -130,27 +130,4 @@ func (c *Client) NextRequest() (*common.ReadArgs, RequestResponder) {
 	}
 	c.subscriptionMutex.Unlock()
 	return nil, nil
-}
-
-// Debug only. For learning latencies.
-func (c *Client) PublishTrace() uint64 {
-	config := c.config.Load().(ClientConfig)
-	req := &common.WriteArgs{}
-	req.ReplyChan = make(chan *common.WriteReply)
-	c.msgReqMan.generateRandomWrite(config, req)
-	c.msgReqMan.EnqueueWrite(req)
-	reply := <-req.ReplyChan
-	return reply.GlobalSeqNo
-}
-
-func (c *Client) PollTrace() common.Range {
-	config := c.config.Load().(ClientConfig)
-	sub, _ := NewSubscription(0)
-	sub.Updates = make(chan []byte, 0)
-	itm1, _, _ := sub.generatePoll(&config, 0)
-	c.pendingRequest = itm1
-	c.pendingRequestSub = sub
-	c.msgReqMan.readPeriodic()
-	<-sub.Updates
-	return common.Range{0 , c.msgReqMan.LatestSeqNo(), nil}
 }

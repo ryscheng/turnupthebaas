@@ -1,24 +1,37 @@
 package libpdb
 
 import (
+	"bytes"
 	"encoding/binary"
+	"encoding/gob"
+	"errors"
 	"github.com/ryscheng/pdb/common"
 	"github.com/ryscheng/pdb/drbg"
+	"golang.org/x/crypto/nacl/box"
+  "github.com/agl/ed25519"
 )
 
 type Subscription struct {
-	// for PIR
+	// for random looking pir requests
 	drbg *drbg.HashDrbg
 
-	// Last seen sequence number
-	Seqno   uint64
+	// For learning log positions
+	Seed1 drbg.Seed
+	Seed2 drbg.Seed
+
+	// For decrypting messages
+	SharedSecret *[32]byte
+	SigningPublicKey  *[32]byte
+
+	// Current log position
+	Seqno uint64
+
+	// Notifications of new messages
 	Updates chan []byte
 }
 
-//TODO: what sort of topic knowledge does a subscription need?
-func NewSubscription(approximateSeqNo uint64) (*Subscription, error) {
+func NewSubscription() (*Subscription, error) {
 	s := &Subscription{}
-	s.Seqno = approximateSeqNo
 	s.Updates = make(chan []byte)
 
 	hashDrbg, drbgErr := drbg.NewHashDrbg(nil)
@@ -31,6 +44,10 @@ func NewSubscription(approximateSeqNo uint64) (*Subscription, error) {
 }
 
 func (s *Subscription) generatePoll(config *ClientConfig, seqNo uint64) (*common.ReadArgs, *common.ReadArgs, error) {
+	if s.SharedSecret == nil || s.SigningPublicKey == nil {
+		return nil, nil, errors.New("Subscription not fully initialized")
+	}
+
 	args := make([]*common.ReadArgs, 2)
 	seqNoBytes := make([]byte, 12)
 	_ = binary.PutUvarint(seqNoBytes, seqNo)
@@ -62,6 +79,32 @@ func (s *Subscription) generatePoll(config *ClientConfig, seqNo uint64) (*common
 	return args[0], args[1], nil
 }
 
+func (s *Subscription) Decrypt(cyphertext []byte, nonce *[24]byte) ([]byte, error) {
+	if s.SharedSecret == nil || s.SigningPublicKey == nil {
+		return nil, errors.New("Subscription improperly initialized")
+	}
+	cypherlen := len(cyphertext)
+	if cypherlen < ed25519.SignatureSize {
+		return nil, errors.New("Invalid cyphertext")
+	}
+
+	//verify signature
+	message := cyphertext[0 : cypherlen - ed25519.SignatureSize]
+	var sig [ed25519.SignatureSize]byte
+	copy(sig[:], cyphertext[cypherlen - ed25519.SignatureSize:])
+	if !ed25519.Verify(s.SigningPublicKey, message, &sig) {
+		return nil, errors.New("Invalid Signature")
+	}
+
+	//decrypt
+	plaintext := make([]byte, 0, cypherlen - box.Overhead - ed25519.SignatureSize)
+	_, ok := box.OpenAfterPrecomputation(plaintext, message, nonce, s.SharedSecret)
+	if !ok {
+		return nil, errors.New("Failed to decrypt.")
+	}
+	return plaintext[0:cap(plaintext)], nil
+}
+
 func (s *Subscription) OnResponse(args *common.ReadArgs, reply *common.ReadReply) {
 	msg := s.retrieveResponse(args, reply)
 	if msg != nil && s.Updates != nil {
@@ -82,5 +125,26 @@ func (s *Subscription) retrieveResponse(args *common.ReadArgs, reply *common.Rea
 			data[j] ^= pad[j]
 		}
 	}
+
 	return data
+}
+
+func (s *Subscription) MarshalBinary() (data []byte, err error) {
+	var output bytes.Buffer
+	enc := gob.NewEncoder(&output)
+	err = enc.Encode(s)
+	if err != nil {
+		return nil, err
+	}
+	return output.Bytes(), nil
+}
+
+func (s *Subscription) UnmarshalBinary(data []byte) error {
+	buf := bytes.NewBuffer(data)
+	dec := gob.NewDecoder(buf)
+	err := dec.Decode(s)
+	if err != nil {
+		return err
+	}
+	return nil
 }
