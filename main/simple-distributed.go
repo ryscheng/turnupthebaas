@@ -31,7 +31,6 @@ func main() {
 			"t1g0s0": "localhost:9101",
 		},
 	}
-	NewShard("t1g0s0", "pir.socket", serverConfig1)
 	shard1 := server.NewShard("t1g0s0", "pir.socket", serverConfig1)
 	s["t1g0s0"] = server.NewNetworkRpc(shard1, 9101)
 	s["t1fe0"] = server.NewFrontendServer("t1fe0", 9100, &serverConfig1, emptyTrustDomainConfig, false)
