@@ -36,13 +36,14 @@ func TestEncryptDecrypt(t *testing.T) {
 
 func TestGeneratePublish(t *testing.T) {
 	fmt.Printf("TestGeneratePublish:\n")
-	globalConfig := &common.GlobalConfig{}
-	globalConfig.NumBuckets = 100
-	globalConfig.BucketDepth = 2
-	globalConfig.DataSize = 1024
-	globalConfig.BloomFalsePositive = 0.1
-	//globalConfig.BloomFalsePositive = 0.0001
-	plaintext := make([]byte, globalConfig.DataSize, globalConfig.DataSize)
+	config := &common.CommonConfig{}
+	config.NumBuckets = 100
+	config.BucketDepth = 2
+	config.DataSize = 1024
+	config.MaxLoadFactor = 1.0
+	config.BloomFalsePositive = 0.1
+
+	plaintext := make([]byte, config.DataSize, config.DataSize)
 	_, err := rand.Read(plaintext)
 	if err != nil {
 		t.Fatalf("Error creating plaintext: %v\n", err)
@@ -52,7 +53,7 @@ func TestGeneratePublish(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating topic handle: %v\n", err)
 	}
-	args, err := th.GeneratePublish(globalConfig, 1, plaintext)
+	args, err := th.GeneratePublish(config, 1, plaintext)
 	if err != nil {
 		t.Fatalf("Error creating WriteArgs: %v\n", err)
 	}
@@ -64,16 +65,16 @@ func TestGeneratePublish(t *testing.T) {
 
 func TestGeneratePoll(t *testing.T) {
 	fmt.Printf("TestGeneratePoll:\n")
-	globalConfig := &common.GlobalConfig{}
-	globalConfig.NumBuckets = 1000000
-	globalConfig.TrustDomains = make([]*common.TrustDomainConfig, 3)
-	//globalConfig.BloomFalsePositive = 0.0001
+	config := &ClientConfig{&common.CommonConfig{}, 0, 0, nil}
+	config.CommonConfig.NumBuckets = 1000000
+	config.TrustDomains = make([]*common.TrustDomainConfig, 3)
+
 	password := ""
 	th, err := NewTopic(password)
 	if err != nil {
 		t.Fatalf("Error creating topic handle: %v\n", err)
 	}
-	args0, _, err := th.generatePoll(globalConfig, 1)
+	args0, _, err := th.generatePoll(config, 1)
 	if err != nil {
 		t.Fatalf("Error creating ReadArgs: %v\n", err)
 	}
@@ -149,12 +150,13 @@ func BenchmarkGeneratePublishN1M(b *testing.B) {
 }
 
 func HelperBenchmarkGeneratePublish(b *testing.B, BucketDepth int) {
-	globalConfig := &common.GlobalConfig{}
-	globalConfig.NumBuckets = 100
-	globalConfig.BucketDepth = BucketDepth
-	globalConfig.DataSize = 1024
-	globalConfig.BloomFalsePositive = 0.0001
-	plaintext := make([]byte, globalConfig.DataSize, globalConfig.DataSize)
+	config := &common.CommonConfig{}
+	config.NumBuckets = 100
+	config.BucketDepth = BucketDepth
+	config.DataSize = 1024
+	config.MaxLoadFactor = 1.0
+	config.BloomFalsePositive = 0.0001
+	plaintext := make([]byte, config.DataSize, config.DataSize)
 	_, err := rand.Read(plaintext)
 	if err != nil {
 		b.Fatalf("Error creating plaintext: %v\n", err)
@@ -167,7 +169,7 @@ func HelperBenchmarkGeneratePublish(b *testing.B, BucketDepth int) {
 	// Start timing
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = th.generatePublish(globalConfig, uint64(i), plaintext)
+		_, _ = th.GeneratePublish(config, uint64(i), plaintext)
 	}
 }
 
@@ -182,9 +184,9 @@ func BenchmarkGeneratePollN1M(b *testing.B) {
 }
 
 func HelperBenchmarkGeneratePoll(b *testing.B, NumBuckets uint64) {
-	globalConfig := &common.GlobalConfig{}
-	globalConfig.TrustDomains = make([]*common.TrustDomainConfig, 3)
-	globalConfig.NumBuckets = NumBuckets
+	config := &ClientConfig{&common.CommonConfig{}, 0, 0, nil}
+	config.TrustDomains = make([]*common.TrustDomainConfig, 3)
+	config.CommonConfig.NumBuckets = NumBuckets
 
 	password := ""
 	th, err := NewTopic(password)
@@ -194,22 +196,22 @@ func HelperBenchmarkGeneratePoll(b *testing.B, NumBuckets uint64) {
 	// Start timing
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _, _ = th.generatePoll(globalConfig, uint64(i))
+		_, _, _ = th.generatePoll(config, uint64(i))
 	}
 
 }
 
 func BenchmarkRetrieveResponse(b *testing.B) {
-	globalConfig := &common.GlobalConfig{}
-	globalConfig.TrustDomains = make([]*common.TrustDomainConfig, 3)
-	globalConfig.NumBuckets = 10
+	config := &ClientConfig{&common.CommonConfig{}, 0, 0, nil}
+	config.TrustDomains = make([]*common.TrustDomainConfig, 3)
+	config.CommonConfig.NumBuckets = 10
 
 	password := ""
 	th, err := NewTopic(password)
 	if err != nil {
 		b.Fatalf("Error creating topic handle: %v\n", err)
 	}
-	args, _, err := th.generatePoll(globalConfig, 1)
+	args, _, err := th.generatePoll(config, 1)
 	if err != nil {
 		b.Fatalf("Error creating ReadArgs: %v\n", err)
 	}

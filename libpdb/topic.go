@@ -70,16 +70,16 @@ func NewTopic(password string) (*Topic, error) {
 	return t, nil
 }
 
-func (t *Topic) GeneratePublish(globalConfig *common.GlobalConfig, seqNo uint64, message []byte) (*common.WriteArgs, error) {
+func (t *Topic) GeneratePublish(commonConfig *common.CommonConfig, seqNo uint64, message []byte) (*common.WriteArgs, error) {
 	args := &common.WriteArgs{}
 	seqNoBytes := make([]byte, 12)
 	_ = binary.PutUvarint(seqNoBytes, seqNo)
 
 	k0, k1 := t.Seed1.KeyUint128()
-	args.Bucket1 = siphash.Hash(k0, k1, seqNoBytes) % globalConfig.NumBuckets
+	args.Bucket1 = siphash.Hash(k0, k1, seqNoBytes) % commonConfig.NumBuckets
 
 	k0, k1 = t.Seed2.KeyUint128()
-	args.Bucket2 = siphash.Hash(k0, k1, seqNoBytes) % globalConfig.NumBuckets
+	args.Bucket2 = siphash.Hash(k0, k1, seqNoBytes) % commonConfig.NumBuckets
 
 	ciphertext, err := t.Encrypt(message, seqNoBytes)
 	if err != nil {
@@ -88,7 +88,7 @@ func (t *Topic) GeneratePublish(globalConfig *common.GlobalConfig, seqNo uint64,
 	args.Data = ciphertext
 
 	// @todo - just send the k bit locations
-	bloomFilter := bloom.NewWithEstimates(uint(globalConfig.WindowSize()), globalConfig.BloomFalsePositive)
+	bloomFilter := bloom.NewWithEstimates(uint(commonConfig.WindowSize()), commonConfig.BloomFalsePositive)
 	idBytes := make([]byte, 8, 20)
 	_ = binary.PutUvarint(idBytes, t.Id)
 	idBytes = append(idBytes, seqNoBytes...)
@@ -98,15 +98,15 @@ func (t *Topic) GeneratePublish(globalConfig *common.GlobalConfig, seqNo uint64,
 	return args, nil
 }
 
-func (t *Topic) generatePoll(globalConfig *common.GlobalConfig, seqNo uint64) (*common.ReadArgs, *common.ReadArgs, error) {
+func (t *Topic) generatePoll(config *ClientConfig, seqNo uint64) (*common.ReadArgs, *common.ReadArgs, error) {
 	args := make([]*common.ReadArgs, 2)
 	seqNoBytes := make([]byte, 12)
 	_ = binary.PutUvarint(seqNoBytes, seqNo)
 
 	args[0] = &common.ReadArgs{}
-	args[0].ForTd = make([]common.PirArgs, len(globalConfig.TrustDomains))
-	for j := 0; j < len(globalConfig.TrustDomains); j++ {
-		args[0].ForTd[j].RequestVector = make([]byte, globalConfig.NumBuckets/8+1)
+	args[0].ForTd = make([]common.PirArgs, len(config.TrustDomains))
+	for j := 0; j < len(config.TrustDomains); j++ {
+		args[0].ForTd[j].RequestVector = make([]byte, config.CommonConfig.NumBuckets/8+1)
 		t.drbg.FillBytes(args[0].ForTd[j].RequestVector)
 		args[0].ForTd[j].PadSeed = make([]byte, drbg.SeedLength)
 		t.drbg.FillBytes(args[0].ForTd[j].PadSeed)
@@ -116,9 +116,9 @@ func (t *Topic) generatePoll(globalConfig *common.GlobalConfig, seqNo uint64) (*
 	//bucket1 := siphash.Hash(k0, k1, seqNoBytes) % globalConfig.NumBuckets
 
 	args[1] = &common.ReadArgs{}
-	args[1].ForTd = make([]common.PirArgs, len(globalConfig.TrustDomains))
-	for j := 0; j < len(globalConfig.TrustDomains); j++ {
-		args[1].ForTd[j].RequestVector = make([]byte, globalConfig.NumBuckets/8+1)
+	args[1].ForTd = make([]common.PirArgs, len(config.TrustDomains))
+	for j := 0; j < len(config.TrustDomains); j++ {
+		args[1].ForTd[j].RequestVector = make([]byte, config.CommonConfig.NumBuckets/8+1)
 		t.drbg.FillBytes(args[1].ForTd[j].RequestVector)
 		args[1].ForTd[j].PadSeed = make([]byte, drbg.SeedLength)
 		t.drbg.FillBytes(args[1].ForTd[j].PadSeed)

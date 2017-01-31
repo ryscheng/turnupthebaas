@@ -10,18 +10,18 @@ type Frontend struct {
 	// Private State
 	log             *log.Logger
 	name            string
-	dataLayerConfig *DataLayerConfig
+	serverConfig    *ServerConfig
 	follower        common.FollowerInterface
 	isLeader        bool
 
 	//dataLayerRef *DataLayerRef
 }
 
-func NewFrontend(name string, dataLayerConfig *DataLayerConfig, follower common.FollowerInterface, isLeader bool) *Frontend {
+func NewFrontend(name string, serverConfig *ServerConfig, follower common.FollowerInterface, isLeader bool) *Frontend {
 	fe := &Frontend{}
 	fe.log = log.New(os.Stdout, "[Frontend:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	fe.name = name
-	fe.dataLayerConfig = dataLayerConfig
+	fe.serverConfig = serverConfig
 	fe.follower = follower
 	fe.isLeader = isLeader
 

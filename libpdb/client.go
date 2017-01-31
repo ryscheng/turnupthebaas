@@ -14,19 +14,19 @@ import (
 type Client struct {
 	log          *common.Logger
 	name         string
-	globalConfig atomic.Value //common.GlobalConfig
+	config atomic.Value //ClientConfig
 	leader       common.LeaderInterface
 	msgReqMan    *RequestManager
 }
 
-func NewClient(name string, globalConfig common.GlobalConfig, leader common.LeaderInterface) *Client {
+func NewClient(name string, config ClientConfig, leader common.LeaderInterface) *Client {
 	c := &Client{}
 	c.log = common.NewLogger(name)
 	c.name = name
-	c.globalConfig.Store(globalConfig)
+	c.config.Store(config)
 	c.leader = leader
 
-	c.msgReqMan = NewRequestManager(name, c.leader, &c.globalConfig)
+	c.msgReqMan = NewRequestManager(name, c.leader, &c.config)
 
 	c.log.Info.Println("NewClient: starting new client - " + name)
 	return c
@@ -34,8 +34,8 @@ func NewClient(name string, globalConfig common.GlobalConfig, leader common.Lead
 
 /** PUBLIC METHODS (threadsafe) **/
 
-func (c *Client) SetGlobalConfig(globalConfig common.GlobalConfig) {
-	c.globalConfig.Store(globalConfig)
+func (c *Client) SetConfig(config ClientConfig) {
+	c.config.Store(config)
 }
 
 func (c *Client) Ping() bool {
@@ -68,22 +68,21 @@ func (c *Client) Subscribe(handle *Topic) bool {
 }
 
 func (c *Client) PublishTrace() uint64 {
-	globalConfig := c.globalConfig.Load().(common.GlobalConfig)
-	req := &common.WriteRequest{}
-	req.Args = &common.WriteArgs{}
+	config := c.config.Load().(ClientConfig)
+	req := &common.WriteArgs{}
 	req.ReplyChan = make(chan *common.WriteReply)
-	c.msgReqMan.generateRandomWrite(globalConfig, req.Args)
+	c.msgReqMan.generateRandomWrite(config, req)
 	c.msgReqMan.EnqueueWrite(req)
 	reply := <-req.ReplyChan
 	return reply.GlobalSeqNo
 }
 
 func (c *Client) PollTrace() common.Range {
-	globalConfig := c.globalConfig.Load().(common.GlobalConfig)
+	config := c.config.Load().(ClientConfig)
 	req := &common.ReadRequest{}
 	req.Args = &common.ReadArgs{}
 	req.ReplyChan = make(chan *common.ReadReply)
-	c.msgReqMan.generateRandomRead(globalConfig, req.Args)
+	c.msgReqMan.generateRandomRead(config, req.Args)
 	c.msgReqMan.EnqueueRead(req)
 	reply := <-req.ReplyChan
 	return reply.GlobalSeqNo

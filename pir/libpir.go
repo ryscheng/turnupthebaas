@@ -12,12 +12,18 @@ type PirDB struct {
 	shmid int
 }
 
+type pirReq struct {
+	reqtype  int
+	response chan []byte
+}
+
 type PirServer struct {
-	sock       net.Conn
-	CellLength int
-	CellCount  int
-	BatchSize  int
-	DB         *PirDB
+	sock          net.Conn
+	responseQueue chan *pirReq
+	CellLength    int
+	CellCount     int
+	BatchSize     int
+	DB            *PirDB
 }
 
 const pirCommands = `123`
@@ -35,10 +41,40 @@ func Connect(socket string) (*PirServer, error) {
 
 	server := new(PirServer)
 	server.sock = sock
+	server.responseQueue = make(chan *pirReq)
+
+	go server.watchResponses()
+
 	return server, nil
 }
 
+func (s *PirServer) watchResponses() {
+	var responseSize int
+
+	for req := range s.responseQueue {
+		if req.reqtype == 0 { // reconfigure
+			//future buffers will be the new size.
+			responseSize = s.CellLength * s.BatchSize
+		} else if req.reqtype == -1 { //close
+			return
+		} else {
+			response := make([]byte, responseSize)
+			readAmt := 0
+			for readAmt < responseSize {
+				count, err := s.sock.Read(response[readAmt:])
+				readAmt += count
+				if count <= 0 || err != nil {
+					return
+				}
+			}
+			req.response <- response
+		}
+	}
+}
+
 func (s *PirServer) Disconnect() error {
+	s.responseQueue <- &pirReq{-1, nil}
+	defer close(s.responseQueue)
 	return s.sock.Close()
 }
 
@@ -47,7 +83,7 @@ func (s *PirServer) Configure(celllength int, cellcount int, batchsize int) erro
 	s.CellCount = cellcount
 	s.CellLength = celllength
 
-	if s.CellCount %8 != 0 || s.CellLength % 8 != 0 {
+	if s.CellCount%8 != 0 || s.CellLength%8 != 0 {
 		return errors.New("Invalid sizing of database. everything needs to be multiples of 8 bytes.")
 	}
 
@@ -63,6 +99,7 @@ func (s *PirServer) Configure(celllength int, cellcount int, batchsize int) erro
 	if err != nil {
 		return err
 	}
+	s.responseQueue <- &pirReq{0, nil}
 	return nil
 }
 
@@ -95,9 +132,6 @@ func (s *PirServer) SetDB(db *PirDB) error {
 		return err
 	}
 	s.DB = db
-	if _, err := s.sock.Read(dbptrarr[0:2]); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -106,31 +140,22 @@ func (db *PirDB) Free() error {
 	return xusyscall.Shmdt(db.DB)
 }
 
-func (s *PirServer) Read(masks []byte) ([]byte, error) {
+func (s *PirServer) Read(masks []byte, responseChan chan []byte) error {
 	if s.DB == nil || s.CellCount == 0 {
-		return nil, errors.New("DB not configured.")
+		return errors.New("DB not configured.")
 	}
 
 	if len(masks) != (s.CellCount*s.BatchSize)/8 {
-		return nil, errors.New("Wrong Mask Length.")
+		return errors.New("Wrong Mask Length.")
 	}
 
 	if _, err := s.sock.Write([]byte{pirCommands[0]}); err != nil {
-		return nil, err
+		return err
 	}
 
 	if _, err := s.sock.Write(masks); err != nil {
-		return nil, err
+		return err
 	}
-
-	responses := make([]byte, s.CellLength*s.BatchSize)
-	readNum := 0
-	for readNum < len(responses) {
-		count, err := s.sock.Read(responses[readNum:])
-		readNum += count
-		if count <= 0 || err != nil {
-			return nil, err
-		}
-	}
-	return responses, nil
+	s.responseQueue <- &pirReq{1, responseChan}
+	return nil
 }

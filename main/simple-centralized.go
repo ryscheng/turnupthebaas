@@ -34,8 +34,9 @@ func main() {
 	// Config
 	trustDomainConfig0 := common.NewTrustDomainConfig("t0", "localhost:9000", true, false)
 	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9001", true, false)
-	globalConfig := common.GlobalConfigFromFile("globalconfig.json")
-	globalConfig.TrustDomains = []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1}
+	config := common.CommonConfigFromFile("commonconfig.json")
+	serverConfig := server.ServerConfigFromFile("serverconfig.json", config)
+	config.TrustDomains = []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1}
 
 	status := make(chan int)
 
@@ -49,21 +50,21 @@ func main() {
 	}
 
 	// Trust Domain 1
-	t1 := server.NewCentralized("t1", *followerPIR, *globalConfig, nil, false)
+	t1 := server.NewCentralized("t1", *followerPIR, *serverConfig, nil, false)
 	s["t1"] = server.NewNetworkRpc(t1, 9001)
 
 	// Trust Domain 0
-	//t0 := server.NewCentralized("t0", globalConfig, t1, true)
-	t0 := server.NewCentralized("t0", *leaderPIR, *globalConfig, common.NewFollowerRpc("t0->t1", trustDomainConfig1), true)
+	//t0 := server.NewCentralized("t0", config, t1, true)
+	t0 := server.NewCentralized("t0", *leaderPIR, *serverConfig, common.NewFollowerRpc("t0->t1", trustDomainConfig1), true)
 	s["t0"] = server.NewNetworkRpc(t0, 9000)
 
 	// Client
-	//c0 := libpdb.NewClient("c0", globalConfig, t0)
-	//c1 := libpdb.NewClient("c1", globalConfig, t0)
+	//c0 := libpdb.NewClient("c0", config, t0)
+	//c1 := libpdb.NewClient("c1", config, t0)
 	clients := make([]*libpdb.Client, *numClients)
 	clientLeaderSock := common.NewLeaderRpc("c0->t0", trustDomainConfig0)
 	for i := 0; i < *numClients; i++ {
-		clients[i] = libpdb.NewClient("c"+string(i), *globalConfig, clientLeaderSock)
+		clients[i] = libpdb.NewClient("c"+string(i), *config, clientLeaderSock)
 		clients[i].Ping()
 		seqNo := clients[i].PublishTrace()
 		fmt.Printf("!!! seqNo=%v\n", seqNo)
