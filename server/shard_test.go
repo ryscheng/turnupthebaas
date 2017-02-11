@@ -3,8 +3,8 @@ package server
 import (
 	"bytes"
 	"fmt"
-	"github.com/ryscheng/pdb/common"
-	"github.com/ryscheng/pdb/pir"
+	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/pir"
 	"math/rand"
 	"os"
 	"strconv"
@@ -27,13 +27,13 @@ func testConf() ServerConfig {
 			uint64(fromEnvOrDefault("NUM_BUCKETS", 512)), // num buckets
 			fromEnvOrDefault("BUCKET_DEPTH", 4),          // depth
 			fromEnvOrDefault("DATA_SIZE", 512),           // data size
-			0.95,        // bloom false positive
-			0.95,        // max load
-			0.02,        // load step
+			0.95, // bloom false positive
+			0.95, // max load
+			0.02, // load step
 		},
-		fromEnvOrDefault("BATCH_SIZE", 8),            // batch size
-		time.Second, //write interval
-		time.Second, //read interval
+		fromEnvOrDefault("BATCH_SIZE", 8), // batch size
+		time.Second,                       //write interval
+		time.Second,                       //read interval
 		nil,
 	}
 }

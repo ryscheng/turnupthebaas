@@ -1,4 +1,4 @@
-package libpdb
+package libtalek
 
 import (
 	"bytes"
@@ -7,9 +7,9 @@ import (
 	"encoding/gob"
 	"github.com/agl/ed25519"
 	"github.com/dchest/siphash"
-	"github.com/ryscheng/pdb/bloom"
-	"github.com/ryscheng/pdb/common"
-	"github.com/ryscheng/pdb/drbg"
+	"github.com/privacylab/talek/bloom"
+	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/drbg"
 	"golang.org/x/crypto/nacl/box"
 )
 
@@ -25,7 +25,7 @@ type Topic struct {
 	// For authenticity
 	// TODO: this should ratchet.
 	signingPrivateKey *[64]byte
-	signingPublicKey *[32]byte
+	signingPublicKey  *[32]byte
 
 	// Current log position
 	Seqno uint64
@@ -117,7 +117,7 @@ func (t *Topic) GeneratePublish(commonConfig *common.CommonConfig, message []byt
 // a server managed primative, with releases of a rachet update as each DB epoch
 // advances.
 func (t *Topic) encrypt(plaintext []byte, nonce *[24]byte) ([]byte, error) {
-  buf := make([]byte, 0, len(plaintext) + box.Overhead)
+	buf := make([]byte, 0, len(plaintext)+box.Overhead)
 	_ = box.SealAfterPrecomputation(buf, plaintext, nonce, t.sharedSecret)
 	buf = buf[0:cap(buf)]
 	digest := ed25519.Sign(t.signingPrivateKey, buf)
@@ -130,9 +130,9 @@ type binaryTopic struct {
 	Seed2 []byte
 
 	// Keys
-	SharedSecret  [32]byte
+	SharedSecret      [32]byte
 	SigningPrivateKey [64]byte
-	SigningPublicKey [32]byte
+	SigningPublicKey  [32]byte
 
 	// Last seen sequence number
 	Seqno uint64

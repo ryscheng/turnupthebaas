@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/ryscheng/pdb/common"
-	"github.com/ryscheng/pdb/libpdb"
-	"github.com/ryscheng/pdb/server"
+	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/libtalek"
+	"github.com/privacylab/talek/server"
 	"log"
 	"time"
 )
@@ -48,7 +48,7 @@ func main() {
 
 	// Client
 	clientLeaderSock := common.NewLeaderRpc("c0->t0", trustDomainConfig1)
-	c := libpdb.NewClient("c1", *config, clientLeaderSock)
+	c := libtalek.NewClient("c1", *config, clientLeaderSock)
 	c.Ping()
 	time.Sleep(10 * time.Second)
 

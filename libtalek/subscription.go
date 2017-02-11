@@ -1,14 +1,14 @@
-package libpdb
+package libtalek
 
 import (
 	"bytes"
 	"encoding/binary"
 	"encoding/gob"
 	"errors"
-	"github.com/ryscheng/pdb/common"
-	"github.com/ryscheng/pdb/drbg"
+	"github.com/agl/ed25519"
+	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/drbg"
 	"golang.org/x/crypto/nacl/box"
-  "github.com/agl/ed25519"
 )
 
 type Subscription struct {
@@ -20,8 +20,8 @@ type Subscription struct {
 	Seed2 drbg.Seed
 
 	// For decrypting messages
-	SharedSecret *[32]byte
-	SigningPublicKey  *[32]byte
+	SharedSecret     *[32]byte
+	SigningPublicKey *[32]byte
 
 	// Current log position
 	Seqno uint64
@@ -89,15 +89,15 @@ func (s *Subscription) Decrypt(cyphertext []byte, nonce *[24]byte) ([]byte, erro
 	}
 
 	//verify signature
-	message := cyphertext[0 : cypherlen - ed25519.SignatureSize]
+	message := cyphertext[0 : cypherlen-ed25519.SignatureSize]
 	var sig [ed25519.SignatureSize]byte
-	copy(sig[:], cyphertext[cypherlen - ed25519.SignatureSize:])
+	copy(sig[:], cyphertext[cypherlen-ed25519.SignatureSize:])
 	if !ed25519.Verify(s.SigningPublicKey, message, &sig) {
 		return nil, errors.New("Invalid Signature")
 	}
 
 	//decrypt
-	plaintext := make([]byte, 0, cypherlen - box.Overhead - ed25519.SignatureSize)
+	plaintext := make([]byte, 0, cypherlen-box.Overhead-ed25519.SignatureSize)
 	_, ok := box.OpenAfterPrecomputation(plaintext, message, nonce, s.SharedSecret)
 	if !ok {
 		return nil, errors.New("Failed to decrypt.")

@@ -1,13 +1,13 @@
-package libpdb
+package libtalek
 
 import (
-	"github.com/ryscheng/pdb/common"
+	"github.com/privacylab/talek/common"
 	"sync"
 	"sync/atomic"
 )
 
 /**
- * Client interface for libpdb
+ * Client interface for libtalek
  * Goroutines:
  * - 1x RequestManager.writePeriodic
  * - 1x RequestManager.readPeriodic

@@ -1,8 +1,8 @@
-package libpdb
+package libtalek
 
 import (
 	"fmt"
-	"github.com/ryscheng/pdb/common"
+	"github.com/privacylab/talek/common"
 	"testing"
 )
 

@@ -1,4 +1,4 @@
-PDB Server
+Talek Server
 ============
 
 Testing Shard Performance
@@ -15,7 +15,7 @@ go test -run 0 -bench BenchmarkShard -benchtime 1m
 Workload / sizing parameters are controlled by the following environmental vars:
 
 * `PIR_SOCKET` (default "pir.socket")
-* `READS_PER_WRITE` (defualt 20)
+* `READS_PER_WRITE` (default 20)
 * `NUM_BUCKETS` (default 512)
 * `BUCKET_DEPTH` (default 4)
 * `DATA_SIZE` (default 512)

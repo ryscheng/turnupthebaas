@@ -1,7 +1,7 @@
 package server
 
 import (
-	"github.com/ryscheng/pdb/common"
+	"github.com/privacylab/talek/common"
 	"golang.org/x/net/trace"
 	"sync/atomic"
 )
