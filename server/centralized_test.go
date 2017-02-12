@@ -2,9 +2,9 @@ package server
 
 import (
 	"crypto/rand"
-	"github.com/ryscheng/pdb/common"
-	"github.com/ryscheng/pdb/libpdb"
-	"github.com/ryscheng/pdb/pir"
+	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/libtalek"
+	"github.com/privacylab/talek/pir"
 	"testing"
 )
 
@@ -22,7 +22,7 @@ func BenchmarkWrite(b *testing.B) {
 		b.Fatalf("Error creating plaintext: %v\n", err)
 	}
 	password := ""
-	th, err := libpdb.NewTopic(password)
+	th, err := libtalek.NewTopic(password)
 	if err != nil {
 		b.Fatalf("Error creating topic handle: %v\n", err)
 	}

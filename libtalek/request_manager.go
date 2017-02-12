@@ -1,8 +1,8 @@
-package libpdb
+package libtalek
 
 import (
-	"github.com/ryscheng/pdb/common"
-	"github.com/ryscheng/pdb/drbg"
+	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/drbg"
 	"sync/atomic"
 	"time"
 )

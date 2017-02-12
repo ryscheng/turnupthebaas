@@ -1,8 +1,8 @@
-package libpdb
+package libtalek
 
 import (
 	"encoding/json"
-	"github.com/ryscheng/pdb/common"
+	"github.com/privacylab/talek/common"
 	"io/ioutil"
 	"time"
 )

@@ -1,9 +1,9 @@
-package libpdb
+package libtalek
 
 import (
 	"crypto/rand"
 	"fmt"
-	"github.com/ryscheng/pdb/common"
+	"github.com/privacylab/talek/common"
 	"testing"
 )
 
@@ -11,7 +11,7 @@ func TestEncryptDecrypt(t *testing.T) {
 	fmt.Printf("TestEncryptDecrypt:\n")
 	plaintext := "Hello world"
 	var nonce [24]byte
-	copy(nonce[:],[]byte("012345678901"))
+	copy(nonce[:], []byte("012345678901"))
 	th, err := NewTopic()
 	if err != nil {
 		t.Fatalf("Error creating topic handle: %v\n", err)

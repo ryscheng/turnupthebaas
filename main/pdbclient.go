@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/ryscheng/pdb/common"
-	"github.com/ryscheng/pdb/libpdb"
+	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/libtalek"
 	"log"
 	"math/rand"
 	"sort"
@@ -17,7 +17,7 @@ func (d ByTime) Less(i, j int) bool { return d[i].Nanoseconds() < d[j].Nanosecon
 
 func main() {
 	log.Println("------------------")
-	log.Println("--- PDB Client ---")
+	log.Println("--- Talek Client ---")
 	log.Println("------------------")
 
 	// Config
@@ -33,7 +33,7 @@ func main() {
 	// Throughput
 	numClients := 10000
 	for i := 0; i < numClients; i++ {
-		_ = libpdb.NewClient("c", *config, leaderRpc)
+		_ = libtalek.NewClient("c", *config, leaderRpc)
 		time.Sleep(time.Duration(rand.Int()%(2*int(config.WriteInterval)/numClients)) * time.Nanosecond)
 	}
 	log.Printf("Generated %v clients\n", numClients)
@@ -41,10 +41,10 @@ func main() {
 	//c.Ping()
 
 	// Latency
-	c0 := libpdb.NewClient("c0", *config, leaderRpc)
+	c0 := libtalek.NewClient("c0", *config, leaderRpc)
 	log.Println("Created c0")
 	time.Sleep(time.Duration(rand.Int()%int(config.WriteInterval)) * time.Nanosecond)
-	c1 := libpdb.NewClient("c1", *config, leaderRpc)
+	c1 := libtalek.NewClient("c1", *config, leaderRpc)
 	log.Println("Created c1")
 
 	totalTrials := 10
