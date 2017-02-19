@@ -133,7 +133,7 @@ func (c *Client) Done(handle *Subscription) bool {
 func (c *Client) writePeriodic() {
 	var req *common.WriteArgs = nil
 
-	for atomic.LoadInt32(&c.dead) != 0 {
+	for atomic.LoadInt32(&c.dead) == 0 {
 		reply := common.WriteReply{}
 		conf := c.config.Load().(ClientConfig)
 		select {
@@ -160,7 +160,7 @@ func (c *Client) writePeriodic() {
 func (c *Client) readPeriodic() {
 	var request request
 
-	for atomic.LoadInt32(&c.dead) != 0 {
+	for atomic.LoadInt32(&c.dead) == 0 {
 		reply := common.ReadReply{}
 		conf := c.config.Load().(ClientConfig)
 		select {
