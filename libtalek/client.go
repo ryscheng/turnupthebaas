@@ -2,8 +2,10 @@ package libtalek
 
 import (
 	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/drbg"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 /**
@@ -13,16 +15,29 @@ import (
  * - 1x RequestManager.readPeriodic
  */
 type Client struct {
-	log       *common.Logger
-	name      string
-	config    atomic.Value //ClientConfig
-	leader    common.LeaderInterface
-	msgReqMan *RequestManager
+	log    *common.Logger
+	name   string
+	config atomic.Value //ClientConfig
+	dead   int32
+	rand   *drbg.HashDrbg
+	leader common.LeaderInterface
 
 	subscriptions     []Subscription
-	pendingRequest    *common.ReadArgs
-	pendingRequestSub RequestResponder
+	pendingWrites     chan *common.WriteArgs
+	pendingReads      chan request
 	subscriptionMutex sync.Mutex
+
+	lastSeqNo uint64
+}
+
+// The interface for a class that will handle read responses.
+type RequestResponder interface {
+	OnResponse(*common.ReadArgs, *common.ReadReply)
+}
+
+type request struct {
+	*common.ReadArgs
+	RequestResponder
 }
 
 //TODO: client needs to know the different trust domain security parameters.
@@ -32,10 +47,21 @@ func NewClient(name string, config ClientConfig, leader common.LeaderInterface) 
 	c.name = name
 	c.config.Store(config)
 	c.leader = leader
+	c.dead = 0
+	rand, err := drbg.NewHashDrbg(nil)
+	if err != nil {
+		c.log.Error.Fatalf("Error creating Hashdrbg: %v\n", err)
+		return nil
+	}
+	c.rand = rand
 
-	c.msgReqMan = NewRequestManager(name, c.leader, &c.config)
-	c.msgReqMan.SetReadGenerator(c)
 	c.subscriptionMutex = sync.Mutex{}
+	//todo: should channel capacity be smarter?
+	c.pendingReads = make(chan request, 5)
+	c.pendingWrites = make(chan *common.WriteArgs, 5)
+
+	go c.readPeriodic()
+	go c.writePeriodic()
 
 	c.log.Info.Println("NewClient: starting new client - " + name)
 	return c
@@ -45,6 +71,10 @@ func NewClient(name string, config ClientConfig, leader common.LeaderInterface) 
 
 func (c *Client) SetConfig(config ClientConfig) {
 	c.config.Store(config)
+}
+
+func (c *Client) Kill() {
+	atomic.StoreInt32(&c.dead, 1)
 }
 
 func (c *Client) Ping() bool {
@@ -66,7 +96,7 @@ func (c *Client) Publish(handle *Topic, data []byte) error {
 		return err
 	}
 
-	c.msgReqMan.EnqueueWrite(write_args)
+	c.pendingWrites <- write_args
 	return nil
 }
 
@@ -99,35 +129,104 @@ func (c *Client) Done(handle *Subscription) bool {
 	return false
 }
 
-// Implement RequestGenerator interface for the request manager
-func (c *Client) NextRequest() (*common.ReadArgs, RequestResponder) {
-	config := c.config.Load().(ClientConfig)
+/** Private methods **/
+func (c *Client) writePeriodic() {
+	var req *common.WriteArgs = nil
 
-	c.subscriptionMutex.Lock()
-	if c.pendingRequest != nil {
-		rec := c.pendingRequest
-		rr := c.pendingRequestSub
-		c.pendingRequest = nil
-		c.subscriptionMutex.Unlock()
-		return rec, rr
+	for atomic.LoadInt32(&c.dead) != 0 {
+		reply := common.WriteReply{}
+		conf := c.config.Load().(ClientConfig)
+		select {
+		case req = <-c.pendingWrites:
+			break
+		default:
+			req = c.generateRandomWrite(conf)
+		}
+		err := c.leader.Write(req, &reply)
+		if err != nil {
+			reply.Err = err.Error()
+		}
+		if reply.GlobalSeqNo > c.lastSeqNo {
+			c.lastSeqNo = reply.GlobalSeqNo
+		}
+		if req.ReplyChan != nil {
+			req.ReplyChan <- &reply
+		}
+		//TODO: switch to poisson
+		time.Sleep(conf.WriteInterval)
 	}
+}
+
+func (c *Client) readPeriodic() {
+	var request request
+
+	for atomic.LoadInt32(&c.dead) != 0 {
+		reply := common.ReadReply{}
+		conf := c.config.Load().(ClientConfig)
+		select {
+		case request = <-c.pendingReads:
+			break
+		default:
+			request = c.nextRequest(&conf)
+		}
+		err := c.leader.Read(request.ReadArgs, &reply)
+		if err != nil {
+			reply.Err = err.Error()
+		}
+		if reply.GlobalSeqNo.End > c.lastSeqNo {
+			c.lastSeqNo = reply.GlobalSeqNo.End
+		}
+		if request.RequestResponder != nil {
+			request.RequestResponder.OnResponse(request.ReadArgs, &reply)
+		}
+		time.Sleep(conf.ReadInterval)
+	}
+}
+
+func (c *Client) generateRandomWrite(config ClientConfig) *common.WriteArgs {
+	args := &common.WriteArgs{}
+	args.Bucket1 = c.rand.RandomUint64() % config.CommonConfig.NumBuckets
+	args.Bucket2 = c.rand.RandomUint64() % config.CommonConfig.NumBuckets
+	args.Data = make([]byte, config.CommonConfig.DataSize, config.CommonConfig.DataSize)
+	c.rand.FillBytes(args.Data)
+	return args
+}
+
+func (c *Client) generateRandomRead(config *ClientConfig) *common.ReadArgs {
+	args := &common.ReadArgs{}
+	vectorSize := uint32((config.CommonConfig.NumBuckets+7)/8 + 1)
+	args.ForTd = make([]common.PirArgs, len(config.TrustDomains), len(config.TrustDomains))
+	for i := 0; i < len(args.ForTd); i++ {
+		args.ForTd[i].RequestVector = make([]byte, vectorSize, vectorSize)
+		c.rand.FillBytes(args.ForTd[i].RequestVector)
+		seed, err := drbg.NewSeed()
+		if err != nil {
+			c.log.Error.Fatalf("Error creating random seed: %v\n", err)
+		}
+		args.ForTd[i].PadSeed = seed.Export()
+	}
+	return args
+}
+
+func (c *Client) nextRequest(config *ClientConfig) request {
+	c.subscriptionMutex.Lock()
 
 	if len(c.subscriptions) > 0 {
 		nextTopic := c.subscriptions[0]
 		c.subscriptions = c.subscriptions[1:]
 		c.subscriptions = append(c.subscriptions, nextTopic)
 
-		ra1, ra2, err := nextTopic.generatePoll(&config, c.msgReqMan.LatestSeqNo())
+		ra1, ra2, err := nextTopic.generatePoll(config, c.lastSeqNo)
 		if err != nil {
 			c.subscriptionMutex.Unlock()
 			c.log.Error.Fatal(err)
-			return nil, nil
+			return request{c.generateRandomRead(config), nil}
 		}
-		c.pendingRequest = ra2
-		c.pendingRequestSub = &nextTopic
+		c.pendingReads <- request{ra2, &nextTopic}
 		c.subscriptionMutex.Unlock()
-		return ra1, &nextTopic
+		return request{ra1, &nextTopic}
 	}
 	c.subscriptionMutex.Unlock()
-	return nil, nil
+
+	return request{c.generateRandomRead(config), nil}
 }
