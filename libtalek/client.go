@@ -203,7 +203,10 @@ func (c *Client) generateRandomRead(config *ClientConfig) *common.ReadArgs {
 		if err != nil {
 			c.log.Error.Fatalf("Error creating random seed: %v\n", err)
 		}
-		args.ForTd[i].PadSeed = seed.Export()
+		args.ForTd[i].PadSeed, err = seed.MarshalBinary()
+		if err != nil {
+			c.log.Error.Fatalf("Failed to marshal seed: %v\n", err)
+		}
 	}
 	return args
 }

@@ -22,7 +22,7 @@ func TestGeneratePoll(t *testing.T) {
 	}
 
 	topic, err := NewTopic()
-	sub, err = topic.CreateSubscription()
+	sub = &topic.Subscription
 	args0, _, err := sub.generatePoll(config, 1)
 	if err != nil {
 		t.Fatalf("Error creating ReadArgs: %v\n", err)
@@ -49,7 +49,7 @@ func HelperBenchmarkGeneratePoll(b *testing.B, NumBuckets uint64) {
 	config.CommonConfig.NumBuckets = NumBuckets
 
 	topic, err := NewTopic()
-	sub, err := topic.CreateSubscription()
+	sub := topic.Subscription
 	if err != nil {
 		b.Fatalf("Error creating subscription handle: %v\n", err)
 	}
@@ -67,7 +67,7 @@ func BenchmarkRetrieveResponse(b *testing.B) {
 	config.CommonConfig.NumBuckets = 10
 
 	topic, err := NewTopic()
-	sub, err := topic.CreateSubscription()
+	sub := topic.Subscription
 	if err != nil {
 		b.Fatalf("Error creating topic handle: %v\n", err)
 	}

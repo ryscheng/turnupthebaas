@@ -1,9 +1,7 @@
 package libtalek
 
 import (
-	"bytes"
 	"encoding/binary"
-	"encoding/gob"
 	"errors"
 	"github.com/agl/ed25519"
 	"github.com/privacylab/talek/common"
@@ -30,17 +28,12 @@ type Subscription struct {
 	Updates chan []byte
 }
 
-func NewSubscription() (*Subscription, error) {
-	s := &Subscription{}
+func NewSubscription() (s *Subscription, err error) {
+	s = &Subscription{}
 	s.Updates = make(chan []byte)
 
-	hashDrbg, drbgErr := drbg.NewHashDrbg(nil)
-	if drbgErr != nil {
-		return nil, drbgErr
-	}
-	s.drbg = hashDrbg
-
-	return s, nil
+	s.drbg, err = drbg.NewHashDrbg(nil)
+	return
 }
 
 func (s *Subscription) generatePoll(config *ClientConfig, seqNo uint64) (*common.ReadArgs, *common.ReadArgs, error) {
@@ -118,8 +111,9 @@ func (s *Subscription) retrieveResponse(args *common.ReadArgs, reply *common.Rea
 
 	for i := 0; i < len(args.ForTd); i++ {
 		pad := make([]byte, len(data))
-		seed, _ := drbg.ImportSeed(args.ForTd[i].PadSeed)
-		hashDrbg, _ := drbg.NewHashDrbg(seed)
+		seed := drbg.Seed{}
+		seed.UnmarshalBinary(args.ForTd[i].PadSeed)
+		hashDrbg, _ := drbg.NewHashDrbg(&seed)
 		hashDrbg.FillBytes(pad)
 		for j := 0; j < len(data); j++ {
 			data[j] ^= pad[j]
@@ -127,24 +121,4 @@ func (s *Subscription) retrieveResponse(args *common.ReadArgs, reply *common.Rea
 	}
 
 	return data
-}
-
-func (s *Subscription) MarshalBinary() (data []byte, err error) {
-	var output bytes.Buffer
-	enc := gob.NewEncoder(&output)
-	err = enc.Encode(s)
-	if err != nil {
-		return nil, err
-	}
-	return output.Bytes(), nil
-}
-
-func (s *Subscription) UnmarshalBinary(data []byte) error {
-	buf := bytes.NewBuffer(data)
-	dec := gob.NewDecoder(buf)
-	err := dec.Decode(s)
-	if err != nil {
-		return err
-	}
-	return nil
 }

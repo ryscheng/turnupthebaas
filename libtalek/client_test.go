@@ -52,7 +52,10 @@ func TestWrite(t *testing.T) {
 	// the real write.
 	var seqNoBytes [24]byte
 	_ = binary.PutUvarint(seqNoBytes[:], handle.Seqno)
-	seed, _ := drbg.ImportSeed(handle.Seed1.Export())
+	// Clone seed so they advance together.
+  seedData, _ := handle.Subscription.Seed1.MarshalBinary()
+	seed := drbg.Seed{}
+	seed.UnmarshalBinary(seedData)
 	k0, k1 := seed.KeyUint128()
 	bucket := siphash.Hash(k0, k1, seqNoBytes[:]) % 64
 

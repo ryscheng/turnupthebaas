@@ -1,7 +1,9 @@
 package libtalek
 
 import (
+	"bytes"
 	"crypto/rand"
+	"encoding/gob"
 	"fmt"
 	"github.com/privacylab/talek/common"
 	"testing"
@@ -16,7 +18,8 @@ func TestEncryptDecrypt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating topic handle: %v\n", err)
 	}
-	sub, err := th.CreateSubscription()
+	var sub Subscription
+	sub = th.Subscription
 	if err != nil {
 		t.Fatalf("Failed to derive subscription from topic: %v\n", err)
 	}
@@ -41,21 +44,17 @@ func TestSerializeRestore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating topic: %v\n", err)
 	}
-	data, err := topic.MarshalBinary()
+	var network bytes.Buffer
+	enc := gob.NewEncoder(&network)
+	err = enc.Encode(topic)
 	if err != nil {
 		t.Fatalf("Unable to serialize topic: %v\n", err)
 	}
+	dec := gob.NewDecoder(&network)
 	clone := Topic{}
-	err = clone.UnmarshalBinary(data)
+	err = dec.Decode(&clone)
 	if err != nil {
 		t.Fatalf("Unable to restore topic: %v\n", err)
-	}
-
-	topic.Seqno = 100
-	data, err = topic.MarshalBinary()
-	err = clone.UnmarshalBinary(data)
-	if err != nil || clone.Seqno != 100 {
-		t.Fatalf("Sequence number not saved with topic.\n")
 	}
 }
 
@@ -128,7 +127,7 @@ func BenchmarkEncryptDecrypt(b *testing.B) {
 	if err != nil {
 		b.Fatalf("Error creating topic handle: %v\n", err)
 	}
-	sub, err := th.CreateSubscription()
+	sub := th.Subscription
 	// Start timing
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
