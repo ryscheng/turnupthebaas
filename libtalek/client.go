@@ -89,8 +89,24 @@ func (c *Client) Ping() bool {
 	}
 }
 
+// MaxLength returns the maximum allowed message the client can Publish.
+// TODO: support messages spanning multiple data items.
+func (c *Client) MaxLength() int {
+	config := c.config.Load().(ClientConfig)
+	return config.DataSize
+}
+
 func (c *Client) Publish(handle *Topic, data []byte) error {
 	config := c.config.Load().(ClientConfig)
+
+	if len(data) > config.DataSize {
+		return errors.New("Message too long.")
+	} else if len(data) < config.DataSize {
+		allocation := make([]byte, config.DataSize)
+		copy(allocation[:], data)
+		data = allocation
+	}
+
 	write_args, err := handle.GeneratePublish(config.CommonConfig, data)
 	if err != nil {
 		return err
