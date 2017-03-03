@@ -14,7 +14,7 @@ import (
 type Topic struct {
 
 	// For updates?
-	Id    uint64
+	Id uint64
 
 	// For authenticity
 	// TODO: this should ratchet.
@@ -44,7 +44,6 @@ func NewTopic() (t *Topic, err error) {
 	t.Subscription.Seed1 = *seed1
 	t.Subscription.Seed2 = *seed2
 	t.Subscription.drbg, err = drbg.NewHashDrbg(nil)
-
 
 	// Create shared secret
 	pub, priv, err := box.GenerateKey(rand.Reader)

@@ -169,9 +169,14 @@ func (c *Client) readPeriodic() {
 		default:
 			request = c.nextRequest(&conf)
 		}
-		err := c.leader.Read(request.ReadArgs, &reply)
+		encreq, err := request.ReadArgs.Encode(conf.TrustDomains)
 		if err != nil {
 			reply.Err = err.Error()
+		} else {
+			err := c.leader.Read(&encreq, &reply)
+			if err != nil {
+				reply.Err = err.Error()
+			}
 		}
 		if reply.GlobalSeqNo.End > c.lastSeqNo {
 			c.lastSeqNo = reply.GlobalSeqNo.End
@@ -195,15 +200,15 @@ func (c *Client) generateRandomWrite(config ClientConfig) *common.WriteArgs {
 func (c *Client) generateRandomRead(config *ClientConfig) *common.ReadArgs {
 	args := &common.ReadArgs{}
 	vectorSize := uint32((config.CommonConfig.NumBuckets+7)/8 + 1)
-	args.ForTd = make([]common.PirArgs, len(config.TrustDomains), len(config.TrustDomains))
-	for i := 0; i < len(args.ForTd); i++ {
-		args.ForTd[i].RequestVector = make([]byte, vectorSize, vectorSize)
-		c.rand.FillBytes(args.ForTd[i].RequestVector)
+	args.TD = make([]common.PirArgs, len(config.TrustDomains), len(config.TrustDomains))
+	for i := 0; i < len(args.TD); i++ {
+		args.TD[i].RequestVector = make([]byte, vectorSize, vectorSize)
+		c.rand.FillBytes(args.TD[i].RequestVector)
 		seed, err := drbg.NewSeed()
 		if err != nil {
 			c.log.Error.Fatalf("Error creating random seed: %v\n", err)
 		}
-		args.ForTd[i].PadSeed, err = seed.MarshalBinary()
+		args.TD[i].PadSeed, err = seed.MarshalBinary()
 		if err != nil {
 			c.log.Error.Fatalf("Failed to marshal seed: %v\n", err)
 		}
