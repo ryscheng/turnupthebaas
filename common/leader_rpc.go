@@ -21,7 +21,7 @@ func NewLeaderRpc(name string, config *TrustDomainConfig) *LeaderRpc {
 	l.name = name
 	l.config = config
 	l.client = nil
-	if l.config.IsDistributed() {
+	if l.config.IsDistributed {
 		l.methodPrefix = "Frontend"
 	} else {
 		l.methodPrefix = "Centralized"
@@ -76,7 +76,7 @@ func (l *LeaderRpc) Write(args *WriteArgs, reply *WriteReply) error {
 	return err
 }
 
-func (l *LeaderRpc) Read(args *ReadArgs, reply *ReadReply) error {
+func (l *LeaderRpc) Read(args *EncodedReadArgs, reply *ReadReply) error {
 	//l.log.Printf("Read: enter\n")
 	err := l.Call(l.methodPrefix+".Read", args, reply)
 	return err

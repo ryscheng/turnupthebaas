@@ -21,7 +21,7 @@ func NewFollowerRpc(name string, config *TrustDomainConfig) *FollowerRpc {
 	f.name = name
 	f.config = config
 	f.client = nil
-	if f.config.IsDistributed() {
+	if f.config.IsDistributed {
 		f.methodPrefix = "Frontend"
 	} else {
 		f.methodPrefix = "Centralized"
