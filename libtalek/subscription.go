@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"github.com/agl/ed25519"
+	"github.com/dchest/siphash"
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/drbg"
 	"golang.org/x/crypto/nacl/box"
@@ -45,29 +46,49 @@ func (s *Subscription) generatePoll(config *ClientConfig, seqNo uint64) (*common
 	seqNoBytes := make([]byte, 12)
 	_ = binary.PutUvarint(seqNoBytes, seqNo)
 
+	num := len(config.TrustDomains)
+
 	args[0] = &common.ReadArgs{}
-	args[0].ForTd = make([]common.PirArgs, len(config.TrustDomains))
-	for j := 0; j < len(config.TrustDomains); j++ {
-		args[0].ForTd[j].RequestVector = make([]byte, config.CommonConfig.NumBuckets/8+1)
-		s.drbg.FillBytes(args[0].ForTd[j].RequestVector)
-		args[0].ForTd[j].PadSeed = make([]byte, drbg.SeedLength)
-		s.drbg.FillBytes(args[0].ForTd[j].PadSeed)
+	args[0].TD = make([]common.PirArgs, num)
+	// The first Trust domain is the one with the explicit bucket bit-flip.
+	k0, k1 := s.Seed1.KeyUint128()
+	bucket1 := siphash.Hash(k0, k1, seqNoBytes) % config.CommonConfig.NumBuckets
+	args[0].TD[0].RequestVector = make([]byte, config.CommonConfig.NumBuckets/8+1)
+	args[0].TD[0].RequestVector[bucket1/8] |= 1 << (bucket1 % 8)
+	args[0].TD[0].PadSeed = make([]byte, drbg.SeedLength)
+	s.drbg.FillBytes(args[0].TD[0].PadSeed)
+
+	for j := 1; j < num; j++ {
+		args[0].TD[j].RequestVector = make([]byte, config.CommonConfig.NumBuckets/8+1)
+		s.drbg.FillBytes(args[0].TD[j].RequestVector)
+		args[0].TD[j].PadSeed = make([]byte, drbg.SeedLength)
+		s.drbg.FillBytes(args[0].TD[j].PadSeed)
+
+		for k := 0; k < len(args[0].TD[j].RequestVector); k++ {
+			args[0].TD[0].RequestVector[k] ^= args[0].TD[j].RequestVector[k]
+		}
 	}
-	// @todo - XOR topic info into request?
-	//k0, k1 := t.Seed1.KeyUint128()
-	//bucket1 := siphash.Hash(k0, k1, seqNoBytes) % globalConfig.NumBuckets
 
 	args[1] = &common.ReadArgs{}
-	args[1].ForTd = make([]common.PirArgs, len(config.TrustDomains))
-	for j := 0; j < len(config.TrustDomains); j++ {
-		args[1].ForTd[j].RequestVector = make([]byte, config.CommonConfig.NumBuckets/8+1)
-		s.drbg.FillBytes(args[1].ForTd[j].RequestVector)
-		args[1].ForTd[j].PadSeed = make([]byte, drbg.SeedLength)
-		s.drbg.FillBytes(args[1].ForTd[j].PadSeed)
+	args[1].TD = make([]common.PirArgs, num)
+	// The first Trust domain is the one with the explicit bucket bit-flip.
+	k0, k1 = s.Seed2.KeyUint128()
+	bucket2 := siphash.Hash(k0, k1, seqNoBytes) % config.CommonConfig.NumBuckets
+	args[1].TD[0].RequestVector = make([]byte, config.CommonConfig.NumBuckets/8+1)
+	args[1].TD[0].RequestVector[bucket2/8] |= 1 << (bucket1 % 8)
+	args[1].TD[0].PadSeed = make([]byte, drbg.SeedLength)
+	s.drbg.FillBytes(args[1].TD[0].PadSeed)
+
+	for j := 1; j < num; j++ {
+		args[1].TD[j].RequestVector = make([]byte, config.CommonConfig.NumBuckets/8+1)
+		s.drbg.FillBytes(args[1].TD[j].RequestVector)
+		args[1].TD[j].PadSeed = make([]byte, drbg.SeedLength)
+		s.drbg.FillBytes(args[1].TD[j].PadSeed)
+
+		for k := 0; k < len(args[1].TD[j].RequestVector); k++ {
+			args[1].TD[0].RequestVector[k] ^= args[1].TD[j].RequestVector[k]
+		}
 	}
-	// @todo - XOR sopic info into request?
-	//k0, k1 = t.Seed2.KeyUint128()
-	//bucket2 := siphash.Hash(k0, k1, seqNoBytes) % globalConfig.NumBuckets
 
 	return args[0], args[1], nil
 }
@@ -109,10 +130,10 @@ func (s *Subscription) OnResponse(args *common.ReadArgs, reply *common.ReadReply
 func (s *Subscription) retrieveResponse(args *common.ReadArgs, reply *common.ReadReply) []byte {
 	data := reply.Data
 
-	for i := 0; i < len(args.ForTd); i++ {
+	for i := 0; i < len(args.TD); i++ {
 		pad := make([]byte, len(data))
 		seed := drbg.Seed{}
-		seed.UnmarshalBinary(args.ForTd[i].PadSeed)
+		seed.UnmarshalBinary(args.TD[i].PadSeed)
 		hashDrbg, _ := drbg.NewHashDrbg(&seed)
 		hashDrbg.FillBytes(pad)
 		for j := 0; j < len(data); j++ {

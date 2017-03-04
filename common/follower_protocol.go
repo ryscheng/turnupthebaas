@@ -4,7 +4,7 @@ type BatchReadRequest struct {
 	Args       []PirArgs // Set of Read requests
 	SeqNoRange Range
 	RandSeed   int64
-	ReplyChan chan *BatchReadReply
+	ReplyChan  chan *BatchReadReply
 }
 
 type BatchReadReply struct {

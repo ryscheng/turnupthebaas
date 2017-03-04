@@ -28,7 +28,7 @@ func TestGeneratePoll(t *testing.T) {
 		t.Fatalf("Error creating ReadArgs: %v\n", err)
 	}
 
-	fmt.Printf("len(args0)=%v; \n", 3*(len(args0.ForTd[0].RequestVector)+len(args0.ForTd[0].PadSeed)))
+	fmt.Printf("len(args0)=%v; \n", 3*(len(args0.TD[0].RequestVector)+len(args0.TD[0].PadSeed)))
 
 	fmt.Printf("... done \n")
 }

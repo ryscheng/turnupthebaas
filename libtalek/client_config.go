@@ -17,7 +17,7 @@ type ClientConfig struct {
 	ReadInterval time.Duration
 
 	// Where are the different servers?
-	TrustDomains []*common.TrustDomainConfig `json:"-"`
+	TrustDomains []*common.TrustDomainConfig
 }
 
 // Load configuration from a JSON file. returns the config on success or nil if
