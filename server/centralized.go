@@ -1,11 +1,16 @@
 package server
 
 import (
-	"github.com/ryscheng/pdb/common"
+	"github.com/privacylab/talek/common"
 	"golang.org/x/net/trace"
 	"sync/atomic"
 )
 
+/**
+ * A centralized server implements Read and Write interfaces for mutating and
+ * reading Database state, optionally disseminating writes to a single follower.
+ * This class wraps a logical 'shard' of the database.
+ */
 type Centralized struct {
 	/** Private State **/
 	// Static

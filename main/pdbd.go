@@ -1,17 +1,17 @@
 package main
 
 import (
-	"github.com/ryscheng/pdb/common"
-	"github.com/ryscheng/pdb/server"
+	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/server"
 	"log"
 	"net/http"
 	"time"
 )
 
 func main() {
-	log.Println("------------------")
-	log.Println("--- PDB Server ---")
-	log.Println("------------------")
+	log.Println("--------------------")
+	log.Println("--- Talek Server ---")
+	log.Println("--------------------")
 
 	// For trace debug status
 	go http.ListenAndServe("localhost:8080", nil)

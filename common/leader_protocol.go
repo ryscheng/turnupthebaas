@@ -26,7 +26,7 @@ type WriteArgs struct {
 	InterestVector []byte
 	//Internal
 	GlobalSeqNo uint64
-	ReplyChan chan *WriteReply
+	ReplyChan   chan *WriteReply
 }
 
 type WriteReply struct {
@@ -40,7 +40,13 @@ type PirArgs struct {
 }
 
 type ReadArgs struct {
-	ForTd []PirArgs // Set of args for each trust domain
+	TD []PirArgs
+}
+
+type EncodedReadArgs struct {
+	ClientKey [32]byte
+	Nonce     [24]byte
+	PirArgs   [][]byte //An encrypted PirArgs for each trust domain
 }
 
 type ReadReply struct {

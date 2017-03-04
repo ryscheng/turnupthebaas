@@ -21,7 +21,7 @@ type CommonConfig struct {
 }
 
 func (cc *CommonConfig) WindowSize() int {
-	return int(float32(int(cc.NumBuckets) * cc.BucketDepth) * cc.MaxLoadFactor)
+	return int(float32(int(cc.NumBuckets)*cc.BucketDepth) * cc.MaxLoadFactor)
 }
 
 // Load configuration from a JSON file. returns the config on success or nil if

@@ -3,10 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/ryscheng/pdb/common"
-	"github.com/ryscheng/pdb/libpdb"
-	"github.com/ryscheng/pdb/pir"
-	"github.com/ryscheng/pdb/server"
+	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/libtalek"
+	"github.com/privacylab/talek/pir"
+	"github.com/privacylab/talek/server"
 	"log"
 	"math/rand"
 	"net/http"
@@ -59,12 +59,12 @@ func main() {
 	s["t0"] = server.NewNetworkRpc(t0, 9000)
 
 	// Client
-	//c0 := libpdb.NewClient("c0", config, t0)
-	//c1 := libpdb.NewClient("c1", config, t0)
-	clients := make([]*libpdb.Client, *numClients)
+	//c0 := libtalek.NewClient("c0", config, t0)
+	//c1 := libtalek.NewClient("c1", config, t0)
+	clients := make([]*libtalek.Client, *numClients)
 	clientLeaderSock := common.NewLeaderRpc("c0->t0", trustDomainConfig0)
 	for i := 0; i < *numClients; i++ {
-		clients[i] = libpdb.NewClient("c"+string(i), *config, clientLeaderSock)
+		clients[i] = libtalek.NewClient("c"+string(i), *config, clientLeaderSock)
 		clients[i].Ping()
 		seqNo := clients[i].PublishTrace()
 		fmt.Printf("!!! seqNo=%v\n", seqNo)

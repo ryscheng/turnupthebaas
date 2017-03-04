@@ -1,18 +1,18 @@
 package server
 
 import (
-	"github.com/ryscheng/pdb/common"
+	"github.com/privacylab/talek/common"
 	"log"
 	"os"
 )
 
 type Frontend struct {
 	// Private State
-	log             *log.Logger
-	name            string
-	serverConfig    *ServerConfig
-	follower        common.FollowerInterface
-	isLeader        bool
+	log          *log.Logger
+	name         string
+	serverConfig *ServerConfig
+	follower     common.FollowerInterface
+	isLeader     bool
 
 	//dataLayerRef *DataLayerRef
 }

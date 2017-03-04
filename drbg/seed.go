@@ -3,7 +3,7 @@ package drbg
 import (
 	"crypto/rand"
 	"encoding/binary"
-	"fmt"
+	"errors"
 	"github.com/dchest/siphash"
 )
 
@@ -28,17 +28,16 @@ func NewSeed() (*Seed, error) {
 	return seed, nil
 }
 
-func ImportSeed(b []byte) (*Seed, error) {
-	seed := &Seed{}
-	if len(b) < SeedLength {
-		return nil, fmt.Errorf("Invalid DRBG seed. Too few bytes %v", len(b))
+func (s *Seed) UnmarshalBinary(data []byte) error {
+	if len(data) < SeedLength {
+		return errors.New("Invalid DRBG seed. Too few bytes.")
 	}
-	seed.value = b
-	return seed, nil
+	s.value = data
+	return nil
 }
 
-func (s *Seed) Export() []byte {
-	return s.value[:]
+func (s *Seed) MarshalBinary() ([]byte, error) {
+	return s.value[:], nil
 }
 
 func (s *Seed) Key() []byte {

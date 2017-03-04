@@ -2,9 +2,9 @@ package server
 
 import (
 	"fmt"
-	"github.com/ryscheng/pdb/common"
-	"github.com/ryscheng/pdb/cuckoo"
-	"github.com/ryscheng/pdb/pir"
+	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/cuckoo"
+	"github.com/privacylab/talek/pir"
 	"math/rand"
 	"os"
 	"sync/atomic"
