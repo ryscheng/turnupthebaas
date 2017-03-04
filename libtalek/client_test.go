@@ -11,6 +11,7 @@ import (
 
 type mockLeader struct {
 	ReceivedWrites chan *common.WriteArgs
+	ReceivedReads  chan *common.EncodedReadArgs
 }
 
 func (m *mockLeader) GetName() string {
@@ -20,10 +21,15 @@ func (m *mockLeader) Ping(args *common.PingArgs, reply *common.PingReply) error 
 	return nil
 }
 func (m *mockLeader) Write(args *common.WriteArgs, reply *common.WriteReply) error {
-	m.ReceivedWrites <- args
+	if m.ReceivedWrites != nil {
+		m.ReceivedWrites <- args
+	}
 	return nil
 }
 func (m *mockLeader) Read(args *common.EncodedReadArgs, reply *common.ReadReply) error {
+	if m.ReceivedReads != nil {
+		m.ReceivedReads <- args
+	}
 	return nil
 }
 func (m *mockLeader) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdatesReply) error {
@@ -39,7 +45,7 @@ func TestWrite(t *testing.T) {
 	}
 
 	writes := make(chan *common.WriteArgs, 1)
-	leader := mockLeader{writes}
+	leader := mockLeader{writes, nil}
 
 	c := NewClient("TestClient", config, &leader)
 	if c == nil {
@@ -70,4 +76,49 @@ func TestWrite(t *testing.T) {
 	}
 }
 
-//TODO: test reading.
+func TestRead(t *testing.T) {
+	config := ClientConfig{
+		&common.CommonConfig{64, 4, 1024, 0.05, 0.95, 0.05},
+		time.Second,
+		time.Second,
+		[]*common.TrustDomainConfig{common.NewTrustDomainConfig("TestTrustDomain", "127.0.0.1", true, false)},
+	}
+
+	reads := make(chan *common.EncodedReadArgs, 1)
+	leader := mockLeader{nil, reads}
+
+	c := NewClient("TestClient", config, &leader)
+	if c == nil {
+		t.Fatalf("Error creating client")
+	}
+
+	handle, _ := NewTopic()
+
+	// Recreate the expected buckets to make sure we're seeing
+	// the real write.
+	var seqNoBytes [12]byte
+	_ = binary.PutUvarint(seqNoBytes[:], handle.Seqno)
+	// Clone seed so they advance together.
+	seedData, _ := handle.Subscription.Seed1.MarshalBinary()
+	seed := drbg.Seed{}
+	seed.UnmarshalBinary(seedData)
+	k0, k1 := seed.KeyUint128()
+	bucket := siphash.Hash(k0, k1, seqNoBytes[:]) % 64
+	c.Poll(&handle.Subscription)
+	read1 := <-reads
+	read2 := <-reads
+	// There may be a random read occuring before the enqueued one.
+	c.Kill()
+
+	//Due to thread race, there may be a random read made before
+	//the requested poll is queued up.
+	decRead1, err := read1.Decode(0, config.TrustDomains[0])
+	decRead2, err := read2.Decode(0, config.TrustDomains[0])
+	if err != nil {
+		t.Fatalf("Failed to decode read %v", err)
+	}
+	if decRead1.RequestVector[bucket/8]&(1<<(bucket%8)) == 0 &&
+		decRead2.RequestVector[bucket/8]&(1<<(bucket%8)) == 0 {
+		t.Fatalf("Read wasn't for the enqueued subscription. %v / %v / %d", decRead1.RequestVector, decRead2.RequestVector, bucket)
+	}
+}

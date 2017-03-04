@@ -53,13 +53,13 @@ func (s *Subscription) generatePoll(config *ClientConfig, seqNo uint64) (*common
 	// The first Trust domain is the one with the explicit bucket bit-flip.
 	k0, k1 := s.Seed1.KeyUint128()
 	bucket1 := siphash.Hash(k0, k1, seqNoBytes) % config.CommonConfig.NumBuckets
-	args[0].TD[0].RequestVector = make([]byte, config.CommonConfig.NumBuckets/8+1)
+	args[0].TD[0].RequestVector = make([]byte, (config.CommonConfig.NumBuckets+7)/8)
 	args[0].TD[0].RequestVector[bucket1/8] |= 1 << (bucket1 % 8)
 	args[0].TD[0].PadSeed = make([]byte, drbg.SeedLength)
 	s.drbg.FillBytes(args[0].TD[0].PadSeed)
 
 	for j := 1; j < num; j++ {
-		args[0].TD[j].RequestVector = make([]byte, config.CommonConfig.NumBuckets/8+1)
+		args[0].TD[j].RequestVector = make([]byte, (config.CommonConfig.NumBuckets+7)/8)
 		s.drbg.FillBytes(args[0].TD[j].RequestVector)
 		args[0].TD[j].PadSeed = make([]byte, drbg.SeedLength)
 		s.drbg.FillBytes(args[0].TD[j].PadSeed)
@@ -74,13 +74,13 @@ func (s *Subscription) generatePoll(config *ClientConfig, seqNo uint64) (*common
 	// The first Trust domain is the one with the explicit bucket bit-flip.
 	k0, k1 = s.Seed2.KeyUint128()
 	bucket2 := siphash.Hash(k0, k1, seqNoBytes) % config.CommonConfig.NumBuckets
-	args[1].TD[0].RequestVector = make([]byte, config.CommonConfig.NumBuckets/8+1)
-	args[1].TD[0].RequestVector[bucket2/8] |= 1 << (bucket1 % 8)
+	args[1].TD[0].RequestVector = make([]byte, (config.CommonConfig.NumBuckets+7)/8)
+	args[1].TD[0].RequestVector[bucket2/8] |= 1 << (bucket2 % 8)
 	args[1].TD[0].PadSeed = make([]byte, drbg.SeedLength)
 	s.drbg.FillBytes(args[1].TD[0].PadSeed)
 
 	for j := 1; j < num; j++ {
-		args[1].TD[j].RequestVector = make([]byte, config.CommonConfig.NumBuckets/8+1)
+		args[1].TD[j].RequestVector = make([]byte, (config.CommonConfig.NumBuckets+7)/8)
 		s.drbg.FillBytes(args[1].TD[j].RequestVector)
 		args[1].TD[j].PadSeed = make([]byte, drbg.SeedLength)
 		s.drbg.FillBytes(args[1].TD[j].PadSeed)
