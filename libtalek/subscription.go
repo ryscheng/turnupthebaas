@@ -131,14 +131,7 @@ func (s *Subscription) retrieveResponse(args *common.ReadArgs, reply *common.Rea
 	data := reply.Data
 
 	for i := 0; i < len(args.TD); i++ {
-		pad := make([]byte, len(data))
-		seed := drbg.Seed{}
-		seed.UnmarshalBinary(args.TD[i].PadSeed)
-		hashDrbg, _ := drbg.NewHashDrbg(&seed)
-		hashDrbg.FillBytes(pad)
-		for j := 0; j < len(data); j++ {
-			data[j] ^= pad[j]
-		}
+		drbg.Overlay(args.TD[i].PadSeed, data)
 	}
 
 	return data

@@ -248,7 +248,6 @@ func (s *Shard) batchRead(req *DecodedBatchReadRequest, conf ServerConfig) {
 	}
 
 	for i := 0; i < conf.ReadBatch; i += 1 {
-		//TODO: what's the deal with trust domains? (the forTD parameter)
 		reqVector := req.Args[i].RequestVector
 		copy(pirvector[reqlength*i:reqlength*(i+1)], reqVector)
 	}

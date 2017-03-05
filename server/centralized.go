@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/drbg"
 	"golang.org/x/net/trace"
 	"sync/atomic"
 )
@@ -172,6 +173,15 @@ func (c *Centralized) BatchRead(args *common.BatchReadRequest, reply *common.Bat
 	if c.follower != nil {
 		for i, _ := range myReply.Replies {
 			_ = myReply.Replies[i].Combine(followerReply.Replies[i].Data)
+		}
+	}
+
+	// Mutate results
+	for i, val := range localArgs.Args {
+		if myReply.Replies[i].Err == "" {
+			if err := drbg.Overlay(val.PadSeed, myReply.Replies[i].Data); err != nil {
+				myReply.Replies[i].Err = err.Error()
+			}
 		}
 	}
 
