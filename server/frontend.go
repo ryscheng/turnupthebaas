@@ -55,7 +55,7 @@ func (fe *Frontend) Write(args *common.WriteArgs, reply *common.WriteReply) erro
 	return nil
 }
 
-func (fe *Frontend) Read(args *common.ReadArgs, reply *common.ReadReply) error {
+func (fe *Frontend) Read(args *common.EncodedReadArgs, reply *common.ReadReply) error {
 	fe.log.Println("Read: ")
 	// @TODO
 	return nil
