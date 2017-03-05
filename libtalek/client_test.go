@@ -38,7 +38,7 @@ func (m *mockLeader) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUp
 
 func TestWrite(t *testing.T) {
 	config := ClientConfig{
-		&common.CommonConfig{64, 4, 1024, 0.05, 0.95, 0.05},
+		&common.CommonConfig{NumBuckets: 64, BucketDepth: 4, DataSize: 1024, BloomFalsePositive: 0.05, MaxLoadFactor: 0.95, LoadFactorStep: 0.05},
 		time.Second,
 		time.Second,
 		[]*common.TrustDomainConfig{common.NewTrustDomainConfig("TestTrustDomain", "127.0.0.1", true, false)},
@@ -78,7 +78,7 @@ func TestWrite(t *testing.T) {
 
 func TestRead(t *testing.T) {
 	config := ClientConfig{
-		&common.CommonConfig{64, 4, 1024, 0.05, 0.95, 0.05},
+		&common.CommonConfig{NumBuckets: 64, BucketDepth: 4, DataSize: 1024, BloomFalsePositive: 0.05, MaxLoadFactor: 0.95, LoadFactorStep: 0.05},
 		time.Second,
 		time.Second,
 		[]*common.TrustDomainConfig{common.NewTrustDomainConfig("TestTrustDomain", "127.0.0.1", true, false)},

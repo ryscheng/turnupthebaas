@@ -52,7 +52,7 @@ func (f *FollowerRpc) Call(methodName string, args interface{}, reply interface{
 	// Do RPC
 	err = f.client.Call(methodName, args, reply)
 	if err != nil {
-		f.log.Printf("rpc error:", err)
+		f.log.Printf("rpc error: %v", err)
 		return err
 	}
 

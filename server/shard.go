@@ -38,13 +38,21 @@ type Shard struct {
 
 	// Channels
 	writeChan        chan *common.WriteArgs
-	readChan         chan *common.BatchReadRequest
+	readChan         chan *DecodedBatchReadRequest
 	outstandingReads chan chan *common.BatchReadReply
 	readReplies      chan []byte
 	syncChan         chan int
 
 	sinceFlip        int
 	outstandingLimit int
+}
+
+// DecodedBatchReadRequest represents a set of PIR args from clients.
+// The Centralized server manages decoding of read requests to the client and
+// applying the PadSeed for the TrustDomain
+type DecodedBatchReadRequest struct {
+	Args      []common.PirArgs
+	ReplyChan chan *common.BatchReadReply
 }
 
 func NewShard(name string, socket string, config ServerConfig) *Shard {
@@ -54,7 +62,7 @@ func NewShard(name string, socket string, config ServerConfig) *Shard {
 
 	s.config.Store(config)
 	s.writeChan = make(chan *common.WriteArgs)
-	s.readChan = make(chan *common.BatchReadRequest)
+	s.readChan = make(chan *DecodedBatchReadRequest)
 	s.syncChan = make(chan int)
 	s.outstandingReads = make(chan chan *common.BatchReadReply, 5)
 	s.readReplies = make(chan []byte)
@@ -116,7 +124,7 @@ func (s *Shard) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdates
 	return nil
 }
 
-func (s *Shard) BatchRead(args *common.BatchReadRequest) {
+func (s *Shard) BatchRead(args *DecodedBatchReadRequest) {
 	s.readChan <- args
 }
 
@@ -131,7 +139,7 @@ func (s *Shard) Close() {
 /** PRIVATE METHODS (singlethreaded) **/
 func (s *Shard) processReads() {
 	// The read thread searializs all access to the underlying DB
-	var batchReadReq *common.BatchReadRequest
+	var batchReadReq *DecodedBatchReadRequest
 
 	defer s.PirDB.Free()
 	defer s.PirServer.Disconnect()
@@ -163,7 +171,7 @@ func (s *Shard) processReplies() {
 			// get the corresponding read request.
 			outputChannel = <-s.outstandingReads
 
-			response := &common.BatchReadReply{"", make([]common.ReadReply, conf.ReadBatch)}
+			response := &common.BatchReadReply{Err: "", Replies: make([]common.ReadReply, conf.ReadBatch)}
 			for i := 0; i < conf.ReadBatch; i += 1 {
 				response.Replies[i].Data = reply[i*itemLength : (i+1)*itemLength]
 				//TODO: reply.GlobalSeqNo
@@ -223,10 +231,10 @@ func (s *Shard) evictOldItems() {
 
 func asCuckooItem(wa *common.WriteArgs) *cuckoo.Item {
 	//TODO: cuckoo should continue int64 sized buckets if needed.
-	return &cuckoo.Item{int(wa.GlobalSeqNo), wa.Data, int(wa.Bucket1), int(wa.Bucket2)}
+	return &cuckoo.Item{Id: int(wa.GlobalSeqNo), Data: wa.Data, Bucket1: int(wa.Bucket1), Bucket2: int(wa.Bucket2)}
 }
 
-func (s *Shard) batchRead(req *common.BatchReadRequest, conf ServerConfig) {
+func (s *Shard) batchRead(req *DecodedBatchReadRequest, conf ServerConfig) {
 	s.log.Trace.Printf("batchRead: enter\n")
 
 	// Run PIR
@@ -235,7 +243,7 @@ func (s *Shard) batchRead(req *common.BatchReadRequest, conf ServerConfig) {
 
 	if len(req.Args) != conf.ReadBatch {
 		s.log.Info.Printf("Read operation failed: incorrect number of reads.")
-		req.ReplyChan <- &common.BatchReadReply{fmt.Sprintf("Invalid batch size."), nil}
+		req.ReplyChan <- &common.BatchReadReply{Err: fmt.Sprintf("Invalid batch size.")}
 		return
 	}
 
@@ -247,7 +255,7 @@ func (s *Shard) batchRead(req *common.BatchReadRequest, conf ServerConfig) {
 	err := s.PirServer.Read(pirvector, s.readReplies)
 	if err != nil {
 		s.log.Error.Fatalf("Reading from PIR Server failed: %v", err)
-		req.ReplyChan <- &common.BatchReadReply{fmt.Sprintf("Failed to read: %v", err), nil}
+		req.ReplyChan <- &common.BatchReadReply{Err: fmt.Sprintf("Failed to read: %v", err)}
 		return
 	}
 	s.outstandingReads <- req.ReplyChan

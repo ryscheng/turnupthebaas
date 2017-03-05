@@ -35,7 +35,7 @@ func (fe *Frontend) Ping(args *common.PingArgs, reply *common.PingReply) error {
 	// Try to ping the follower if one exists
 	if fe.follower != nil {
 		var fReply common.PingReply
-		fErr := fe.follower.Ping(&common.PingArgs{"PING"}, &fReply)
+		fErr := fe.follower.Ping(&common.PingArgs{Msg: "PING"}, &fReply)
 		if fErr != nil {
 			reply.Err = fe.follower.GetName() + " Ping failed"
 		} else {

@@ -69,7 +69,7 @@ func (c *Centralized) Ping(args *common.PingArgs, reply *common.PingReply) error
 	// Try to ping the follower if one exists
 	if c.follower != nil {
 		var fReply common.PingReply
-		fErr := c.follower.Ping(&common.PingArgs{"PING"}, &fReply)
+		fErr := c.follower.Ping(&common.PingArgs{Msg: "PING"}, &fReply)
 		if fErr != nil {
 			reply.Err = c.follower.GetName() + " Ping failed"
 		} else {
@@ -118,14 +118,13 @@ func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) er
 	return nil
 }
 
-func (c *Centralized) Read(args *common.ReadArgs, reply *common.ReadReply) error {
+func (c *Centralized) Read(args *common.EncodedReadArgs, reply *common.ReadReply) error {
 	c.log.Trace.Println("Read: enter")
 	tr := trace.New("centralized.read", "Read")
 	defer tr.Finish()
 	resultChan := make(chan *common.ReadReply)
-	c.ReadChan <- &common.ReadRequest{args, resultChan}
-	myReply := <-resultChan
-	*reply = *myReply
+	c.ReadChan <- &common.ReadRequest{Args: args, ReplyChan: resultChan}
+	reply = <-resultChan
 	c.log.Trace.Println("Read: exit")
 	return nil
 }
@@ -135,31 +134,44 @@ func (c *Centralized) BatchRead(args *common.BatchReadRequest, reply *common.Bat
 	tr := trace.New("centralized.batchread", "BatchRead")
 	defer tr.Finish()
 	// Start local computation
-	var fReply common.BatchReadReply
-	myReplyChan := make(chan *common.BatchReadReply)
-	args.ReplyChan = myReplyChan
-	c.shard.BatchRead(args)
+	config := c.config.Load().(ServerConfig)
+
+	var followerReply common.BatchReadReply
+
+	localArgs := new(DecodedBatchReadRequest)
+	localArgs.ReplyChan = make(chan *common.BatchReadReply)
+	localArgs.Args = make([]common.PirArgs, len(args.Args))
+	for i, val := range args.Args {
+		pir, err := val.Decode(config.TrustDomainIndex, config.TrustDomain)
+		if err != nil {
+			reply.Err = err.Error()
+			c.log.Error.Fatalf("Failed to decode part of batch read %v [at index %d]", err, i)
+			return err
+		}
+		localArgs.Args[i] = pir
+	}
+	c.shard.BatchRead(localArgs)
 
 	// Send to followers
 	if c.follower != nil {
-		fErr := c.follower.BatchRead(args, &fReply)
+		fErr := c.follower.BatchRead(args, &followerReply)
 		if fErr != nil {
 			// Assume all servers always available
 			reply.Err = fErr.Error()
 			c.log.Error.Fatalf("Error forwarding to follower %v", c.follower.GetName())
 			return fErr
 		} else {
-			reply.Err = fReply.Err
+			reply.Err = followerReply.Err
 		}
 	} else {
 		reply.Err = ""
 	}
 
 	// Combine results
-	myReply := <-myReplyChan
+	myReply := <-localArgs.ReplyChan
 	if c.follower != nil {
 		for i, _ := range myReply.Replies {
-			_ = myReply.Replies[i].Combine(fReply.Replies[i].Data)
+			_ = myReply.Replies[i].Combine(followerReply.Replies[i].Data)
 		}
 	}
 
@@ -197,16 +209,17 @@ func (c *Centralized) batchReads() {
 
 func (c *Centralized) triggerBatchRead(batch []*common.ReadRequest) {
 	c.log.Trace.Println("triggerBatchRead: enter")
+	config := c.config.Load().(ServerConfig)
+
 	args := &common.BatchReadRequest{}
 	// Copy args
-	args.Args = make([]common.PirArgs, len(batch), len(batch))
+	args.Args = make([]common.EncodedReadArgs, len(batch), len(batch))
 	for i, val := range batch {
-		args.Args[i] = val.Args.ForTd[0]
+		args.Args[i] = *val.Args
 	}
 
 	// Choose a SeqNoRange
 	currSeqNo := atomic.LoadUint64(&c.committedSeqNo) + 1
-	config := c.config.Load().(ServerConfig)
 	args.SeqNoRange = common.Range{}
 	if currSeqNo <= uint64(config.CommonConfig.WindowSize()) {
 		args.SeqNoRange.Start = 1 // Minimum of 1
@@ -215,9 +228,6 @@ func (c *Centralized) triggerBatchRead(batch []*common.ReadRequest) {
 	}
 	args.SeqNoRange.End = currSeqNo // Exclusive
 	args.SeqNoRange.Aborted = make([]uint64, 0, 0)
-
-	// Choose a RandSeed
-	args.RandSeed = 0
 
 	// Start computation on local shard
 	var reply common.BatchReadReply

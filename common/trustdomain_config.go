@@ -68,7 +68,6 @@ func (t *TrustDomainConfig) UnmarshalJSON(marshaled []byte) error {
 	return nil
 }
 
-
 // Expose the Private key of a trust domain config for marshalling.
 //   bytes, err := json.Marshal(trustdomainconfig.Private())
 func (td *TrustDomainConfig) Private() *PrivateTrustDomainConfig {

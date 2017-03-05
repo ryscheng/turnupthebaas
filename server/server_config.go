@@ -15,8 +15,13 @@ type ServerConfig struct {
 	// What's the minimum frequency when pending writes should be applied?
 	WriteInterval time.Duration
 
-	// WHat's the minimum frequency when pending reads should be applied?
+	// What's the minimum frequency when pending reads should be applied?
 	ReadInterval time.Duration
+
+	// The trust domain this server is within. Includes keychain for the server.
+	TrustDomain *common.TrustDomainConfig
+	// In client read requests, which index is relevant for this server.
+	TrustDomainIndex int
 
 	// The names of the different servers participating as leader/followers within
 	// a single trust domain

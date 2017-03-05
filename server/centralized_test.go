@@ -9,7 +9,7 @@ import (
 )
 
 func BenchmarkWrite(b *testing.B) {
-	config := common.CommonConfig{0, 0, 0, 0, 0, 0}
+	config := common.CommonConfig{}
 	config.NumBuckets = 128
 	config.BucketDepth = 4
 	config.DataSize = 256
@@ -21,12 +21,11 @@ func BenchmarkWrite(b *testing.B) {
 	if err != nil {
 		b.Fatalf("Error creating plaintext: %v\n", err)
 	}
-	password := ""
-	th, err := libtalek.NewTopic(password)
+	th, err := libtalek.NewTopic()
 	if err != nil {
 		b.Fatalf("Error creating topic handle: %v\n", err)
 	}
-	args, err := th.GeneratePublish(&config, 1, plaintext)
+	args, err := th.GeneratePublish(&config, plaintext)
 	if err != nil {
 		b.Fatalf("Error creating WriteArgs: %v\n", err)
 	}
@@ -36,13 +35,13 @@ func BenchmarkWrite(b *testing.B) {
 	t1c := make(chan int)
 	go pir.CreateMockServer(t1c, t1s)
 	<-t1c
-	t1 := NewCentralized("t1", t1s, ServerConfig{&config, 1, 0, 0, nil}, nil, false)
+	t1 := NewCentralized("t1", t1s, ServerConfig{&config, 1, 0, 0, nil, 0, nil}, nil, false)
 
 	t0s := getSocket()
 	t0c := make(chan int)
 	go pir.CreateMockServer(t0c, t0s)
 	<-t0c
-	t0 := NewCentralized("t0", t0s, ServerConfig{&config, 1, 0, 0, nil}, t1, true)
+	t0 := NewCentralized("t0", t0s, ServerConfig{&config, 1, 0, 0, nil, 0, nil}, t1, true)
 
 	// Start timing
 	b.ResetTimer()

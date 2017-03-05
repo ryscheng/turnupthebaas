@@ -47,7 +47,7 @@ func NewClient(name string, config ClientConfig, leader common.LeaderInterface) 
 	c.name = name
 	c.config.Store(config)
 	c.leader = leader
-	c.dead = 0
+
 	rand, err := drbg.NewHashDrbg(nil)
 	if err != nil {
 		c.log.Error.Fatalf("Error creating Hashdrbg: %v\n", err)
@@ -55,7 +55,6 @@ func NewClient(name string, config ClientConfig, leader common.LeaderInterface) 
 	}
 	c.rand = rand
 
-	c.subscriptionMutex = sync.Mutex{}
 	//todo: should channel capacity be smarter?
 	c.pendingReads = make(chan request, 5)
 	c.pendingWrites = make(chan *common.WriteArgs, 5)
@@ -79,7 +78,7 @@ func (c *Client) Kill() {
 
 func (c *Client) Ping() bool {
 	var reply common.PingReply
-	err := c.leader.Ping(&common.PingArgs{"PING"}, &reply)
+	err := c.leader.Ping(&common.PingArgs{Msg: "PING"}, &reply)
 	if err == nil && reply.Err == "" {
 		c.log.Info.Printf("Ping success\n")
 		return true
@@ -89,24 +88,8 @@ func (c *Client) Ping() bool {
 	}
 }
 
-// MaxLength returns the maximum allowed message the client can Publish.
-// TODO: support messages spanning multiple data items.
-func (c *Client) MaxLength() int {
-	config := c.config.Load().(ClientConfig)
-	return config.DataSize
-}
-
 func (c *Client) Publish(handle *Topic, data []byte) error {
 	config := c.config.Load().(ClientConfig)
-
-	if len(data) > config.DataSize {
-		return errors.New("Message too long.")
-	} else if len(data) < config.DataSize {
-		allocation := make([]byte, config.DataSize)
-		copy(allocation[:], data)
-		data = allocation
-	}
-
 	write_args, err := handle.GeneratePublish(config.CommonConfig, data)
 	if err != nil {
 		return err

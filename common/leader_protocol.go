@@ -70,7 +70,7 @@ func (r *ReadReply) Combine(other []byte) error {
  * Reads require a response on the ReplyChan
  */
 type ReadRequest struct {
-	Args      *ReadArgs
+	Args      *EncodedReadArgs
 	ReplyChan chan *ReadReply
 }
 
