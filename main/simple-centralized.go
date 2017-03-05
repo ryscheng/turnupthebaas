@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"time"
 )
 
 var numClients = flag.Int("clients", 1, "Number of clients")
@@ -35,8 +36,11 @@ func main() {
 	trustDomainConfig0 := common.NewTrustDomainConfig("t0", "localhost:9000", true, false)
 	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9001", true, false)
 	config := common.CommonConfigFromFile("commonconfig.json")
-	serverConfig := server.ServerConfigFromFile("serverconfig.json", config)
-	config.TrustDomains = []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1}
+	serverConfig1 := server.ServerConfigFromFile("serverconfig.json", config)
+	serverConfig1.TrustDomainIndex = 1
+	serverConfig1.TrustDomain = trustDomainConfig1
+	serverConfig0 := server.ServerConfigFromFile("serverconfig.json", config)
+	serverConfig0.TrustDomain = trustDomainConfig0
 
 	status := make(chan int)
 
@@ -50,26 +54,32 @@ func main() {
 	}
 
 	// Trust Domain 1
-	t1 := server.NewCentralized("t1", *followerPIR, *serverConfig, nil, false)
+	t1 := server.NewCentralized("t1", *followerPIR, *serverConfig1, nil, false)
 	s["t1"] = server.NewNetworkRpc(t1, 9001)
 
 	// Trust Domain 0
 	//t0 := server.NewCentralized("t0", config, t1, true)
-	t0 := server.NewCentralized("t0", *leaderPIR, *serverConfig, common.NewFollowerRpc("t0->t1", trustDomainConfig1), true)
+	t0 := server.NewCentralized("t0", *leaderPIR, *serverConfig0, common.NewFollowerRpc("t0->t1", trustDomainConfig1), true)
 	s["t0"] = server.NewNetworkRpc(t0, 9000)
 
 	// Client
+	clientConfig := libtalek.ClientConfig{
+		CommonConfig:  config,
+		WriteInterval: time.Second,
+		ReadInterval:  time.Second,
+		TrustDomains:  []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1},
+	}
 	//c0 := libtalek.NewClient("c0", config, t0)
 	//c1 := libtalek.NewClient("c1", config, t0)
 	clients := make([]*libtalek.Client, *numClients)
 	clientLeaderSock := common.NewLeaderRpc("c0->t0", trustDomainConfig0)
 	for i := 0; i < *numClients; i++ {
-		clients[i] = libtalek.NewClient("c"+string(i), *config, clientLeaderSock)
+		clients[i] = libtalek.NewClient("c"+string(i), clientConfig, clientLeaderSock)
 		clients[i].Ping()
-		seqNo := clients[i].PublishTrace()
-		fmt.Printf("!!! seqNo=%v\n", seqNo)
-		seqNoRange := clients[i].PollTrace()
-		fmt.Printf("!!! seqNo=%v, range=%v\n", seqNo, seqNoRange)
+		handle, _ := libtalek.NewTopic()
+		clients[i].Publish(handle, []byte("Hello from client"+string(i)))
+		data := clients[i].Poll(&handle.Subscription)
+		fmt.Printf("!!! data=%v", data)
 	}
 	//c1.Ping()
 
