@@ -1,7 +1,7 @@
 package common
 
 type LeaderInterface interface {
-	GetName() string
+	GetName(args *interface{}, reply *string) error
 	Ping(args *PingArgs, reply *PingReply) error
 	Write(args *WriteArgs, reply *WriteReply) error
 	Read(args *EncodedReadArgs, reply *ReadReply) error

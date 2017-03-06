@@ -1,3 +1,4 @@
 benchmark/client/client
+benchmark/server/server
 pird/pird
 util/talekutil/talekutil

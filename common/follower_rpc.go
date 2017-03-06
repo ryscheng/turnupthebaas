@@ -60,8 +60,9 @@ func (f *FollowerRpc) Call(methodName string, args interface{}, reply interface{
 	return nil
 }
 
-func (f *FollowerRpc) GetName() string {
-	return f.name
+func (f *FollowerRpc) GetName(_ *interface{}, reply *string) error {
+	*reply = f.name
+	return nil
 }
 
 func (f *FollowerRpc) Ping(args *PingArgs, reply *PingReply) error {

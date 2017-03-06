@@ -1,23 +1,24 @@
 package server
 
 import (
-	"github.com/privacylab/talek/common"
 	"log"
 	"os"
+
+	"github.com/privacylab/talek/common"
 )
 
 type Frontend struct {
 	// Private State
 	log          *log.Logger
 	name         string
-	serverConfig *ServerConfig
+	serverConfig *Config
 	follower     common.FollowerInterface
 	isLeader     bool
 
 	//dataLayerRef *DataLayerRef
 }
 
-func NewFrontend(name string, serverConfig *ServerConfig, follower common.FollowerInterface, isLeader bool) *Frontend {
+func NewFrontend(name string, serverConfig *Config, follower common.FollowerInterface, isLeader bool) *Frontend {
 	fe := &Frontend{}
 	fe.log = log.New(os.Stdout, "[Frontend:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	fe.name = name
@@ -37,7 +38,9 @@ func (fe *Frontend) Ping(args *common.PingArgs, reply *common.PingReply) error {
 		var fReply common.PingReply
 		fErr := fe.follower.Ping(&common.PingArgs{Msg: "PING"}, &fReply)
 		if fErr != nil {
-			reply.Err = fe.follower.GetName() + " Ping failed"
+			var fName string
+			fe.follower.GetName(nil, &fName)
+			reply.Err = fName + " Ping failed"
 		} else {
 			reply.Err = fReply.Err
 		}
