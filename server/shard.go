@@ -2,12 +2,13 @@ package server
 
 import (
 	"fmt"
-	"github.com/privacylab/talek/common"
-	"github.com/privacylab/talek/cuckoo"
-	"github.com/privacylab/talek/pir"
 	"math/rand"
 	"os"
 	"sync/atomic"
+
+	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/cuckoo"
+	"github.com/privacylab/talek/pir"
 )
 
 func getSocket() string {
@@ -34,7 +35,7 @@ type Shard struct {
 	Entries []cuckoo.Item
 	*cuckoo.Table
 
-	config atomic.Value // ServerConfig
+	config atomic.Value // Config
 
 	// Channels
 	writeChan        chan *common.WriteArgs
@@ -55,7 +56,7 @@ type DecodedBatchReadRequest struct {
 	ReplyChan chan *common.BatchReadReply
 }
 
-func NewShard(name string, socket string, config ServerConfig) *Shard {
+func NewShard(name string, socket string, config Config) *Shard {
 	s := &Shard{}
 	s.log = common.NewLogger(name)
 	s.name = name
@@ -143,7 +144,7 @@ func (s *Shard) processReads() {
 
 	defer s.PirDB.Free()
 	defer s.PirServer.Disconnect()
-	conf := s.config.Load().(ServerConfig)
+	conf := s.config.Load().(Config)
 	for {
 		select {
 		case batchReadReq = <-s.readChan:
@@ -162,7 +163,7 @@ func (s *Shard) processReads() {
 
 func (s *Shard) processReplies() {
 	var outputChannel chan *common.BatchReadReply
-	conf := s.config.Load().(ServerConfig)
+	conf := s.config.Load().(Config)
 	itemLength := conf.DataSize * conf.BucketDepth
 
 	for {
@@ -183,7 +184,7 @@ func (s *Shard) processReplies() {
 
 func (s *Shard) processWrites() {
 	var writeReq *common.WriteArgs
-	conf := s.config.Load().(ServerConfig)
+	conf := s.config.Load().(Config)
 	for {
 		select {
 		case writeReq = <-s.writeChan:
@@ -218,7 +219,7 @@ func (s *Shard) processWrites() {
 }
 
 func (s *Shard) evictOldItems() {
-	conf := s.config.Load().(ServerConfig)
+	conf := s.config.Load().(Config)
 	toRemove := int(float32(int(conf.CommonConfig.NumBuckets)*conf.CommonConfig.BucketDepth) * conf.CommonConfig.LoadFactorStep)
 	if toRemove >= len(s.Entries) {
 		toRemove = len(s.Entries) - 1
@@ -234,7 +235,7 @@ func asCuckooItem(wa *common.WriteArgs) *cuckoo.Item {
 	return &cuckoo.Item{Id: int(wa.GlobalSeqNo), Data: wa.Data, Bucket1: int(wa.Bucket1), Bucket2: int(wa.Bucket2)}
 }
 
-func (s *Shard) batchRead(req *DecodedBatchReadRequest, conf ServerConfig) {
+func (s *Shard) batchRead(req *DecodedBatchReadRequest, conf Config) {
 	s.log.Trace.Printf("batchRead: enter\n")
 
 	// Run PIR

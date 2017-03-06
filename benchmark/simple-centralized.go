@@ -3,16 +3,17 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/privacylab/talek/common"
-	"github.com/privacylab/talek/libtalek"
-	"github.com/privacylab/talek/pir"
-	"github.com/privacylab/talek/server"
 	"log"
 	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
+
+	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/libtalek"
+	"github.com/privacylab/talek/pir"
+	"github.com/privacylab/talek/server"
 )
 
 var numClients = flag.Int("clients", 1, "Number of clients")
@@ -36,10 +37,10 @@ func main() {
 	trustDomainConfig0 := common.NewTrustDomainConfig("t0", "localhost:9000", true, false)
 	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9001", true, false)
 	config := common.CommonConfigFromFile("commonconfig.json")
-	serverConfig1 := server.ServerConfigFromFile("serverconfig.json", config)
+	serverConfig1 := server.ConfigFromFile("serverconfig.json", config)
 	serverConfig1.TrustDomainIndex = 1
 	serverConfig1.TrustDomain = trustDomainConfig1
-	serverConfig0 := server.ServerConfigFromFile("serverconfig.json", config)
+	serverConfig0 := server.ConfigFromFile("serverconfig.json", config)
 	serverConfig0.TrustDomain = trustDomainConfig0
 
 	status := make(chan int)
