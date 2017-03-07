@@ -2,6 +2,7 @@ package server
 
 import (
 	"sync/atomic"
+	"time"
 
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/drbg"
@@ -142,6 +143,7 @@ func (c *Centralized) Read(args *common.EncodedReadArgs, reply *common.ReadReply
 }
 
 // BatchRead performs a set of reads against the talek database at one logical point in time.
+// BatchRead is replicated to followers with a batching determined by the leader.
 func (c *Centralized) BatchRead(args *common.BatchReadRequest, reply *common.BatchReadReply) error {
 	c.log.Trace.Println("BatchRead: enter")
 	tr := trace.New("centralized.batchread", "BatchRead")
@@ -155,6 +157,12 @@ func (c *Centralized) BatchRead(args *common.BatchReadRequest, reply *common.Bat
 	localArgs.ReplyChan = make(chan *common.BatchReadReply)
 	localArgs.Args = make([]common.PirArgs, len(args.Args))
 	for i, val := range args.Args {
+		//Handle pad requests.
+		if len(val.PirArgs) == 0 {
+			localArgs.Args[i].PadSeed = make([]byte, drbg.SeedLength)
+			localArgs.Args[i].RequestVector = make([]byte, config.NumBuckets/8)
+			continue
+		}
 		pir, err := val.Decode(config.TrustDomainIndex, config.TrustDomain)
 		if err != nil {
 			reply.Err = err.Error()
@@ -214,7 +222,9 @@ func (c *Centralized) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetU
 /** PRIVATE METHODS (singlethreaded) **/
 func (c *Centralized) batchReads() {
 	config := c.config.Load().(Config)
+	emptyRead := common.ReadRequest{}
 	var readReq *common.ReadRequest
+	tick := time.After(config.ReadInterval)
 	for {
 		select {
 		case readReq = <-c.ReadChan:
@@ -225,6 +235,16 @@ func (c *Centralized) batchReads() {
 			} else {
 				c.log.Trace.Printf("Read: add to batch, size=%v\n", len(c.ReadBatch))
 			}
+			continue
+		case <-tick:
+			if len(c.ReadBatch) > 0 {
+				for len(c.ReadBatch) < config.ReadBatch {
+					c.ReadBatch = append(c.ReadBatch, &emptyRead)
+				}
+				go c.triggerBatchRead(c.ReadBatch)
+				c.ReadBatch = make([]*common.ReadRequest, 0, config.ReadBatch)
+			}
+			tick = time.After(config.ReadInterval)
 			continue
 		case <-c.closeChan:
 			break
@@ -240,7 +260,9 @@ func (c *Centralized) triggerBatchRead(batch []*common.ReadRequest) {
 	// Copy args
 	args.Args = make([]common.EncodedReadArgs, len(batch), len(batch))
 	for i, val := range batch {
-		args.Args[i] = *val.Args
+		if val.Args != nil {
+			args.Args[i] = *val.Args
+		}
 	}
 
 	// Choose a SeqNoRange
