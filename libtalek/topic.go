@@ -3,6 +3,7 @@ package libtalek
 import (
 	"crypto/rand"
 	"encoding/binary"
+
 	"github.com/agl/ed25519"
 	"github.com/dchest/siphash"
 	"github.com/privacylab/talek/bloom"
@@ -22,6 +23,9 @@ type Topic struct {
 
 	Subscription
 }
+
+// PublishingOverhead represents the number of additional bytes used by encryption and signing.
+const PublishingOverhead = box.Overhead + ed25519.SignatureSize
 
 func NewTopic() (t *Topic, err error) {
 	t = &Topic{}
@@ -43,7 +47,9 @@ func NewTopic() (t *Topic, err error) {
 	t.Id, _ = binary.Uvarint(id[0:8])
 	t.Subscription.Seed1 = *seed1
 	t.Subscription.Seed2 = *seed2
-	t.Subscription.drbg, err = drbg.NewHashDrbg(nil)
+	if err = initSubscription(&t.Subscription); err != nil {
+		return
+	}
 
 	// Create shared secret
 	pub, priv, err := box.GenerateKey(rand.Reader)
@@ -52,6 +58,7 @@ func NewTopic() (t *Topic, err error) {
 	}
 	var sharedKey [32]byte
 	box.Precompute(&sharedKey, pub, priv)
+
 	t.Subscription.SharedSecret = &sharedKey
 
 	// Create signing secrets
@@ -71,7 +78,7 @@ func (t *Topic) GeneratePublish(commonConfig *common.CommonConfig, message []byt
 	k0, k1 = t.Subscription.Seed2.KeyUint128()
 	args.Bucket2 = siphash.Hash(k0, k1, seqNoBytes[:]) % commonConfig.NumBuckets
 
-	t.Subscription.Seqno += 1
+	t.Subscription.Seqno++
 	ciphertext, err := t.encrypt(message, &seqNoBytes)
 	if err != nil {
 		return nil, err
@@ -89,7 +96,6 @@ func (t *Topic) GeneratePublish(commonConfig *common.CommonConfig, message []byt
 	return args, nil
 }
 
-// @TODO: signing. likely via https://github.com/agl/ed25519
 // @TODO: long-term, keys should ratchet, so that messages outside of the
 // active range become refutable. perhaps this could alternatively be done with
 // a server managed primative, with releases of a rachet update as each DB epoch

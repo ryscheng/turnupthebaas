@@ -3,6 +3,8 @@ package libtalek
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
+
 	"github.com/agl/ed25519"
 	"github.com/dchest/siphash"
 	"github.com/privacylab/talek/common"
@@ -31,20 +33,25 @@ type Subscription struct {
 
 func NewSubscription() (s *Subscription, err error) {
 	s = &Subscription{}
+	err = initSubscription(s)
+	return
+}
+
+func initSubscription(s *Subscription) (err error) {
 	s.Updates = make(chan []byte)
 
 	s.drbg, err = drbg.NewHashDrbg(nil)
 	return
 }
 
-func (s *Subscription) generatePoll(config *ClientConfig, seqNo uint64) (*common.ReadArgs, *common.ReadArgs, error) {
+func (s *Subscription) generatePoll(config *ClientConfig, _ uint64) (*common.ReadArgs, *common.ReadArgs, error) {
 	if s.SharedSecret == nil || s.SigningPublicKey == nil {
 		return nil, nil, errors.New("Subscription not fully initialized")
 	}
 
 	args := make([]*common.ReadArgs, 2)
-	seqNoBytes := make([]byte, 12)
-	_ = binary.PutUvarint(seqNoBytes, seqNo)
+	seqNoBytes := make([]byte, 24)
+	_ = binary.PutUvarint(seqNoBytes, s.Seqno)
 
 	num := len(config.TrustDomains)
 
@@ -119,20 +126,31 @@ func (s *Subscription) Decrypt(cyphertext []byte, nonce *[24]byte) ([]byte, erro
 	return plaintext[0:cap(plaintext)], nil
 }
 
-func (s *Subscription) OnResponse(args *common.ReadArgs, reply *common.ReadReply) {
-	msg := s.retrieveResponse(args, reply)
+func (s *Subscription) OnResponse(args *common.ReadArgs, reply *common.ReadReply, dataSize uint) {
+	msg := s.retrieveResponse(args, reply, dataSize)
 	if msg != nil && s.Updates != nil {
 		s.Updates <- msg
 	}
 }
 
-// TODO: checksum msgs at topic level so if something random comes back it is filtered out.
-func (s *Subscription) retrieveResponse(args *common.ReadArgs, reply *common.ReadReply) []byte {
+func (s *Subscription) retrieveResponse(args *common.ReadArgs, reply *common.ReadReply, dataSize uint) []byte {
 	data := reply.Data
 
+	// strip out the padding injected by trust domains.
 	for i := 0; i < len(args.TD); i++ {
 		drbg.Overlay(args.TD[i].PadSeed, data)
 	}
 
-	return data
+	var seqNoBytes [24]byte
+	_ = binary.PutUvarint(seqNoBytes[:], s.Seqno)
+
+	// A 'bucket' likely has multiple messages in it. See if any of them are ours.
+	for i := uint(0); i < uint(len(data)); i += dataSize {
+		plaintext, err := s.Decrypt(data[i:i+dataSize], &seqNoBytes)
+		if err == nil {
+			return plaintext
+		}
+		fmt.Printf("decryption failed for read %d of bucket %d [%v](%d): %v\n", i/dataSize, args.Bucket(), data[i:i+4], len(data[i:i+dataSize]), err)
+	}
+	return nil
 }

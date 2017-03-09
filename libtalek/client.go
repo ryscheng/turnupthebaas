@@ -1,19 +1,17 @@
 package libtalek
 
 import (
-	"github.com/privacylab/talek/common"
-	"github.com/privacylab/talek/drbg"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/drbg"
 )
 
-/**
- * Client interface for libtalek
- * Goroutines:
- * - 1x RequestManager.writePeriodic
- * - 1x RequestManager.readPeriodic
- */
+// Client represents a connection to the Talek system. Typically created with
+// NewClient, the object manages requests, both reads an writes.
 type Client struct {
 	log    *common.Logger
 	name   string
@@ -30,17 +28,12 @@ type Client struct {
 	lastSeqNo uint64
 }
 
-// The interface for a class that will handle read responses.
-type RequestResponder interface {
-	OnResponse(*common.ReadArgs, *common.ReadReply)
-}
-
 type request struct {
 	*common.ReadArgs
-	RequestResponder
+	*Subscription
 }
 
-//TODO: client needs to know the different trust domain security parameters.
+// NewClient creates a Talek client for reading and writing metadata-protected messages.
 func NewClient(name string, config ClientConfig, leader common.LeaderInterface) *Client {
 	c := &Client{}
 	c.log = common.NewLogger(name)
@@ -82,23 +75,43 @@ func (c *Client) Ping() bool {
 	if err == nil && reply.Err == "" {
 		c.log.Info.Printf("Ping success\n")
 		return true
-	} else {
-		c.log.Warn.Printf("Ping fail: err=%v, reply=%v\n", err, reply)
-		return false
 	}
+	c.log.Warn.Printf("Ping fail: err=%v, reply=%v\n", err, reply)
+	return false
 }
 
+// MaxLength returns the maximum allowed message the client can Publish.
+// TODO: support messages spanning multiple data items.
+func (c *Client) MaxLength() int {
+	config := c.config.Load().(ClientConfig)
+	return config.DataSize
+}
+
+// Publish a new message to the end of a topic.
 func (c *Client) Publish(handle *Topic, data []byte) error {
 	config := c.config.Load().(ClientConfig)
-	write_args, err := handle.GeneratePublish(config.CommonConfig, data)
+
+	if len(data) > config.DataSize-PublishingOverhead {
+		return errors.New("message too long")
+	} else if len(data) < config.DataSize-PublishingOverhead {
+		allocation := make([]byte, config.DataSize-PublishingOverhead)
+		copy(allocation[:], data)
+		data = allocation
+	}
+
+	writeArgs, err := handle.GeneratePublish(config.CommonConfig, data)
+	c.log.Info.Printf("Wrote %v(%d) to %d,%d.", writeArgs.Data[0:4], len(writeArgs.Data), writeArgs.Bucket1, writeArgs.Bucket2)
 	if err != nil {
 		return err
 	}
 
-	c.pendingWrites <- write_args
+	c.pendingWrites <- writeArgs
 	return nil
 }
 
+// Poll Subscribes to updates on a given log Subscription.
+// When done reading message,s the the channel can be closed via the Done
+// method.
 func (c *Client) Poll(handle *Subscription) chan []byte {
 	// Check if already subscribed.
 	c.subscriptionMutex.Lock()
@@ -114,6 +127,7 @@ func (c *Client) Poll(handle *Subscription) chan []byte {
 	return handle.Updates
 }
 
+// Done unsubscribes a Subscription from being Polled for new items.
 func (c *Client) Done(handle *Subscription) bool {
 	c.subscriptionMutex.Lock()
 	for i := 0; i < len(c.subscriptions); i++ {
@@ -130,7 +144,7 @@ func (c *Client) Done(handle *Subscription) bool {
 
 /** Private methods **/
 func (c *Client) writePeriodic() {
-	var req *common.WriteArgs = nil
+	var req *common.WriteArgs
 
 	for atomic.LoadInt32(&c.dead) == 0 {
 		reply := common.WriteReply{}
@@ -157,18 +171,18 @@ func (c *Client) writePeriodic() {
 }
 
 func (c *Client) readPeriodic() {
-	var request request
+	var req request
 
 	for atomic.LoadInt32(&c.dead) == 0 {
 		reply := common.ReadReply{}
 		conf := c.config.Load().(ClientConfig)
 		select {
-		case request = <-c.pendingReads:
+		case req = <-c.pendingReads:
 			break
 		default:
-			request = c.nextRequest(&conf)
+			req = c.nextRequest(&conf)
 		}
-		encreq, err := request.ReadArgs.Encode(conf.TrustDomains)
+		encreq, err := req.ReadArgs.Encode(conf.TrustDomains)
 		if err != nil {
 			reply.Err = err.Error()
 		} else {
@@ -180,8 +194,8 @@ func (c *Client) readPeriodic() {
 		if reply.GlobalSeqNo.End > c.lastSeqNo {
 			c.lastSeqNo = reply.GlobalSeqNo.End
 		}
-		if request.RequestResponder != nil {
-			request.RequestResponder.OnResponse(request.ReadArgs, &reply)
+		if req.Subscription != nil {
+			req.Subscription.OnResponse(req.ReadArgs, &reply, uint(conf.DataSize))
 		}
 		time.Sleep(conf.ReadInterval)
 	}

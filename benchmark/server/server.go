@@ -22,7 +22,7 @@ var configPath = flag.String("config", "../commonconfig.json", "Talek Common Con
 var trustDomainPath = flag.String("trust", "../keys/leaderprivate.json", "Server Configuration")
 var pirSocket = flag.String("socket", "../../pird/pir.socket", "PIR daemon socket")
 
-// Server starts a single, centralized talek server operating with an explicit configuration.
+// Server starts a single, centralized talek server operating with a saved configuration.
 func main() {
 	log.Println("--------------------")
 	log.Println("--- Talek Server ---")
@@ -40,6 +40,9 @@ func main() {
 		log.Printf("Could not parse %s: %v\n", *trustDomainPath, err)
 		return
 	}
+
+	// Default configuration. The server can be started with just a trustdomain
+	// config and this will be used for the serverConfig struct in that case.
 	serverConfig := server.Config{
 		CommonConfig:     config,
 		WriteInterval:    time.Second,
@@ -63,7 +66,7 @@ func main() {
 		usingMock = true
 	}
 
-	s := server.NewCentralized(td.Name, *pirSocket, serverConfig, nil, false)
+	s := server.NewCentralized(td.Name, *pirSocket, serverConfig, nil, serverConfig.TrustDomainIndex == 0)
 	_, port, _ := net.SplitHostPort(td.Address)
 	pnum, _ := strconv.Atoi(port)
 	_ = server.NewNetworkRpc(s, pnum)

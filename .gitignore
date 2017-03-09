@@ -1,4 +1,5 @@
 benchmark/client/client
+benchmark/consistency/consistency
 benchmark/server/server
 pird/pird
 util/talekutil/talekutil
