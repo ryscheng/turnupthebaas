@@ -29,6 +29,7 @@ type Centralized struct {
 	// Channels
 	ReadBatch []*common.ReadRequest
 	ReadChan  chan *common.ReadRequest
+	dead      int
 	closeChan chan int
 }
 
@@ -51,11 +52,16 @@ func NewCentralized(name string, socket string, config Config, follower common.F
 	c.ReadChan = make(chan *common.ReadRequest)
 	go c.batchReads()
 
+	if c.isLeader {
+		go c.periodicWrites()
+	}
+
 	return c
 }
 
 // Close shuts down active reading and writing threads of the server.
 func (c *Centralized) Close() {
+	c.dead = 1
 	// stop processing.
 	c.closeChan <- 1
 	// Stop the shard.
@@ -128,10 +134,24 @@ func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) er
 	return nil
 }
 
+// NextEpoch applies pending writes to the database, so that they are read
+// by subsequent reads.
+// TODO: args should be a sequence number to make this application consistent
+// across replicas.
+func (c *Centralized) NextEpoch(args *uint64, reply *interface{}) error {
+	c.log.Trace.Println("NextEpoch: enter")
+	c.shard.ApplyWrites()
+	if c.follower != nil {
+		c.follower.NextEpoch(args, nil)
+	}
+	return nil
+}
+
 func (c *Centralized) Read(args *common.EncodedReadArgs, reply *common.ReadReply) error {
 	c.log.Trace.Println("Read: enter")
 	tr := trace.New("centralized.read", "Read")
 	defer tr.Finish()
+
 	resultChan := make(chan *common.ReadReply)
 	c.ReadChan <- &common.ReadRequest{Args: args, ReplyChan: resultChan}
 	theReply := <-resultChan
@@ -287,10 +307,21 @@ func (c *Centralized) triggerBatchRead(batch []*common.ReadRequest) {
 	// logging of throughput.
 
 	// Respond to clients
-	for i, val := range reply.Replies {
-		val.GlobalSeqNo = args.SeqNoRange
-		batch[i].Reply(&val)
+	for i := range reply.Replies {
+		reply.Replies[i].GlobalSeqNo = args.SeqNoRange
+		batch[i].Reply(&reply.Replies[i])
 	}
 
 	c.log.Trace.Println("triggerBatchRead: exit")
+}
+
+func (c *Centralized) periodicWrites() {
+	config := c.config.Load().(Config)
+	for c.dead == 0 {
+		tick := time.After(config.WriteInterval)
+		select {
+		case <-tick:
+			c.NextEpoch(&c.proposedSeqNo, nil)
+		}
+	}
 }
