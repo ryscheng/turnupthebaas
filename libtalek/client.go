@@ -1,7 +1,9 @@
 package libtalek
 
 import (
+	"crypto/rand"
 	"errors"
+	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -17,7 +19,6 @@ type Client struct {
 	name   string
 	config atomic.Value //ClientConfig
 	dead   int32
-	rand   *drbg.HashDrbg
 	leader common.LeaderInterface
 
 	subscriptions     []Subscription
@@ -41,13 +42,6 @@ func NewClient(name string, config ClientConfig, leader common.LeaderInterface) 
 	c.config.Store(config)
 	c.leader = leader
 
-	rand, err := drbg.NewHashDrbg(nil)
-	if err != nil {
-		c.log.Error.Fatalf("Error creating Hashdrbg: %v\n", err)
-		return nil
-	}
-	c.rand = rand
-
 	//todo: should channel capacity be smarter?
 	c.pendingReads = make(chan request, 5)
 	c.pendingWrites = make(chan *common.WriteArgs, 5)
@@ -61,14 +55,20 @@ func NewClient(name string, config ClientConfig, leader common.LeaderInterface) 
 
 /** PUBLIC METHODS (threadsafe) **/
 
+// SetConfig allows updating the configuraton of a Client, e.g. if server memebership
+// or speed characteristics for the system are changed.
 func (c *Client) SetConfig(config ClientConfig) {
 	c.config.Store(config)
 }
 
+// Kill stops client processing. This allows for graceful shutdown or suspension of requests.
 func (c *Client) Kill() {
 	atomic.StoreInt32(&c.dead, 1)
 }
 
+// Ping will perform an on-thread ping of the Talek system, allowing the client
+// to validate that it is connected to the Talek system, and check the latency
+// of connection to the server.
 func (c *Client) Ping() bool {
 	var reply common.PingReply
 	err := c.leader.Ping(&common.PingArgs{Msg: "PING"}, &reply)
@@ -203,10 +203,13 @@ func (c *Client) readPeriodic() {
 
 func (c *Client) generateRandomWrite(config ClientConfig) *common.WriteArgs {
 	args := &common.WriteArgs{}
-	args.Bucket1 = c.rand.RandomUint64() % config.CommonConfig.NumBuckets
-	args.Bucket2 = c.rand.RandomUint64() % config.CommonConfig.NumBuckets
+	var max big.Int
+	b1, _ := rand.Int(rand.Reader, max.SetUint64(config.NumBuckets))
+	b2, _ := rand.Int(rand.Reader, max.SetUint64(config.NumBuckets))
+	args.Bucket1 = b1.Uint64()
+	args.Bucket2 = b2.Uint64()
 	args.Data = make([]byte, config.CommonConfig.DataSize, config.CommonConfig.DataSize)
-	c.rand.FillBytes(args.Data)
+	rand.Read(args.Data)
 	return args
 }
 
@@ -216,7 +219,7 @@ func (c *Client) generateRandomRead(config *ClientConfig) *common.ReadArgs {
 	args.TD = make([]common.PirArgs, len(config.TrustDomains), len(config.TrustDomains))
 	for i := 0; i < len(args.TD); i++ {
 		args.TD[i].RequestVector = make([]byte, vectorSize, vectorSize)
-		c.rand.FillBytes(args.TD[i].RequestVector)
+		rand.Read(args.TD[i].RequestVector)
 		seed, err := drbg.NewSeed()
 		if err != nil {
 			c.log.Error.Fatalf("Error creating random seed: %v\n", err)
