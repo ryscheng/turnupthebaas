@@ -12,13 +12,18 @@ import (
 	"golang.org/x/crypto/nacl/box"
 )
 
+// Subscription is the readable component of a Talek Log.
+// Subscriptions are created by making a NewTopic, but can be independently
+// shared, and restored from a serialized state. A Subscription is read
+// by calling Client.Poll(subscription) to recieve a channel with new messages
+// read from the Subscription.
 type Subscription struct {
 	// for random looking pir requests
 	drbg *drbg.HashDrbg
 
 	// For learning log positions
-	Seed1 drbg.Seed
-	Seed2 drbg.Seed
+	Seed1 *drbg.Seed
+	Seed2 *drbg.Seed
 
 	// For decrypting messages
 	SharedSecret     *[32]byte
@@ -28,7 +33,7 @@ type Subscription struct {
 	Seqno uint64
 
 	// Notifications of new messages
-	Updates chan []byte
+	updates chan []byte
 }
 
 func NewSubscription() (s *Subscription, err error) {
@@ -38,7 +43,7 @@ func NewSubscription() (s *Subscription, err error) {
 }
 
 func initSubscription(s *Subscription) (err error) {
-	s.Updates = make(chan []byte)
+	s.updates = make(chan []byte)
 
 	s.drbg, err = drbg.NewHashDrbg(nil)
 	return
@@ -128,8 +133,8 @@ func (s *Subscription) Decrypt(cyphertext []byte, nonce *[24]byte) ([]byte, erro
 
 func (s *Subscription) OnResponse(args *common.ReadArgs, reply *common.ReadReply, dataSize uint) {
 	msg := s.retrieveResponse(args, reply, dataSize)
-	if msg != nil && s.Updates != nil {
-		s.Updates <- msg
+	if msg != nil && s.updates != nil {
+		s.updates <- msg
 	}
 }
 

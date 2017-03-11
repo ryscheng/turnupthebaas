@@ -38,7 +38,7 @@ func main() {
 			fmt.Printf("-create cannot be used without specifying a -log to save to.")
 			return
 		}
-		handleraw, err := json.MarshalIndent(handle, "", "  ")
+		handleraw, err := json.Marshal(handle)
 		if err != nil {
 			fmt.Printf("Could not flatten log: %v\n", err)
 			return
@@ -64,7 +64,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Could not parse %s: %v", *log, err)
 			return
 		}
-		rodat, err := json.MarshalIndent(&handle.Subscription, "", "  ")
+		rodat, err := json.Marshal(&handle.Subscription)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Could not serialize log: %v", err)
 			return
@@ -94,14 +94,8 @@ func main() {
 		return
 	}
 	var handle libtalek.Topic
-	var subscription libtalek.Subscription
 	err = json.Unmarshal(dat, &handle)
-	if handle.Subscription.SharedSecret == nil {
-		subscription = handle.Subscription
-	} else {
-		err = json.Unmarshal(dat, &subscription)
-	}
-	if err != nil || subscription.SharedSecret == nil {
+	if err != nil || handle.SharedSecret == nil {
 		fmt.Fprintf(os.Stderr, "Could not parse log state: %v\n", err)
 		return
 	}
@@ -111,11 +105,11 @@ func main() {
 
 	// Read a message.
 	if *read {
-		msgchan := cli.Poll(&subscription)
+		msgchan := cli.Poll(&handle.Subscription)
 		msg := <-msgchan
 		// print the result.
 		fmt.Printf("%s\n", msg)
-		cli.Done(&subscription)
+		cli.Done(&handle.Subscription)
 	} else if len(*write) > 0 {
 		if handle.SigningPrivateKey == nil {
 			fmt.Fprintf(os.Stderr, "Cannot write. Only provided read capability for log.")
@@ -131,13 +125,7 @@ func main() {
 	cli.Kill()
 
 	// write updated state back to log.
-	var rawstate []byte
-	if handle.SigningPrivateKey != nil {
-		handle.Subscription = subscription
-		rawstate, err = json.Marshal(&handle)
-	} else {
-		rawstate, err = json.Marshal(&subscription)
-	}
+	rawstate, err := json.Marshal(&handle)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Could not serialize updated log: %v\n", err)
 	}

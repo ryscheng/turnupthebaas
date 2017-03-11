@@ -12,6 +12,10 @@ import (
 	"golang.org/x/crypto/nacl/box"
 )
 
+// Topic is a writiable Talek log.
+// A topic is created by calling NewTopic().
+// New items are published with a client via client.Publish(&topic, "Msg").
+// Messages can be read from the topic through its contained Subscription.
 type Topic struct {
 
 	// For updates?
@@ -19,7 +23,7 @@ type Topic struct {
 
 	// For authenticity
 	// TODO: this should ratchet.
-	SigningPrivateKey *[64]byte
+	SigningPrivateKey *[64]byte `json:",omitempty"`
 
 	Subscription
 }
@@ -27,6 +31,8 @@ type Topic struct {
 // PublishingOverhead represents the number of additional bytes used by encryption and signing.
 const PublishingOverhead = box.Overhead + ed25519.SignatureSize
 
+// NewTopic creates a new Topic, or fails if the system randomness isn't
+// appropriately configured.
 func NewTopic() (t *Topic, err error) {
 	t = &Topic{}
 
@@ -45,8 +51,8 @@ func NewTopic() (t *Topic, err error) {
 	}
 
 	t.Id, _ = binary.Uvarint(id[0:8])
-	t.Subscription.Seed1 = *seed1
-	t.Subscription.Seed2 = *seed2
+	t.Subscription.Seed1 = seed1
+	t.Subscription.Seed2 = seed2
 	if err = initSubscription(&t.Subscription); err != nil {
 		return
 	}
