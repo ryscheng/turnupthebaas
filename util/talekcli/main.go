@@ -129,7 +129,7 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Could not serialize updated log: %v\n", err)
 	}
-	err = ioutil.WriteFile(*log, rawstate, 0644)
+	err = ioutil.WriteFile(*log, rawstate, 0640)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Could not update log: %v\n", err)
 	}
