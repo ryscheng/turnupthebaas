@@ -2,4 +2,5 @@ benchmark/client/client
 benchmark/consistency/consistency
 benchmark/server/server
 pird/pird
+util/talekcli/talekcli
 util/talekutil/talekutil
