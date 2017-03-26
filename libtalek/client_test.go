@@ -2,11 +2,12 @@ package libtalek
 
 import (
 	"encoding/binary"
+	"testing"
+	"time"
+
 	"github.com/dchest/siphash"
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/drbg"
-	"testing"
-	"time"
 )
 
 type mockLeader struct {
@@ -99,11 +100,7 @@ func TestRead(t *testing.T) {
 	var seqNoBytes [12]byte
 	_ = binary.PutUvarint(seqNoBytes[:], handle.Seqno)
 	// Clone seed so they advance together.
-	seedData, _ := handle.Subscription.Seed1.MarshalBinary()
-	seed := drbg.Seed{}
-	seed.UnmarshalBinary(seedData)
-	k0, k1 := seed.KeyUint128()
-	bucket := siphash.Hash(k0, k1, seqNoBytes[:]) % 64
+	bucket, _ := handle.Subscription.nextBuckets()
 	c.Poll(&handle.Subscription)
 	read1 := <-reads
 	read2 := <-reads

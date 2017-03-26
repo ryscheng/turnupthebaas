@@ -3,6 +3,7 @@ package libtalek
 import (
 	"encoding/binary"
 	"errors"
+
 	"github.com/agl/ed25519"
 	"github.com/dchest/siphash"
 	"github.com/privacylab/talek/common"
@@ -37,22 +38,36 @@ func NewSubscription() (s *Subscription, err error) {
 	return
 }
 
+// nextBuckets returns the pair of buckets that will be used in the next poll or publish of this
+// topic given the current sequence number of the subscription.
+// The buckets returned by this method must still be wrapped by the NumBuckets config paramter of talek instance it is requested against.
+func (s *Subscription) nextBuckets() (uint64, uint64) {
+	seqNoBytes := make([]byte, 12)
+	_ = binary.PutUvarint(seqNoBytes, s.Seqno)
+
+	k0, k1 := s.Seed1.KeyUint128()
+	b1 := siphash.Hash(k0, k1, seqNoBytes)
+	k0, k1 = s.Seed2.KeyUint128()
+	b2 := siphash.Hash(k0, k1, seqNoBytes)
+
+	return b1, b2
+}
+
 func (s *Subscription) generatePoll(config *ClientConfig, seqNo uint64) (*common.ReadArgs, *common.ReadArgs, error) {
 	if s.SharedSecret == nil || s.SigningPublicKey == nil {
 		return nil, nil, errors.New("Subscription not fully initialized")
 	}
 
 	args := make([]*common.ReadArgs, 2)
-	seqNoBytes := make([]byte, 12)
-	_ = binary.PutUvarint(seqNoBytes, seqNo)
+	bucket1, bucket2 := s.nextBuckets()
+	bucket1 %= config.CommonConfig.NumBuckets
+	bucket2 %= config.CommonConfig.NumBuckets
 
 	num := len(config.TrustDomains)
 
 	args[0] = &common.ReadArgs{}
 	args[0].TD = make([]common.PirArgs, num)
 	// The first Trust domain is the one with the explicit bucket bit-flip.
-	k0, k1 := s.Seed1.KeyUint128()
-	bucket1 := siphash.Hash(k0, k1, seqNoBytes) % config.CommonConfig.NumBuckets
 	args[0].TD[0].RequestVector = make([]byte, (config.CommonConfig.NumBuckets+7)/8)
 	args[0].TD[0].RequestVector[bucket1/8] |= 1 << (bucket1 % 8)
 	args[0].TD[0].PadSeed = make([]byte, drbg.SeedLength)
@@ -72,8 +87,6 @@ func (s *Subscription) generatePoll(config *ClientConfig, seqNo uint64) (*common
 	args[1] = &common.ReadArgs{}
 	args[1].TD = make([]common.PirArgs, num)
 	// The first Trust domain is the one with the explicit bucket bit-flip.
-	k0, k1 = s.Seed2.KeyUint128()
-	bucket2 := siphash.Hash(k0, k1, seqNoBytes) % config.CommonConfig.NumBuckets
 	args[1].TD[0].RequestVector = make([]byte, (config.CommonConfig.NumBuckets+7)/8)
 	args[1].TD[0].RequestVector[bucket2/8] |= 1 << (bucket2 % 8)
 	args[1].TD[0].PadSeed = make([]byte, drbg.SeedLength)

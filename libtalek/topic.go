@@ -3,8 +3,8 @@ package libtalek
 import (
 	"crypto/rand"
 	"encoding/binary"
+
 	"github.com/agl/ed25519"
-	"github.com/dchest/siphash"
 	"github.com/privacylab/talek/bloom"
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/drbg"
@@ -62,15 +62,12 @@ func NewTopic() (t *Topic, err error) {
 
 func (t *Topic) GeneratePublish(commonConfig *common.CommonConfig, message []byte) (*common.WriteArgs, error) {
 	args := &common.WriteArgs{}
+	bucket1, bucket2 := t.Subscription.nextBuckets()
+	args.Bucket1 = bucket1 % commonConfig.NumBuckets
+	args.Bucket2 = bucket2 % commonConfig.NumBuckets
+
 	var seqNoBytes [24]byte
 	_ = binary.PutUvarint(seqNoBytes[:], t.Subscription.Seqno)
-
-	k0, k1 := t.Subscription.Seed1.KeyUint128()
-	args.Bucket1 = siphash.Hash(k0, k1, seqNoBytes[:]) % commonConfig.NumBuckets
-
-	k0, k1 = t.Subscription.Seed2.KeyUint128()
-	args.Bucket2 = siphash.Hash(k0, k1, seqNoBytes[:]) % commonConfig.NumBuckets
-
 	t.Subscription.Seqno += 1
 	ciphertext, err := t.encrypt(message, &seqNoBytes)
 	if err != nil {
