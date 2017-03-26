@@ -5,9 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dchest/siphash"
 	"github.com/privacylab/talek/common"
-	"github.com/privacylab/talek/drbg"
 )
 
 type mockLeader struct {
@@ -57,14 +55,8 @@ func TestWrite(t *testing.T) {
 
 	// Recreate the expected buckets to make sure we're seeing
 	// the real write.
-	var seqNoBytes [24]byte
-	_ = binary.PutUvarint(seqNoBytes[:], handle.Seqno)
-	// Clone seed so they advance together.
-	seedData, _ := handle.Subscription.Seed1.MarshalBinary()
-	seed := drbg.Seed{}
-	seed.UnmarshalBinary(seedData)
-	k0, k1 := seed.KeyUint128()
-	bucket := siphash.Hash(k0, k1, seqNoBytes[:]) % 64
+	bucket, _ := handle.Subscription.nextBuckets()
+	bucket %= 64
 
 	c.Publish(handle, []byte("hello world"))
 	write1 := <-writes
@@ -101,6 +93,7 @@ func TestRead(t *testing.T) {
 	_ = binary.PutUvarint(seqNoBytes[:], handle.Seqno)
 	// Clone seed so they advance together.
 	bucket, _ := handle.Subscription.nextBuckets()
+	bucket %= 64
 	c.Poll(&handle.Subscription)
 	read1 := <-reads
 	read2 := <-reads
