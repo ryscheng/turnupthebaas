@@ -14,7 +14,7 @@ import (
 // Topic is a writiable Talek log.
 // A topic is created by calling NewTopic().
 // New items are published with a client via client.Publish(&topic, "Msg").
-// Messages can be read from the topic through its contained Subscription.
+// Messages can be read from the topic through its contained handle.
 type Topic struct {
 
 	// For updates?
@@ -24,7 +24,7 @@ type Topic struct {
 	// TODO: this should ratchet.
 	SigningPrivateKey *[64]byte `json:",omitempty"`
 
-	Subscription
+	Handle
 }
 
 // PublishingOverhead represents the number of additional bytes used by encryption and signing.
@@ -50,9 +50,9 @@ func NewTopic() (t *Topic, err error) {
 	}
 
 	t.Id, _ = binary.Uvarint(id[0:8])
-	t.Subscription.Seed1 = seed1
-	t.Subscription.Seed2 = seed2
-	if err = initSubscription(&t.Subscription); err != nil {
+	t.Handle.Seed1 = seed1
+	t.Handle.Seed2 = seed2
+	if err = initHandle(&t.Handle); err != nil {
 		return
 	}
 
@@ -64,23 +64,23 @@ func NewTopic() (t *Topic, err error) {
 	var sharedKey [32]byte
 	box.Precompute(&sharedKey, pub, priv)
 
-	t.Subscription.SharedSecret = &sharedKey
+	t.Handle.SharedSecret = &sharedKey
 
 	// Create signing secrets
-	t.Subscription.SigningPublicKey, t.SigningPrivateKey, err = ed25519.GenerateKey(rand.Reader)
+	t.Handle.SigningPublicKey, t.SigningPrivateKey, err = ed25519.GenerateKey(rand.Reader)
 
 	return
 }
 
 func (t *Topic) GeneratePublish(commonConfig *common.CommonConfig, message []byte) (*common.WriteArgs, error) {
 	args := &common.WriteArgs{}
-	bucket1, bucket2 := t.Subscription.nextBuckets(commonConfig)
+	bucket1, bucket2 := t.Handle.nextBuckets(commonConfig)
 	args.Bucket1 = bucket1
 	args.Bucket2 = bucket2
 	var seqNoBytes [24]byte
 	_ = binary.PutUvarint(seqNoBytes[:], t.Seqno)
 
-	t.Subscription.Seqno++
+	t.Handle.Seqno++
 	ciphertext, err := t.encrypt(message, &seqNoBytes)
 	if err != nil {
 		return nil, err
@@ -104,7 +104,7 @@ func (t *Topic) GeneratePublish(commonConfig *common.CommonConfig, message []byt
 // advances.
 func (t *Topic) encrypt(plaintext []byte, nonce *[24]byte) ([]byte, error) {
 	buf := make([]byte, 0, len(plaintext)+box.Overhead)
-	_ = box.SealAfterPrecomputation(buf, plaintext, nonce, t.Subscription.SharedSecret)
+	_ = box.SealAfterPrecomputation(buf, plaintext, nonce, t.Handle.SharedSecret)
 	buf = buf[0:cap(buf)]
 	digest := ed25519.Sign(t.SigningPrivateKey, buf)
 	return append(buf, digest[:]...), nil

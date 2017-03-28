@@ -13,18 +13,18 @@ func TestGeneratePoll(t *testing.T) {
 	config.CommonConfig.NumBuckets = 1000000
 	config.TrustDomains = make([]*common.TrustDomainConfig, 3)
 
-	sub, err := NewSubscription()
+	h, err := NewHandle()
 	if err != nil {
-		t.Fatalf("Error creating subscription handle: %v\n", err)
+		t.Fatalf("Error creating handle: %v\n", err)
 	}
-	_, _, err = sub.generatePoll(config, 1)
+	_, _, err = h.generatePoll(config, 1)
 	if err == nil {
 		t.Fatalf("Could generate a poll from an un-configured subscription")
 	}
 
 	topic, _ := NewTopic()
-	sub = &topic.Subscription
-	args0, _, err := sub.generatePoll(config, 1)
+	h = &topic.Handle
+	args0, _, err := h.generatePoll(config, 1)
 	if err != nil {
 		t.Fatalf("Error creating ReadArgs: %v\n", err)
 	}
@@ -54,14 +54,14 @@ func HelperBenchmarkGeneratePoll(b *testing.B, NumBuckets uint64) {
 	config.CommonConfig.NumBuckets = NumBuckets
 
 	topic, err := NewTopic()
-	sub := topic.Subscription
+	h := topic.Handle
 	if err != nil {
-		b.Fatalf("Error creating subscription handle: %v\n", err)
+		b.Fatalf("Error creating handle: %v\n", err)
 	}
 	// Start timing
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _, _ = sub.generatePoll(config, uint64(i))
+		_, _, _ = h.generatePoll(config, uint64(i))
 	}
 
 }
@@ -72,11 +72,11 @@ func BenchmarkRetrieveResponse(b *testing.B) {
 	config.CommonConfig.NumBuckets = 10
 
 	topic, err := NewTopic()
-	sub := topic.Subscription
+	h := topic.Handle
 	if err != nil {
 		b.Fatalf("Error creating topic handle: %v\n", err)
 	}
-	args, _, err := sub.generatePoll(config, 0)
+	args, _, err := h.generatePoll(config, 0)
 	if err != nil {
 		b.Fatalf("Error creating ReadArgs: %v\n", err)
 	}
@@ -85,7 +85,7 @@ func BenchmarkRetrieveResponse(b *testing.B) {
 	// Start timing
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = sub.retrieveResponse(args, reply, 1024)
+		_ = h.retrieveResponse(args, reply, 1024)
 	}
 
 }

@@ -21,17 +21,17 @@ type Client struct {
 	dead   int32
 	leader common.LeaderInterface
 
-	subscriptions     []Subscription
-	pendingWrites     chan *common.WriteArgs
-	pendingReads      chan request
-	subscriptionMutex sync.Mutex
+	handles       []Handle
+	pendingWrites chan *common.WriteArgs
+	pendingReads  chan request
+	handleMutex   sync.Mutex
 
 	lastSeqNo uint64
 }
 
 type request struct {
 	*common.ReadArgs
-	*Subscription
+	*Handle
 }
 
 // NewClient creates a Talek client for reading and writing metadata-protected messages.
@@ -109,39 +109,39 @@ func (c *Client) Publish(handle *Topic, data []byte) error {
 	return nil
 }
 
-// Poll Subscribes to updates on a given log Subscription.
+// Poll handles to updates on a given log.
 // When done reading message,s the the channel can be closed via the Done
 // method.
-func (c *Client) Poll(handle *Subscription) chan []byte {
-	// Check if already subscribed.
-	c.subscriptionMutex.Lock()
-	for x := range c.subscriptions {
-		if &c.subscriptions[x] == handle {
-			c.subscriptionMutex.Unlock()
+func (c *Client) Poll(handle *Handle) chan []byte {
+	// Check if already polling.
+	c.handleMutex.Lock()
+	for x := range c.handles {
+		if &c.handles[x] == handle {
+			c.handleMutex.Unlock()
 			return nil
 		}
 	}
 	if handle.updates == nil {
-		initSubscription(handle)
+		initHandle(handle)
 	}
-	c.subscriptions = append(c.subscriptions, *handle)
-	c.subscriptionMutex.Unlock()
+	c.handles = append(c.handles, *handle)
+	c.handleMutex.Unlock()
 
 	return handle.updates
 }
 
-// Done unsubscribes a Subscription from being Polled for new items.
-func (c *Client) Done(handle *Subscription) bool {
-	c.subscriptionMutex.Lock()
-	for i := 0; i < len(c.subscriptions); i++ {
-		if &c.subscriptions[i] == handle {
-			c.subscriptions[i] = c.subscriptions[len(c.subscriptions)-1]
-			c.subscriptions = c.subscriptions[:len(c.subscriptions)-1]
-			c.subscriptionMutex.Unlock()
+// Done unsubscribes a Handle from being Polled for new items.
+func (c *Client) Done(handle *Handle) bool {
+	c.handleMutex.Lock()
+	for i := 0; i < len(c.handles); i++ {
+		if &c.handles[i] == handle {
+			c.handles[i] = c.handles[len(c.handles)-1]
+			c.handles = c.handles[:len(c.handles)-1]
+			c.handleMutex.Unlock()
 			return true
 		}
 	}
-	c.subscriptionMutex.Unlock()
+	c.handleMutex.Unlock()
 	return false
 }
 
@@ -197,8 +197,8 @@ func (c *Client) readPeriodic() {
 		if reply.GlobalSeqNo.End > c.lastSeqNo {
 			c.lastSeqNo = reply.GlobalSeqNo.End
 		}
-		if req.Subscription != nil {
-			req.Subscription.OnResponse(req.ReadArgs, &reply, uint(conf.DataSize))
+		if req.Handle != nil {
+			req.Handle.OnResponse(req.ReadArgs, &reply, uint(conf.DataSize))
 		}
 		time.Sleep(conf.ReadInterval)
 	}
@@ -236,24 +236,24 @@ func (c *Client) generateRandomRead(config *ClientConfig) *common.ReadArgs {
 }
 
 func (c *Client) nextRequest(config *ClientConfig) request {
-	c.subscriptionMutex.Lock()
+	c.handleMutex.Lock()
 
-	if len(c.subscriptions) > 0 {
-		nextTopic := c.subscriptions[0]
-		c.subscriptions = c.subscriptions[1:]
-		c.subscriptions = append(c.subscriptions, nextTopic)
+	if len(c.handles) > 0 {
+		nextTopic := c.handles[0]
+		c.handles = c.handles[1:]
+		c.handles = append(c.handles, nextTopic)
 
 		ra1, ra2, err := nextTopic.generatePoll(config, c.lastSeqNo)
 		if err != nil {
-			c.subscriptionMutex.Unlock()
+			c.handleMutex.Unlock()
 			c.log.Error.Fatal(err)
 			return request{c.generateRandomRead(config), nil}
 		}
 		c.pendingReads <- request{ra2, &nextTopic}
-		c.subscriptionMutex.Unlock()
+		c.handleMutex.Unlock()
 		return request{ra1, &nextTopic}
 	}
-	c.subscriptionMutex.Unlock()
+	c.handleMutex.Unlock()
 
 	return request{c.generateRandomRead(config), nil}
 }

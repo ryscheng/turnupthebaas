@@ -56,7 +56,7 @@ func TestWrite(t *testing.T) {
 
 	// Recreate the expected buckets to make sure we're seeing
 	// the real write.
-	bucket, _ := handle.Subscription.nextBuckets(config.CommonConfig)
+	bucket, _ := handle.Handle.nextBuckets(config.CommonConfig)
 
 	c.Publish(handle, []byte("hello world"))
 	write1 := <-writes
@@ -92,9 +92,9 @@ func TestRead(t *testing.T) {
 	var seqNoBytes [24]byte
 	_ = binary.PutUvarint(seqNoBytes[:], handle.Seqno)
 	// Clone seed so they advance together.
-	bucket, _ := handle.Subscription.nextBuckets(config.CommonConfig)
+	bucket, _ := handle.Handle.nextBuckets(config.CommonConfig)
 
-	c.Poll(&handle.Subscription)
+	c.Poll(&handle.Handle)
 	read1 := <-reads
 	read2 := <-reads
 	// There may be a random read occuring before the enqueued one.

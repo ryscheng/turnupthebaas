@@ -64,7 +64,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Could not parse %s: %v", *log, err)
 			return
 		}
-		rodat, err := json.Marshal(&handle.Subscription)
+		rodat, err := json.Marshal(&handle.Handle)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Could not serialize log: %v", err)
 			return
@@ -105,11 +105,11 @@ func main() {
 
 	// Read a message.
 	if *read {
-		msgchan := cli.Poll(&handle.Subscription)
+		msgchan := cli.Poll(&handle.Handle)
 		msg := <-msgchan
 		// print the result.
 		fmt.Printf("%s\n", msg)
-		cli.Done(&handle.Subscription)
+		cli.Done(&handle.Handle)
 	} else if len(*write) > 0 {
 		if handle.SigningPrivateKey == nil {
 			fmt.Fprintf(os.Stderr, "Cannot write. Only provided read capability for log.")
