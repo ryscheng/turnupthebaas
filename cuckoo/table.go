@@ -9,15 +9,15 @@ import (
 const MAX_EVICTIONS int = 500
 
 type ItemLocation struct {
-	id int
-	filled bool
+	id      int
+	filled  bool
 	bucket1 int
 	bucket2 int
 }
 
 type Item struct {
-	Id int
-	Data []byte
+	Id      int
+	Data    []byte
 	Bucket1 int
 	Bucket2 int
 }
@@ -38,7 +38,17 @@ func (i *Item) Equals(other *Item) bool {
 	}
 	return i.Bucket1 == other.Bucket1 &&
 		i.Bucket2 == other.Bucket2 &&
-		i.Id == other.Id;
+		i.Id == other.Id
+}
+
+// Bucket returns the bucket in a table that the Item is in, if it is in the table.
+func (i *Item) Bucket(table *Table) int {
+	if table.isInBucket(i.Bucket1, i) {
+		return i.Bucket1
+	} else if table.isInBucket(i.Bucket2, i) {
+		return i.Bucket2
+	}
+	return -1
 }
 
 type Table struct {
@@ -46,11 +56,11 @@ type Table struct {
 	numBuckets  int // Number of buckets
 	bucketDepth int // Items in each bucket
 	itemSize    int // number of bytes in an item
-	rand       *rand.Rand
+	rand        *rand.Rand
 
-	log        *log.Logger
+	log   *log.Logger
 	index []ItemLocation
-	data []byte
+	data  []byte
 }
 
 // Creates a new cuckoo table optionaly backed by a pre-allocated memory area.
@@ -66,14 +76,14 @@ func NewTable(name string, numBuckets int, bucketDepth int, itemSize int, data [
 	t.rand = rand.New(rand.NewSource(randSeed))
 
 	if data == nil {
-		data = make([]byte, numBuckets * bucketDepth * itemSize)
+		data = make([]byte, numBuckets*bucketDepth*itemSize)
 	}
-	if len(data) != numBuckets * bucketDepth * itemSize {
+	if len(data) != numBuckets*bucketDepth*itemSize {
 		return nil
 	}
 	t.data = data
 
-	t.index = make([]ItemLocation, numBuckets * bucketDepth)
+	t.index = make([]ItemLocation, numBuckets*bucketDepth)
 
 	return t
 }
@@ -199,7 +209,7 @@ func (t *Table) Remove(item *Item) bool {
 // Returns: the true if `value.Equals(...)` returns true for any value in bucket, false if not present
 func (t *Table) isInBucket(bucketIndex int, item *Item) bool {
 	for i := 0; i < t.bucketDepth; i++ {
-		idx := t.bucketDepth * bucketIndex + i
+		idx := t.bucketDepth*bucketIndex + i
 		if t.index[idx].filled &&
 			t.index[idx].bucket1 == item.Bucket1 &&
 			t.index[idx].bucket2 == item.Bucket2 &&
@@ -217,9 +227,9 @@ func (t *Table) isInBucket(bucketIndex int, item *Item) bool {
 // Returns: true if success, false if bucket already full
 func (t *Table) tryInsertToBucket(bucketIndex int, item *Item) bool {
 	// Search for an empty slot
-	for i := bucketIndex * t.bucketDepth; i < (bucketIndex + 1) * t.bucketDepth; i++ {
+	for i := bucketIndex * t.bucketDepth; i < (bucketIndex+1)*t.bucketDepth; i++ {
 		if !t.index[i].filled {
-			copy(t.data[i * t.itemSize:], item.Data)
+			copy(t.data[i*t.itemSize:], item.Data)
 			t.index[i].id = item.Id
 			t.index[i].bucket1 = item.Bucket1
 			t.index[i].bucket2 = item.Bucket2
@@ -247,7 +257,7 @@ func (t *Table) insertAndEvict(bucketIndex int, item *Item) (bool, *Item) {
 	}
 
 	// Eviction
-	itemIndex := bucketIndex * t.bucketDepth + (t.rand.Int() % t.bucketDepth)
+	itemIndex := bucketIndex*t.bucketDepth + (t.rand.Int() % t.bucketDepth)
 	removedItem := t.getItem(itemIndex).Copy()
 	t.index[itemIndex].filled = false
 
@@ -264,7 +274,7 @@ func (t *Table) insertAndEvict(bucketIndex int, item *Item) (bool, *Item) {
 // - bucket MUST be within bounds
 // Returns: true if succeeds, false if value not in bucket
 func (t *Table) removeFromBucket(bucketIndex int, item *Item) bool {
-	for i := bucketIndex * t.bucketDepth; i < (bucketIndex + 1) * t.bucketDepth; i++ {
+	for i := bucketIndex * t.bucketDepth; i < (bucketIndex+1)*t.bucketDepth; i++ {
 		if item != nil && item.Equals(t.getItem(i)) {
 			t.index[i].filled = false
 			return true
@@ -279,7 +289,7 @@ func (t *Table) getItem(itemIndex int) *Item {
 	}
 	return &Item{
 		t.index[itemIndex].id,
-		t.data[itemIndex * t.itemSize : (itemIndex + 1) * t.itemSize],
+		t.data[itemIndex*t.itemSize : (itemIndex+1)*t.itemSize],
 		t.index[itemIndex].bucket1,
 		t.index[itemIndex].bucket2}
 }

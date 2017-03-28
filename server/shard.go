@@ -224,13 +224,20 @@ func (s *Shard) processWrites() {
 			s.sinceFlip++
 
 			// Trigger to swap to next DB.
-			// TODO: time based write interval. likely via a leader-triggered signal.
 			if s.sinceFlip > s.outstandingLimit {
-				s.syncChan <- 1
-				s.sinceFlip = 0
+				s.ApplyWrites()
 			}
 		}
 	}
+}
+
+// ApplyWrites will enque a command to apply any outstanding writes to the
+// database to be seen by subsequent reads.
+// TODO: should take a sequence number to do a better job of consistent
+// interleaving with enqueued reads.
+func (s *Shard) ApplyWrites() {
+	s.syncChan <- 1
+	s.sinceFlip = 0
 }
 
 func (s *Shard) evictOldItems() {
