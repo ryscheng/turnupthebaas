@@ -3,17 +3,20 @@ package libtalek
 import (
 	"bytes"
 	"crypto/rand"
+	"encoding/binary"
 	"encoding/gob"
 	"fmt"
-	"github.com/privacylab/talek/common"
 	"testing"
+
+	"github.com/privacylab/talek/common"
 )
 
 func TestEncryptDecrypt(t *testing.T) {
 	fmt.Printf("TestEncryptDecrypt:\n")
 	plaintext := "Hello world"
 	var nonce [24]byte
-	copy(nonce[:], []byte("012345678901"))
+	nonceint := uint64(12345678)
+	_ = binary.PutUvarint(nonce[:], nonceint)
 	th, err := NewTopic()
 	if err != nil {
 		t.Fatalf("Error creating topic handle: %v\n", err)
@@ -27,6 +30,7 @@ func TestEncryptDecrypt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error encrypting plaintext: %v\n", err)
 	}
+	sub.Seqno = nonceint
 	result, err := sub.Decrypt(ciphertext, &nonce)
 	if err != nil {
 		t.Fatalf("Error decrypting ciphertext: %v, %v\n", ciphertext, err)
