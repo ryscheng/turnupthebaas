@@ -2,10 +2,11 @@ package server
 
 import (
 	"crypto/rand"
+	"testing"
+
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/libtalek"
 	"github.com/privacylab/talek/pir"
-	"testing"
 )
 
 func BenchmarkWrite(b *testing.B) {
@@ -35,13 +36,13 @@ func BenchmarkWrite(b *testing.B) {
 	t1c := make(chan int)
 	go pir.CreateMockServer(t1c, t1s)
 	<-t1c
-	t1 := NewCentralized("t1", t1s, ServerConfig{&config, 1, 0, 0, nil, 0, nil}, nil, false)
+	t1 := NewCentralized("t1", t1s, Config{&config, 1, 0, 0, nil, 0, nil}, nil, false)
 
 	t0s := getSocket()
 	t0c := make(chan int)
 	go pir.CreateMockServer(t0c, t0s)
 	<-t0c
-	t0 := NewCentralized("t0", t0s, ServerConfig{&config, 1, 0, 0, nil, 0, nil}, t1, true)
+	t0 := NewCentralized("t0", t0s, Config{&config, 1, 0, 0, nil, 0, nil}, t1, true)
 
 	// Start timing
 	b.ResetTimer()

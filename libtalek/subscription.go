@@ -3,6 +3,7 @@ package libtalek
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 
 	"github.com/agl/ed25519"
 	"github.com/dchest/siphash"
@@ -11,13 +12,18 @@ import (
 	"golang.org/x/crypto/nacl/box"
 )
 
+// Subscription is the readable component of a Talek Log.
+// Subscriptions are created by making a NewTopic, but can be independently
+// shared, and restored from a serialized state. A Subscription is read
+// by calling Client.Poll(subscription) to recieve a channel with new messages
+// read from the Subscription.
 type Subscription struct {
 	// for random looking pir requests
 	drbg *drbg.HashDrbg
 
 	// For learning log positions
-	Seed1 drbg.Seed
-	Seed2 drbg.Seed
+	Seed1 *drbg.Seed
+	Seed2 *drbg.Seed
 
 	// For decrypting messages
 	SharedSecret     *[32]byte
@@ -27,12 +33,17 @@ type Subscription struct {
 	Seqno uint64
 
 	// Notifications of new messages
-	Updates chan []byte
+	updates chan []byte
 }
 
 func NewSubscription() (s *Subscription, err error) {
 	s = &Subscription{}
-	s.Updates = make(chan []byte)
+	err = initSubscription(s)
+	return
+}
+
+func initSubscription(s *Subscription) (err error) {
+	s.updates = make(chan []byte)
 
 	s.drbg, err = drbg.NewHashDrbg(nil)
 	return
@@ -53,7 +64,7 @@ func (s *Subscription) nextBuckets(conf *common.CommonConfig) (uint64, uint64) {
 	return b1 % conf.NumBuckets, b2 % conf.NumBuckets
 }
 
-func (s *Subscription) generatePoll(config *ClientConfig, seqNo uint64) (*common.ReadArgs, *common.ReadArgs, error) {
+func (s *Subscription) generatePoll(config *ClientConfig, _ uint64) (*common.ReadArgs, *common.ReadArgs, error) {
 	if s.SharedSecret == nil || s.SigningPublicKey == nil {
 		return nil, nil, errors.New("Subscription not fully initialized")
 	}
@@ -130,20 +141,31 @@ func (s *Subscription) Decrypt(cyphertext []byte, nonce *[24]byte) ([]byte, erro
 	return plaintext[0:cap(plaintext)], nil
 }
 
-func (s *Subscription) OnResponse(args *common.ReadArgs, reply *common.ReadReply) {
-	msg := s.retrieveResponse(args, reply)
-	if msg != nil && s.Updates != nil {
-		s.Updates <- msg
+func (s *Subscription) OnResponse(args *common.ReadArgs, reply *common.ReadReply, dataSize uint) {
+	msg := s.retrieveResponse(args, reply, dataSize)
+	if msg != nil && s.updates != nil {
+		s.updates <- msg
 	}
 }
 
-// TODO: checksum msgs at topic level so if something random comes back it is filtered out.
-func (s *Subscription) retrieveResponse(args *common.ReadArgs, reply *common.ReadReply) []byte {
+func (s *Subscription) retrieveResponse(args *common.ReadArgs, reply *common.ReadReply, dataSize uint) []byte {
 	data := reply.Data
 
+	// strip out the padding injected by trust domains.
 	for i := 0; i < len(args.TD); i++ {
 		drbg.Overlay(args.TD[i].PadSeed, data)
 	}
 
-	return data
+	var seqNoBytes [24]byte
+	_ = binary.PutUvarint(seqNoBytes[:], s.Seqno)
+
+	// A 'bucket' likely has multiple messages in it. See if any of them are ours.
+	for i := uint(0); i < uint(len(data)); i += dataSize {
+		plaintext, err := s.Decrypt(data[i:i+dataSize], &seqNoBytes)
+		if err == nil {
+			return plaintext
+		}
+		fmt.Printf("decryption failed for read %d of bucket %d [%v](%d): %v\n", i/dataSize, args.Bucket(), data[i:i+4], len(data[i:i+dataSize]), err)
+	}
+	return nil
 }

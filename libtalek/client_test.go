@@ -13,8 +13,9 @@ type mockLeader struct {
 	ReceivedReads  chan *common.EncodedReadArgs
 }
 
-func (m *mockLeader) GetName() string {
-	return "Mock Leader"
+func (m *mockLeader) GetName(_ *interface{}, reply *string) error {
+	*reply = "Mock Leader"
+	return nil
 }
 func (m *mockLeader) Ping(args *common.PingArgs, reply *common.PingReply) error {
 	return nil
@@ -79,7 +80,7 @@ func TestRead(t *testing.T) {
 	reads := make(chan *common.EncodedReadArgs, 1)
 	leader := mockLeader{nil, reads}
 
-	c := NewClient("TestClient", config, &leader)
+	c := NewClient("TestRead", config, &leader)
 	if c == nil {
 		t.Fatalf("Error creating client")
 	}
@@ -88,7 +89,7 @@ func TestRead(t *testing.T) {
 
 	// Recreate the expected buckets to make sure we're seeing
 	// the real write.
-	var seqNoBytes [12]byte
+	var seqNoBytes [24]byte
 	_ = binary.PutUvarint(seqNoBytes[:], handle.Seqno)
 	// Clone seed so they advance together.
 	bucket, _ := handle.Subscription.nextBuckets(config.CommonConfig)

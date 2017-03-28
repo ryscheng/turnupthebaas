@@ -1,11 +1,12 @@
 package main
 
 import (
+	"log"
+	"time"
+
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/libtalek"
 	"github.com/privacylab/talek/server"
-	"log"
-	"time"
 )
 
 type Killable interface {
@@ -21,9 +22,9 @@ func main() {
 	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9100", true, true)
 	emptyTrustDomainConfig := common.NewTrustDomainConfig("", "", false, true)
 	config := common.CommonConfigFromFile("commonconfig.json")
-	serverConfig0 := server.ServerConfigFromFile("serverconfig.json", config)
+	serverConfig0 := server.ConfigFromFile("serverconfig.json", config)
 	serverConfig0.TrustDomain = trustDomainConfig0
-	serverConfig1 := server.ServerConfigFromFile("serverconfig.json", config)
+	serverConfig1 := server.ConfigFromFile("serverconfig.json", config)
 	serverConfig1.TrustDomain = trustDomainConfig1
 	serverConfig1.TrustDomainIndex = 1
 

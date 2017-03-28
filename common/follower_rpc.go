@@ -60,8 +60,9 @@ func (f *FollowerRpc) Call(methodName string, args interface{}, reply interface{
 	return nil
 }
 
-func (f *FollowerRpc) GetName() string {
-	return f.name
+func (f *FollowerRpc) GetName(_ *interface{}, reply *string) error {
+	*reply = f.name
+	return nil
 }
 
 func (f *FollowerRpc) Ping(args *PingArgs, reply *PingReply) error {
@@ -73,6 +74,11 @@ func (f *FollowerRpc) Ping(args *PingArgs, reply *PingReply) error {
 func (f *FollowerRpc) Write(args *WriteArgs, reply *WriteReply) error {
 	//f.log.Printf("Write: enter\n")
 	err := f.Call(f.methodPrefix+".Write", args, reply)
+	return err
+}
+
+func (f *FollowerRpc) NextEpoch(args *uint64, reply *interface{}) error {
+	err := f.Call(f.methodPrefix+".NextEpoch", args, reply)
 	return err
 }
 

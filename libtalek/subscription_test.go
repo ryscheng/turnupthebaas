@@ -22,7 +22,7 @@ func TestGeneratePoll(t *testing.T) {
 		t.Fatalf("Could generate a poll from an un-configured subscription")
 	}
 
-	topic, err := NewTopic()
+	topic, _ := NewTopic()
 	sub = &topic.Subscription
 	args0, _, err := sub.generatePoll(config, 1)
 	if err != nil {
@@ -85,7 +85,7 @@ func BenchmarkRetrieveResponse(b *testing.B) {
 	// Start timing
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = sub.retrieveResponse(args, reply)
+		_ = sub.retrieveResponse(args, reply, 1024)
 	}
 
 }

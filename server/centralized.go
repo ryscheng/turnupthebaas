@@ -1,17 +1,17 @@
 package server
 
 import (
+	"sync/atomic"
+	"time"
+
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/drbg"
 	"golang.org/x/net/trace"
-	"sync/atomic"
 )
 
-/**
- * A centralized server implements Read and Write interfaces for mutating and
- * reading Database state, optionally disseminating writes to a single follower.
- * This class wraps a logical 'shard' of the database.
- */
+// Centralized talek server implements Read and Write interfaces for mutating and
+// reading Database state, optionally disseminating writes to a single follower.
+// This class wraps a logical Shard of the database.
 type Centralized struct {
 	/** Private State **/
 	// Static
@@ -22,17 +22,19 @@ type Centralized struct {
 	status   chan int
 
 	// Thread-safe
-	config         atomic.Value //ServerConfig
+	config         atomic.Value //Config
 	shard          *Shard
 	proposedSeqNo  uint64 // Use atomic.AddUint64, atomic.LoadUint64
 	committedSeqNo uint64 // Use atomic.AddUint64, atomic.LoadUint64
 	// Channels
 	ReadBatch []*common.ReadRequest
 	ReadChan  chan *common.ReadRequest
+	dead      int
 	closeChan chan int
 }
 
-func NewCentralized(name string, socket string, config ServerConfig, follower common.FollowerInterface, isLeader bool) *Centralized {
+// NewCentralized creates a new Centralized talek server.
+func NewCentralized(name string, socket string, config Config, follower common.FollowerInterface, isLeader bool) *Centralized {
 	c := &Centralized{}
 	c.log = common.NewLogger(name)
 	c.name = name
@@ -50,10 +52,16 @@ func NewCentralized(name string, socket string, config ServerConfig, follower co
 	c.ReadChan = make(chan *common.ReadRequest)
 	go c.batchReads()
 
+	if c.isLeader {
+		go c.periodicWrites()
+	}
+
 	return c
 }
 
+// Close shuts down active reading and writing threads of the server.
 func (c *Centralized) Close() {
+	c.dead = 1
 	// stop processing.
 	c.closeChan <- 1
 	// Stop the shard.
@@ -61,10 +69,14 @@ func (c *Centralized) Close() {
 }
 
 /** PUBLIC METHODS (threadsafe) **/
-func (c *Centralized) GetName() string {
-	return c.name
+
+// GetName exports the name of the server.
+func (c *Centralized) GetName(args *interface{}, reply *string) error {
+	*reply = c.name
+	return nil
 }
 
+// Ping allows probing the latency of the server.
 func (c *Centralized) Ping(args *common.PingArgs, reply *common.PingReply) error {
 	c.log.Trace.Println("Ping: enter")
 	// Try to ping the follower if one exists
@@ -72,7 +84,9 @@ func (c *Centralized) Ping(args *common.PingArgs, reply *common.PingReply) error
 		var fReply common.PingReply
 		fErr := c.follower.Ping(&common.PingArgs{Msg: "PING"}, &fReply)
 		if fErr != nil {
-			reply.Err = c.follower.GetName() + " Ping failed"
+			var fName string
+			c.follower.GetName(nil, &fName)
+			reply.Err = fName + " Ping failed"
 		} else {
 			reply.Err = fReply.Err
 		}
@@ -80,7 +94,7 @@ func (c *Centralized) Ping(args *common.PingArgs, reply *common.PingReply) error
 		reply.Err = ""
 	}
 
-	reply.Msg = "PONG"
+	reply.Msg = "Centralied Pong"
 	c.log.Trace.Println("Ping: exit")
 	c.log.Info.Println("Ping: " + args.Msg + ", ... Pong")
 	return nil
@@ -104,11 +118,12 @@ func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) er
 		if fErr != nil {
 			// Assume all servers always available
 			reply.Err = fErr.Error()
-			c.log.Error.Fatalf("Error forwarding to follower %v", c.follower.GetName())
+			var fName string
+			c.follower.GetName(nil, &fName)
+			c.log.Error.Fatalf("Error forwarding to follower %v", fName)
 			return fErr
-		} else {
-			reply.Err = fReply.Err
 		}
+		reply.Err = fReply.Err
 	} else {
 		reply.Err = ""
 	}
@@ -119,23 +134,42 @@ func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) er
 	return nil
 }
 
+// NextEpoch applies pending writes to the database, so that they are read
+// by subsequent reads.
+// TODO: args should be a sequence number to make this application consistent
+// across replicas.
+func (c *Centralized) NextEpoch(args *uint64, reply *interface{}) error {
+	c.log.Trace.Println("NextEpoch: enter")
+	c.shard.ApplyWrites()
+	if c.follower != nil {
+		c.follower.NextEpoch(args, nil)
+	}
+	return nil
+}
+
 func (c *Centralized) Read(args *common.EncodedReadArgs, reply *common.ReadReply) error {
 	c.log.Trace.Println("Read: enter")
 	tr := trace.New("centralized.read", "Read")
 	defer tr.Finish()
+
 	resultChan := make(chan *common.ReadReply)
 	c.ReadChan <- &common.ReadRequest{Args: args, ReplyChan: resultChan}
-	reply = <-resultChan
+	theReply := <-resultChan
+	reply.Err = theReply.Err
+	reply.GlobalSeqNo = theReply.GlobalSeqNo
+	reply.Data = theReply.Data
 	c.log.Trace.Println("Read: exit")
 	return nil
 }
 
+// BatchRead performs a set of reads against the talek database at one logical point in time.
+// BatchRead is replicated to followers with a batching determined by the leader.
 func (c *Centralized) BatchRead(args *common.BatchReadRequest, reply *common.BatchReadReply) error {
 	c.log.Trace.Println("BatchRead: enter")
 	tr := trace.New("centralized.batchread", "BatchRead")
 	defer tr.Finish()
 	// Start local computation
-	config := c.config.Load().(ServerConfig)
+	config := c.config.Load().(Config)
 
 	var followerReply common.BatchReadReply
 
@@ -143,6 +177,12 @@ func (c *Centralized) BatchRead(args *common.BatchReadRequest, reply *common.Bat
 	localArgs.ReplyChan = make(chan *common.BatchReadReply)
 	localArgs.Args = make([]common.PirArgs, len(args.Args))
 	for i, val := range args.Args {
+		//Handle pad requests.
+		if len(val.PirArgs) == 0 {
+			localArgs.Args[i].PadSeed = make([]byte, drbg.SeedLength)
+			localArgs.Args[i].RequestVector = make([]byte, config.NumBuckets/8)
+			continue
+		}
 		pir, err := val.Decode(config.TrustDomainIndex, config.TrustDomain)
 		if err != nil {
 			reply.Err = err.Error()
@@ -159,11 +199,12 @@ func (c *Centralized) BatchRead(args *common.BatchReadRequest, reply *common.Bat
 		if fErr != nil {
 			// Assume all servers always available
 			reply.Err = fErr.Error()
-			c.log.Error.Fatalf("Error forwarding to follower %v", c.follower.GetName())
+			var fName string
+			c.follower.GetName(nil, &fName)
+			c.log.Error.Fatalf("Error forwarding to follower %v", fName)
 			return fErr
-		} else {
-			reply.Err = followerReply.Err
 		}
+		reply.Err = followerReply.Err
 	} else {
 		reply.Err = ""
 	}
@@ -171,7 +212,7 @@ func (c *Centralized) BatchRead(args *common.BatchReadRequest, reply *common.Bat
 	// Combine results
 	myReply := <-localArgs.ReplyChan
 	if c.follower != nil {
-		for i, _ := range myReply.Replies {
+		for i := range myReply.Replies {
 			_ = myReply.Replies[i].Combine(followerReply.Replies[i].Data)
 		}
 	}
@@ -190,6 +231,8 @@ func (c *Centralized) BatchRead(args *common.BatchReadRequest, reply *common.Bat
 	return nil
 }
 
+// GetUpdates provies the most recent bloom filter of changed cells.
+// TODO
 func (c *Centralized) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdatesReply) error {
 	c.log.Trace.Println("GetUpdates: ")
 	// @TODO
@@ -198,8 +241,10 @@ func (c *Centralized) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetU
 
 /** PRIVATE METHODS (singlethreaded) **/
 func (c *Centralized) batchReads() {
-	config := c.config.Load().(ServerConfig)
+	config := c.config.Load().(Config)
+	emptyRead := common.ReadRequest{}
 	var readReq *common.ReadRequest
+	tick := time.After(config.ReadInterval)
 	for {
 		select {
 		case readReq = <-c.ReadChan:
@@ -211,6 +256,16 @@ func (c *Centralized) batchReads() {
 				c.log.Trace.Printf("Read: add to batch, size=%v\n", len(c.ReadBatch))
 			}
 			continue
+		case <-tick:
+			if len(c.ReadBatch) > 0 {
+				for len(c.ReadBatch) < config.ReadBatch {
+					c.ReadBatch = append(c.ReadBatch, &emptyRead)
+				}
+				go c.triggerBatchRead(c.ReadBatch)
+				c.ReadBatch = make([]*common.ReadRequest, 0, config.ReadBatch)
+			}
+			tick = time.After(config.ReadInterval)
+			continue
 		case <-c.closeChan:
 			break
 		}
@@ -219,13 +274,15 @@ func (c *Centralized) batchReads() {
 
 func (c *Centralized) triggerBatchRead(batch []*common.ReadRequest) {
 	c.log.Trace.Println("triggerBatchRead: enter")
-	config := c.config.Load().(ServerConfig)
+	config := c.config.Load().(Config)
 
 	args := &common.BatchReadRequest{}
 	// Copy args
 	args.Args = make([]common.EncodedReadArgs, len(batch), len(batch))
 	for i, val := range batch {
-		args.Args[i] = *val.Args
+		if val.Args != nil {
+			args.Args[i] = *val.Args
+		}
 	}
 
 	// Choose a SeqNoRange
@@ -250,10 +307,21 @@ func (c *Centralized) triggerBatchRead(batch []*common.ReadRequest) {
 	// logging of throughput.
 
 	// Respond to clients
-	for i, val := range reply.Replies {
-		val.GlobalSeqNo = args.SeqNoRange
-		batch[i].Reply(&val)
+	for i := range reply.Replies {
+		reply.Replies[i].GlobalSeqNo = args.SeqNoRange
+		batch[i].Reply(&reply.Replies[i])
 	}
 
 	c.log.Trace.Println("triggerBatchRead: exit")
+}
+
+func (c *Centralized) periodicWrites() {
+	config := c.config.Load().(Config)
+	for c.dead == 0 {
+		tick := time.After(config.WriteInterval)
+		select {
+		case <-tick:
+			c.NextEpoch(&c.proposedSeqNo, nil)
+		}
+	}
 }

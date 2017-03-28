@@ -3,12 +3,13 @@ package server
 import (
 	"bytes"
 	"fmt"
-	"github.com/privacylab/talek/common"
-	"github.com/privacylab/talek/pir"
 	"math/rand"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/pir"
 )
 
 import "testing"
@@ -21,8 +22,8 @@ func fromEnvOrDefault(envKey string, default_val int) int {
 	return default_val
 }
 
-func testConf() ServerConfig {
-	return ServerConfig{
+func testConf() Config {
+	return Config{
 		CommonConfig: &common.CommonConfig{
 			NumBuckets:         uint64(fromEnvOrDefault("NUM_BUCKETS", 512)),
 			BucketDepth:        fromEnvOrDefault("BUCKET_DEPTH", 4),
