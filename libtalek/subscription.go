@@ -53,7 +53,7 @@ func initSubscription(s *Subscription) (err error) {
 // topic given the current sequence number of the subscription.
 // The buckets returned by this method must still be wrapped by the NumBuckets config paramter of talek instance it is requested against.
 func (s *Subscription) nextBuckets(conf *common.CommonConfig) (uint64, uint64) {
-	seqNoBytes := make([]byte, 12)
+	seqNoBytes := make([]byte, 24)
 	_ = binary.PutUvarint(seqNoBytes, s.Seqno)
 
 	k0, k1 := s.Seed1.KeyUint128()

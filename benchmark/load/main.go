@@ -21,13 +21,13 @@ var leaderPIR = flag.String("leader", "../pird/pir.socket", "PIR daemon for lead
 var followerPIR = flag.String("follower", "../pird/pir2.socket", "PIR daemon for follower")
 var mockPIR = flag.Bool("mock", false, "Use the mock PIR daemon")
 
-type Killable interface {
+type killable interface {
 	Kill()
 }
 
 func main() {
 	log.Println("Simple Sanity Test")
-	s := make(map[string]Killable)
+	s := make(map[string]killable)
 	flag.Parse()
 
 	// For trace debug status
