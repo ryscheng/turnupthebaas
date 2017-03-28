@@ -62,13 +62,13 @@ func NewTopic() (t *Topic, err error) {
 
 func (t *Topic) GeneratePublish(commonConfig *common.CommonConfig, message []byte) (*common.WriteArgs, error) {
 	args := &common.WriteArgs{}
-	bucket1, bucket2 := t.Subscription.nextBuckets()
-	args.Bucket1 = bucket1 % commonConfig.NumBuckets
-	args.Bucket2 = bucket2 % commonConfig.NumBuckets
+	bucket1, bucket2 := t.Subscription.nextBuckets(commonConfig)
+	args.Bucket1 = bucket1
+	args.Bucket2 = bucket2
 
 	var seqNoBytes [24]byte
 	_ = binary.PutUvarint(seqNoBytes[:], t.Subscription.Seqno)
-	t.Subscription.Seqno += 1
+	t.Subscription.Seqno++
 	ciphertext, err := t.encrypt(message, &seqNoBytes)
 	if err != nil {
 		return nil, err

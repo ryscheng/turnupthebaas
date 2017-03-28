@@ -41,7 +41,7 @@ func NewSubscription() (s *Subscription, err error) {
 // nextBuckets returns the pair of buckets that will be used in the next poll or publish of this
 // topic given the current sequence number of the subscription.
 // The buckets returned by this method must still be wrapped by the NumBuckets config paramter of talek instance it is requested against.
-func (s *Subscription) nextBuckets() (uint64, uint64) {
+func (s *Subscription) nextBuckets(conf *common.CommonConfig) (uint64, uint64) {
 	seqNoBytes := make([]byte, 12)
 	_ = binary.PutUvarint(seqNoBytes, s.Seqno)
 
@@ -50,7 +50,7 @@ func (s *Subscription) nextBuckets() (uint64, uint64) {
 	k0, k1 = s.Seed2.KeyUint128()
 	b2 := siphash.Hash(k0, k1, seqNoBytes)
 
-	return b1, b2
+	return b1 % conf.NumBuckets, b2 % conf.NumBuckets
 }
 
 func (s *Subscription) generatePoll(config *ClientConfig, seqNo uint64) (*common.ReadArgs, *common.ReadArgs, error) {
@@ -59,9 +59,7 @@ func (s *Subscription) generatePoll(config *ClientConfig, seqNo uint64) (*common
 	}
 
 	args := make([]*common.ReadArgs, 2)
-	bucket1, bucket2 := s.nextBuckets()
-	bucket1 %= config.CommonConfig.NumBuckets
-	bucket2 %= config.CommonConfig.NumBuckets
+	bucket1, bucket2 := s.nextBuckets(config.CommonConfig)
 
 	num := len(config.TrustDomains)
 

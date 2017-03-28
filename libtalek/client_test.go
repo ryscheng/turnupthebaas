@@ -55,8 +55,7 @@ func TestWrite(t *testing.T) {
 
 	// Recreate the expected buckets to make sure we're seeing
 	// the real write.
-	bucket, _ := handle.Subscription.nextBuckets()
-	bucket %= 64
+	bucket, _ := handle.Subscription.nextBuckets(config.CommonConfig)
 
 	c.Publish(handle, []byte("hello world"))
 	write1 := <-writes
@@ -92,8 +91,8 @@ func TestRead(t *testing.T) {
 	var seqNoBytes [12]byte
 	_ = binary.PutUvarint(seqNoBytes[:], handle.Seqno)
 	// Clone seed so they advance together.
-	bucket, _ := handle.Subscription.nextBuckets()
-	bucket %= 64
+	bucket, _ := handle.Subscription.nextBuckets(config.CommonConfig)
+
 	c.Poll(&handle.Subscription)
 	read1 := <-reads
 	read2 := <-reads
@@ -102,7 +101,7 @@ func TestRead(t *testing.T) {
 
 	//Due to thread race, there may be a random read made before
 	//the requested poll is queued up.
-	decRead1, err := read1.Decode(0, config.TrustDomains[0])
+	decRead1, _ := read1.Decode(0, config.TrustDomains[0])
 	decRead2, err := read2.Decode(0, config.TrustDomains[0])
 	if err != nil {
 		t.Fatalf("Failed to decode read %v", err)
