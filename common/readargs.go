@@ -10,9 +10,11 @@ import (
 	"crypto/rand"
 	"encoding/gob"
 	"errors"
+
 	"golang.org/x/crypto/nacl/box"
 )
 
+// Encode encrypts a read request for a given trust domain configuration.
 func (r *ReadArgs) Encode(trustDomains []*TrustDomainConfig) (out EncodedReadArgs, err error) {
 	pubKey, priKey, err := box.GenerateKey(rand.Reader)
 	if err != nil {
@@ -45,6 +47,30 @@ func (r *ReadArgs) Encode(trustDomains []*TrustDomainConfig) (out EncodedReadArg
 	return
 }
 
+// Bucket returns the bucket index that a read requests, or -1 for invalid args.
+func (r *ReadArgs) Bucket() int {
+	finalvec := make([]byte, len(r.TD[0].RequestVector))
+	for i := 0; i < len(r.TD); i++ {
+		for j := 0; j < len(finalvec); j++ {
+			finalvec[j] ^= r.TD[i].RequestVector[j]
+		}
+	}
+
+	//confirm that there's only 1 bit set, and find it's index.
+	bit := -1
+	for i := 0; i < 8*len(finalvec); i++ {
+		if finalvec[i/8]&(1<<uint(i%8)) != 0 {
+			if bit > -1 {
+				return -1
+			}
+			bit = i
+		}
+	}
+
+	return bit
+}
+
+// Decode decrypts a specific trust domain of encoded args to recover the pad and request vector.
 func (r *EncodedReadArgs) Decode(id int, trustDomain *TrustDomainConfig) (out PirArgs, err error) {
 	if len(r.PirArgs[id]) < box.Overhead {
 		err = errors.New("Attempted Decoding of invalid Trust Domain")

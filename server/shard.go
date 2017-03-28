@@ -19,11 +19,10 @@ func getSocket() string {
 	return fmt.Sprintf("pirtest%d.socket", rand.Int())
 }
 
-/**
- * Handles a shard of the data
- * Goroutines:
- * - 1x processRequests()
- */
+// Shard represents a single shard of the PIR database.
+// It runs a thread handling processing of incoming requests. It is
+// responsible for the logic of placing writes into memory and managing a cuckoo
+// hash table for doing so, and of driving the PIR daemon.
 type Shard struct {
 	// Private State
 	log  *common.Logger
@@ -31,6 +30,7 @@ type Shard struct {
 
 	*pir.PirServer
 	*pir.PirDB
+	dead int
 
 	Entries []cuckoo.Item
 	*cuckoo.Table
@@ -56,6 +56,8 @@ type DecodedBatchReadRequest struct {
 	ReplyChan chan *common.BatchReadReply
 }
 
+// NewShard creates an interface to a PIR daemon at socket, using a given
+// server configuration for sizing and locating data.
 func NewShard(name string, socket string, config Config) *Shard {
 	s := &Shard{}
 	s.log = common.NewLogger(name)
@@ -104,8 +106,14 @@ func NewShard(name string, socket string, config Config) *Shard {
 }
 
 /** PUBLIC METHODS (threadsafe) **/
+
+// Ping checks that the shard is alive.
 func (s *Shard) Ping(args *common.PingArgs, reply *common.PingReply) error {
 	s.log.Info.Println("Ping: " + args.Msg + ", ... Pong")
+	if s.dead > 0 {
+		reply.Err = "Shard Dead"
+		return nil
+	}
 	reply.Err = ""
 	reply.Msg = "PONG"
 	return nil
@@ -117,6 +125,7 @@ func (s *Shard) Write(args *common.WriteArgs) error {
 	return nil
 }
 
+// GetUpdates returns the current global interest vector of changed items.
 func (s *Shard) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdatesReply) error {
 	s.log.Trace.Println("GetUpdates: ")
 	// @TODO
@@ -125,16 +134,22 @@ func (s *Shard) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdates
 	return nil
 }
 
+// BatchRead performs a read of a set of client requests against the database.
 func (s *Shard) BatchRead(args *DecodedBatchReadRequest) {
 	s.readChan <- args
 }
 
+// Close shuts down the database.
 func (s *Shard) Close() {
 	s.log.Info.Printf("Graceful shutdown of shard.")
+	if s.dead > 0 {
+		s.log.Warn.Printf("Shard already stopped / stopping.")
+		return
+	}
+	s.dead = 1
 	s.writeChan <- nil
 	s.readChan <- nil
 	<-s.syncChan
-	s.log.Info.Printf("Caller thread knows read loop closed.")
 }
 
 /** PRIVATE METHODS (singlethreaded) **/
@@ -173,7 +188,7 @@ func (s *Shard) processReplies() {
 			outputChannel = <-s.outstandingReads
 
 			response := &common.BatchReadReply{Err: "", Replies: make([]common.ReadReply, conf.ReadBatch)}
-			for i := 0; i < conf.ReadBatch; i += 1 {
+			for i := 0; i < conf.ReadBatch; i++ {
 				response.Replies[i].Data = reply[i*itemLength : (i+1)*itemLength]
 				//TODO: reply.GlobalSeqNo
 			}
@@ -206,16 +221,23 @@ func (s *Shard) processWrites() {
 					s.log.Error.Fatalf("Consistency violation: lost an in-window DB item.")
 				}
 			}
-			s.sinceFlip += 1
+			s.sinceFlip++
 
 			// Trigger to swap to next DB.
-			// TODO: time based write interval. likely via a leader-triggered signal.
 			if s.sinceFlip > s.outstandingLimit {
-				s.syncChan <- 1
-				s.sinceFlip = 0
+				s.ApplyWrites()
 			}
 		}
 	}
+}
+
+// ApplyWrites will enque a command to apply any outstanding writes to the
+// database to be seen by subsequent reads.
+// TODO: should take a sequence number to do a better job of consistent
+// interleaving with enqueued reads.
+func (s *Shard) ApplyWrites() {
+	s.syncChan <- 1
+	s.sinceFlip = 0
 }
 
 func (s *Shard) evictOldItems() {
@@ -248,7 +270,7 @@ func (s *Shard) batchRead(req *DecodedBatchReadRequest, conf Config) {
 		return
 	}
 
-	for i := 0; i < conf.ReadBatch; i += 1 {
+	for i := 0; i < conf.ReadBatch; i++ {
 		reqVector := req.Args[i].RequestVector
 		copy(pirvector[reqlength*i:reqlength*(i+1)], reqVector)
 	}

@@ -77,6 +77,11 @@ func (f *FollowerRpc) Write(args *WriteArgs, reply *WriteReply) error {
 	return err
 }
 
+func (f *FollowerRpc) NextEpoch(args *uint64, reply *interface{}) error {
+	err := f.Call(f.methodPrefix+".NextEpoch", args, reply)
+	return err
+}
+
 func (f *FollowerRpc) BatchRead(args *BatchReadRequest, reply *BatchReadReply) error {
 	//f.log.Printf("BatchRead: enter\n")
 	err := f.Call(f.methodPrefix+".BatchRead", args, reply)

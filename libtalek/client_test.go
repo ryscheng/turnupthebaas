@@ -2,11 +2,12 @@ package libtalek
 
 import (
 	"encoding/binary"
+	"testing"
+	"time"
+
 	"github.com/dchest/siphash"
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/drbg"
-	"testing"
-	"time"
 )
 
 type mockLeader struct {
@@ -14,8 +15,9 @@ type mockLeader struct {
 	ReceivedReads  chan *common.EncodedReadArgs
 }
 
-func (m *mockLeader) GetName() string {
-	return "Mock Leader"
+func (m *mockLeader) GetName(_ *interface{}, reply *string) error {
+	*reply = "Mock Leader"
+	return nil
 }
 func (m *mockLeader) Ping(args *common.PingArgs, reply *common.PingReply) error {
 	return nil
@@ -87,7 +89,7 @@ func TestRead(t *testing.T) {
 	reads := make(chan *common.EncodedReadArgs, 1)
 	leader := mockLeader{nil, reads}
 
-	c := NewClient("TestClient", config, &leader)
+	c := NewClient("TestRead", config, &leader)
 	if c == nil {
 		t.Fatalf("Error creating client")
 	}
@@ -96,7 +98,7 @@ func TestRead(t *testing.T) {
 
 	// Recreate the expected buckets to make sure we're seeing
 	// the real write.
-	var seqNoBytes [12]byte
+	var seqNoBytes [24]byte
 	_ = binary.PutUvarint(seqNoBytes[:], handle.Seqno)
 	// Clone seed so they advance together.
 	seedData, _ := handle.Subscription.Seed1.MarshalBinary()
@@ -112,7 +114,7 @@ func TestRead(t *testing.T) {
 
 	//Due to thread race, there may be a random read made before
 	//the requested poll is queued up.
-	decRead1, err := read1.Decode(0, config.TrustDomains[0])
+	decRead1, _ := read1.Decode(0, config.TrustDomains[0])
 	decRead2, err := read2.Decode(0, config.TrustDomains[0])
 	if err != nil {
 		t.Fatalf("Failed to decode read %v", err)

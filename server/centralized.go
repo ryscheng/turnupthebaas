@@ -2,6 +2,7 @@ package server
 
 import (
 	"sync/atomic"
+	"time"
 
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/drbg"
@@ -28,6 +29,7 @@ type Centralized struct {
 	// Channels
 	ReadBatch []*common.ReadRequest
 	ReadChan  chan *common.ReadRequest
+	dead      int
 	closeChan chan int
 }
 
@@ -50,11 +52,16 @@ func NewCentralized(name string, socket string, config Config, follower common.F
 	c.ReadChan = make(chan *common.ReadRequest)
 	go c.batchReads()
 
+	if c.isLeader {
+		go c.periodicWrites()
+	}
+
 	return c
 }
 
 // Close shuts down active reading and writing threads of the server.
 func (c *Centralized) Close() {
+	c.dead = 1
 	// stop processing.
 	c.closeChan <- 1
 	// Stop the shard.
@@ -127,10 +134,24 @@ func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) er
 	return nil
 }
 
+// NextEpoch applies pending writes to the database, so that they are read
+// by subsequent reads.
+// TODO: args should be a sequence number to make this application consistent
+// across replicas.
+func (c *Centralized) NextEpoch(args *uint64, reply *interface{}) error {
+	c.log.Trace.Println("NextEpoch: enter")
+	c.shard.ApplyWrites()
+	if c.follower != nil {
+		c.follower.NextEpoch(args, nil)
+	}
+	return nil
+}
+
 func (c *Centralized) Read(args *common.EncodedReadArgs, reply *common.ReadReply) error {
 	c.log.Trace.Println("Read: enter")
 	tr := trace.New("centralized.read", "Read")
 	defer tr.Finish()
+
 	resultChan := make(chan *common.ReadReply)
 	c.ReadChan <- &common.ReadRequest{Args: args, ReplyChan: resultChan}
 	theReply := <-resultChan
@@ -142,6 +163,7 @@ func (c *Centralized) Read(args *common.EncodedReadArgs, reply *common.ReadReply
 }
 
 // BatchRead performs a set of reads against the talek database at one logical point in time.
+// BatchRead is replicated to followers with a batching determined by the leader.
 func (c *Centralized) BatchRead(args *common.BatchReadRequest, reply *common.BatchReadReply) error {
 	c.log.Trace.Println("BatchRead: enter")
 	tr := trace.New("centralized.batchread", "BatchRead")
@@ -155,6 +177,12 @@ func (c *Centralized) BatchRead(args *common.BatchReadRequest, reply *common.Bat
 	localArgs.ReplyChan = make(chan *common.BatchReadReply)
 	localArgs.Args = make([]common.PirArgs, len(args.Args))
 	for i, val := range args.Args {
+		//Handle pad requests.
+		if len(val.PirArgs) == 0 {
+			localArgs.Args[i].PadSeed = make([]byte, drbg.SeedLength)
+			localArgs.Args[i].RequestVector = make([]byte, config.NumBuckets/8)
+			continue
+		}
 		pir, err := val.Decode(config.TrustDomainIndex, config.TrustDomain)
 		if err != nil {
 			reply.Err = err.Error()
@@ -214,7 +242,9 @@ func (c *Centralized) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetU
 /** PRIVATE METHODS (singlethreaded) **/
 func (c *Centralized) batchReads() {
 	config := c.config.Load().(Config)
+	emptyRead := common.ReadRequest{}
 	var readReq *common.ReadRequest
+	tick := time.After(config.ReadInterval)
 	for {
 		select {
 		case readReq = <-c.ReadChan:
@@ -225,6 +255,16 @@ func (c *Centralized) batchReads() {
 			} else {
 				c.log.Trace.Printf("Read: add to batch, size=%v\n", len(c.ReadBatch))
 			}
+			continue
+		case <-tick:
+			if len(c.ReadBatch) > 0 {
+				for len(c.ReadBatch) < config.ReadBatch {
+					c.ReadBatch = append(c.ReadBatch, &emptyRead)
+				}
+				go c.triggerBatchRead(c.ReadBatch)
+				c.ReadBatch = make([]*common.ReadRequest, 0, config.ReadBatch)
+			}
+			tick = time.After(config.ReadInterval)
 			continue
 		case <-c.closeChan:
 			break
@@ -240,7 +280,9 @@ func (c *Centralized) triggerBatchRead(batch []*common.ReadRequest) {
 	// Copy args
 	args.Args = make([]common.EncodedReadArgs, len(batch), len(batch))
 	for i, val := range batch {
-		args.Args[i] = *val.Args
+		if val.Args != nil {
+			args.Args[i] = *val.Args
+		}
 	}
 
 	// Choose a SeqNoRange
@@ -265,10 +307,21 @@ func (c *Centralized) triggerBatchRead(batch []*common.ReadRequest) {
 	// logging of throughput.
 
 	// Respond to clients
-	for i, val := range reply.Replies {
-		val.GlobalSeqNo = args.SeqNoRange
-		batch[i].Reply(&val)
+	for i := range reply.Replies {
+		reply.Replies[i].GlobalSeqNo = args.SeqNoRange
+		batch[i].Reply(&reply.Replies[i])
 	}
 
 	c.log.Trace.Println("triggerBatchRead: exit")
+}
+
+func (c *Centralized) periodicWrites() {
+	config := c.config.Load().(Config)
+	for c.dead == 0 {
+		tick := time.After(config.WriteInterval)
+		select {
+		case <-tick:
+			c.NextEpoch(&c.proposedSeqNo, nil)
+		}
+	}
 }
