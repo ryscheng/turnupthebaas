@@ -3,7 +3,9 @@ package drbg
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
+
 	"github.com/dchest/siphash"
 )
 
@@ -38,6 +40,23 @@ func (s *Seed) UnmarshalBinary(data []byte) error {
 
 func (s *Seed) MarshalBinary() ([]byte, error) {
 	return s.value[:], nil
+}
+
+// MarshalJSON serializes the seed to JSON
+// Implements the json.Marshaller interface
+func (s *Seed) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.value)
+}
+
+// UnmarshalJSON restores the seed from a JSON representation.
+func (s *Seed) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, &s.value); err != nil {
+		return err
+	}
+	if len(s.value) != SeedLength {
+		return errors.New("invlaid drbg seed length")
+	}
+	return nil
 }
 
 func (s *Seed) Key() []byte {

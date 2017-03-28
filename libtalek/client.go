@@ -121,10 +121,13 @@ func (c *Client) Poll(handle *Subscription) chan []byte {
 			return nil
 		}
 	}
+	if handle.updates == nil {
+		initSubscription(handle)
+	}
 	c.subscriptions = append(c.subscriptions, *handle)
 	c.subscriptionMutex.Unlock()
 
-	return handle.Updates
+	return handle.updates
 }
 
 // Done unsubscribes a Subscription from being Polled for new items.
