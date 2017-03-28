@@ -79,7 +79,7 @@ func main() {
 		clients[i].Ping()
 		handle, _ := libtalek.NewTopic()
 		clients[i].Publish(handle, []byte("Hello from client"+string(i)))
-		data := clients[i].Poll(&handle.Subscription)
+		data := clients[i].Poll(&handle.Handle)
 		fmt.Printf("!!! data=%v", data)
 	}
 	//c1.Ping()

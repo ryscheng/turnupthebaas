@@ -54,8 +54,8 @@ func main() {
 	//log.Println("Created c1")
 
 	handle, _ := libtalek.NewTopic()
-	var subscription libtalek.Subscription
-	subscription = handle.Subscription
+	var subscription libtalek.Handle
+	subscription = handle.Handle
 
 	read := c0.Poll(&subscription)
 

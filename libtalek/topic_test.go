@@ -21,17 +21,17 @@ func TestEncryptDecrypt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating topic handle: %v\n", err)
 	}
-	var sub Subscription
-	sub = th.Subscription
+	var h Handle
+	h = th.Handle
 	if err != nil {
-		t.Fatalf("Failed to derive subscription from topic: %v\n", err)
+		t.Fatalf("Failed to derive handle from topic: %v\n", err)
 	}
 	ciphertext, err := th.encrypt([]byte(plaintext), &nonce)
 	if err != nil {
 		t.Fatalf("Error encrypting plaintext: %v\n", err)
 	}
-	sub.Seqno = nonceint
-	result, err := sub.Decrypt(ciphertext, &nonce)
+	h.Seqno = nonceint
+	result, err := h.Decrypt(ciphertext, &nonce)
 	if err != nil {
 		t.Fatalf("Error decrypting ciphertext: %v, %v\n", ciphertext, err)
 	}
@@ -131,7 +131,7 @@ func BenchmarkEncryptDecrypt(b *testing.B) {
 	if err != nil {
 		b.Fatalf("Error creating topic handle: %v\n", err)
 	}
-	sub := th.Subscription
+	h := th.Handle
 	// Start timing
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -139,7 +139,7 @@ func BenchmarkEncryptDecrypt(b *testing.B) {
 		if err != nil {
 			b.Fatalf("Error encrypting %v: %v\n", i, err)
 		}
-		_, err = sub.Decrypt(ciphertext, &nonce)
+		_, err = h.Decrypt(ciphertext, &nonce)
 		if err != nil {
 			b.Fatalf("Error decrypting %v: %v\n", i, err)
 		}
