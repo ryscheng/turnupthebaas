@@ -53,13 +53,13 @@ func main() {
 	//c1 := libtalek.NewClient("c1", clientConfig, leaderRpc)
 	//log.Println("Created c1")
 
-	handle, _ := libtalek.NewTopic()
-	var subscription libtalek.Handle
-	subscription = handle.Handle
+	topic, _ := libtalek.NewTopic()
+	var handle libtalek.Handle
+	handle = topic.Handle
 
-	read := c0.Poll(&subscription)
+	read := c0.Poll(&handle)
 
-	c0.Publish(handle, []byte("PDB Client Trial"))
+	c0.Publish(topic, []byte("PDB Client Trial"))
 	log.Printf("waiting for read.")
 	data := <-read
 

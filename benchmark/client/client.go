@@ -55,17 +55,17 @@ func main() {
 	//c1 := libtalek.NewClient("c1", clientConfig, leaderRpc)
 	//log.Println("Created c1")
 
-	handle, _ := libtalek.NewTopic()
-	var subscription libtalek.Handle
-	subscription = handle.Handle
+	topic, _ := libtalek.NewTopic()
+	var handle libtalek.Handle
+	handle = topic.Handle
 	totalTrials := *repetitions
 	durations := make([]time.Duration, 0, totalTrials)
-	read := c0.Poll(&subscription)
+	read := c0.Poll(&handle)
 	for trials := 0; trials < totalTrials; trials++ {
 		time.Sleep(time.Duration(int(clientConfig.WriteInterval*2)) * time.Nanosecond)
 		startTime := time.Now()
 		// Each 2 rounds the client will publish and make a valid pair of read requests.
-		c0.Publish(handle, []byte("PDB Client Trial "+string(trials)))
+		c0.Publish(topic, []byte("PDB Client Trial "+string(trials)))
 		<-read
 		endTime := time.Now()
 
