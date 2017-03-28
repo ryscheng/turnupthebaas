@@ -2,6 +2,7 @@ package drbg
 
 import (
 	"encoding/binary"
+	"errors"
 	"github.com/dchest/siphash"
 	"hash"
 	"sync"
@@ -18,7 +19,6 @@ type HashDrbg struct {
 
 func NewHashDrbg(seed *Seed) (*HashDrbg, error) {
 	d := &HashDrbg{}
-	d.mu = sync.Mutex{}
 	if seed == nil {
 		newSeed, seedErr := NewSeed()
 		if seedErr != nil {
@@ -73,4 +73,27 @@ func (d *HashDrbg) FillBytes(b []byte) {
 			randBytes = randBytes[1:]
 		}
 	}
+}
+
+func Overlay(seed, data []byte) error {
+	if len(seed) < SeedLength {
+		return errors.New("Invalid seed provided.")
+	}
+	s := Seed{}
+	s.UnmarshalBinary(seed)
+	d, err := NewHashDrbg(&s)
+	if err != nil {
+		return err
+	}
+
+	dbytes := d.Next()
+	for i := 0; i < len(data); i++ {
+		data[i] ^= dbytes[0]
+		if len(dbytes) < 2 {
+			dbytes = d.Next()
+		} else {
+			dbytes = dbytes[1:]
+		}
+	}
+	return nil
 }

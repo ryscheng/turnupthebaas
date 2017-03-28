@@ -1,9 +1,8 @@
 package common
 
 type BatchReadRequest struct {
-	Args       []PirArgs // Set of Read requests
+	Args       []EncodedReadArgs // Set of Read requests
 	SeqNoRange Range
-	RandSeed   int64
 	ReplyChan  chan *BatchReadReply
 }
 

@@ -20,6 +20,7 @@ type PrivateTrustDomainConfig struct {
 	PrivateKey [32]byte
 }
 
+// Create a new TrustDomainConfig with a freshly generated keypair.
 func NewTrustDomainConfig(name string, address string, isValid bool, isDistributed bool) *TrustDomainConfig {
 	td := &TrustDomainConfig{}
 	td.Name = name
@@ -36,6 +37,9 @@ func NewTrustDomainConfig(name string, address string, isValid bool, isDistribut
 	return td
 }
 
+// Marshaled JSON for a TrustDomainConfig may include a 'PrivateKey' when it
+// represents the config for a server / trust domain. The custom UnmarshalJSON
+// function supports restoring that key.
 func (t *TrustDomainConfig) UnmarshalJSON(marshaled []byte) error {
 	if len(marshaled) == 0 {
 		return nil
@@ -64,10 +68,8 @@ func (t *TrustDomainConfig) UnmarshalJSON(marshaled []byte) error {
 	return nil
 }
 
-/**
- * Expose the Private key of a trust domain config so that it can be saved
- * and restored.
- */
+// Expose the Private key of a trust domain config for marshalling.
+//   bytes, err := json.Marshal(trustdomainconfig.Private())
 func (td *TrustDomainConfig) Private() *PrivateTrustDomainConfig {
 	PTDC := new(PrivateTrustDomainConfig)
 	PTDC.TrustDomainConfig = td

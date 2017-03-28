@@ -52,7 +52,7 @@ func (l *LeaderRpc) Call(methodName string, args interface{}, reply interface{})
 	// Do RPC
 	err = l.client.Call(methodName, args, reply)
 	if err != nil {
-		l.log.Printf("rpc error:", err)
+		l.log.Printf("rpc error: %v", err)
 		return err
 	}
 
@@ -60,8 +60,9 @@ func (l *LeaderRpc) Call(methodName string, args interface{}, reply interface{})
 	return nil
 }
 
-func (l *LeaderRpc) GetName() string {
-	return l.name
+func (l *LeaderRpc) GetName(_ *interface{}, reply *string) error {
+	*reply = l.name
+	return nil
 }
 
 func (l *LeaderRpc) Ping(args *PingArgs, reply *PingReply) error {

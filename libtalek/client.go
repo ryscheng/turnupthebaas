@@ -1,25 +1,24 @@
 package libtalek
 
 import (
-	"github.com/privacylab/talek/common"
-	"github.com/privacylab/talek/drbg"
+	"crypto/rand"
+	"errors"
+	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/drbg"
 )
 
-/**
- * Client interface for libtalek
- * Goroutines:
- * - 1x RequestManager.writePeriodic
- * - 1x RequestManager.readPeriodic
- */
+// Client represents a connection to the Talek system. Typically created with
+// NewClient, the object manages requests, both reads an writes.
 type Client struct {
 	log    *common.Logger
 	name   string
 	config atomic.Value //ClientConfig
 	dead   int32
-	rand   *drbg.HashDrbg
 	leader common.LeaderInterface
 
 	subscriptions     []Subscription
@@ -30,32 +29,19 @@ type Client struct {
 	lastSeqNo uint64
 }
 
-// The interface for a class that will handle read responses.
-type RequestResponder interface {
-	OnResponse(*common.ReadArgs, *common.ReadReply)
-}
-
 type request struct {
 	*common.ReadArgs
-	RequestResponder
+	*Subscription
 }
 
-//TODO: client needs to know the different trust domain security parameters.
+// NewClient creates a Talek client for reading and writing metadata-protected messages.
 func NewClient(name string, config ClientConfig, leader common.LeaderInterface) *Client {
 	c := &Client{}
 	c.log = common.NewLogger(name)
 	c.name = name
 	c.config.Store(config)
 	c.leader = leader
-	c.dead = 0
-	rand, err := drbg.NewHashDrbg(nil)
-	if err != nil {
-		c.log.Error.Fatalf("Error creating Hashdrbg: %v\n", err)
-		return nil
-	}
-	c.rand = rand
 
-	c.subscriptionMutex = sync.Mutex{}
 	//todo: should channel capacity be smarter?
 	c.pendingReads = make(chan request, 5)
 	c.pendingWrites = make(chan *common.WriteArgs, 5)
@@ -69,24 +55,29 @@ func NewClient(name string, config ClientConfig, leader common.LeaderInterface) 
 
 /** PUBLIC METHODS (threadsafe) **/
 
+// SetConfig allows updating the configuraton of a Client, e.g. if server memebership
+// or speed characteristics for the system are changed.
 func (c *Client) SetConfig(config ClientConfig) {
 	c.config.Store(config)
 }
 
+// Kill stops client processing. This allows for graceful shutdown or suspension of requests.
 func (c *Client) Kill() {
 	atomic.StoreInt32(&c.dead, 1)
 }
 
+// Ping will perform an on-thread ping of the Talek system, allowing the client
+// to validate that it is connected to the Talek system, and check the latency
+// of connection to the server.
 func (c *Client) Ping() bool {
 	var reply common.PingReply
-	err := c.leader.Ping(&common.PingArgs{"PING"}, &reply)
+	err := c.leader.Ping(&common.PingArgs{Msg: "PING"}, &reply)
 	if err == nil && reply.Err == "" {
 		c.log.Info.Printf("Ping success\n")
 		return true
-	} else {
-		c.log.Warn.Printf("Ping fail: err=%v, reply=%v\n", err, reply)
-		return false
 	}
+	c.log.Warn.Printf("Ping fail: err=%v, reply=%v\n", err, reply)
+	return false
 }
 
 // MaxLength returns the maximum allowed message the client can Publish.
@@ -96,26 +87,31 @@ func (c *Client) MaxLength() int {
 	return config.DataSize
 }
 
+// Publish a new message to the end of a topic.
 func (c *Client) Publish(handle *Topic, data []byte) error {
 	config := c.config.Load().(ClientConfig)
 
-	if len(data) > config.DataSize {
-		return errors.New("Message too long.")
-	} else if len(data) < config.DataSize {
-		allocation := make([]byte, config.DataSize)
+	if len(data) > config.DataSize-PublishingOverhead {
+		return errors.New("message too long")
+	} else if len(data) < config.DataSize-PublishingOverhead {
+		allocation := make([]byte, config.DataSize-PublishingOverhead)
 		copy(allocation[:], data)
 		data = allocation
 	}
 
-	write_args, err := handle.GeneratePublish(config.CommonConfig, data)
+	writeArgs, err := handle.GeneratePublish(config.CommonConfig, data)
+	c.log.Info.Printf("Wrote %v(%d) to %d,%d.", writeArgs.Data[0:4], len(writeArgs.Data), writeArgs.Bucket1, writeArgs.Bucket2)
 	if err != nil {
 		return err
 	}
 
-	c.pendingWrites <- write_args
+	c.pendingWrites <- writeArgs
 	return nil
 }
 
+// Poll Subscribes to updates on a given log Subscription.
+// When done reading message,s the the channel can be closed via the Done
+// method.
 func (c *Client) Poll(handle *Subscription) chan []byte {
 	// Check if already subscribed.
 	c.subscriptionMutex.Lock()
@@ -125,12 +121,16 @@ func (c *Client) Poll(handle *Subscription) chan []byte {
 			return nil
 		}
 	}
+	if handle.updates == nil {
+		initSubscription(handle)
+	}
 	c.subscriptions = append(c.subscriptions, *handle)
 	c.subscriptionMutex.Unlock()
 
-	return handle.Updates
+	return handle.updates
 }
 
+// Done unsubscribes a Subscription from being Polled for new items.
 func (c *Client) Done(handle *Subscription) bool {
 	c.subscriptionMutex.Lock()
 	for i := 0; i < len(c.subscriptions); i++ {
@@ -147,7 +147,7 @@ func (c *Client) Done(handle *Subscription) bool {
 
 /** Private methods **/
 func (c *Client) writePeriodic() {
-	var req *common.WriteArgs = nil
+	var req *common.WriteArgs
 
 	for atomic.LoadInt32(&c.dead) == 0 {
 		reply := common.WriteReply{}
@@ -174,18 +174,18 @@ func (c *Client) writePeriodic() {
 }
 
 func (c *Client) readPeriodic() {
-	var request request
+	var req request
 
 	for atomic.LoadInt32(&c.dead) == 0 {
 		reply := common.ReadReply{}
 		conf := c.config.Load().(ClientConfig)
 		select {
-		case request = <-c.pendingReads:
+		case req = <-c.pendingReads:
 			break
 		default:
-			request = c.nextRequest(&conf)
+			req = c.nextRequest(&conf)
 		}
-		encreq, err := request.ReadArgs.Encode(conf.TrustDomains)
+		encreq, err := req.ReadArgs.Encode(conf.TrustDomains)
 		if err != nil {
 			reply.Err = err.Error()
 		} else {
@@ -197,8 +197,8 @@ func (c *Client) readPeriodic() {
 		if reply.GlobalSeqNo.End > c.lastSeqNo {
 			c.lastSeqNo = reply.GlobalSeqNo.End
 		}
-		if request.RequestResponder != nil {
-			request.RequestResponder.OnResponse(request.ReadArgs, &reply)
+		if req.Subscription != nil {
+			req.Subscription.OnResponse(req.ReadArgs, &reply, uint(conf.DataSize))
 		}
 		time.Sleep(conf.ReadInterval)
 	}
@@ -206,10 +206,13 @@ func (c *Client) readPeriodic() {
 
 func (c *Client) generateRandomWrite(config ClientConfig) *common.WriteArgs {
 	args := &common.WriteArgs{}
-	args.Bucket1 = c.rand.RandomUint64() % config.CommonConfig.NumBuckets
-	args.Bucket2 = c.rand.RandomUint64() % config.CommonConfig.NumBuckets
+	var max big.Int
+	b1, _ := rand.Int(rand.Reader, max.SetUint64(config.NumBuckets))
+	b2, _ := rand.Int(rand.Reader, max.SetUint64(config.NumBuckets))
+	args.Bucket1 = b1.Uint64()
+	args.Bucket2 = b2.Uint64()
 	args.Data = make([]byte, config.CommonConfig.DataSize, config.CommonConfig.DataSize)
-	c.rand.FillBytes(args.Data)
+	rand.Read(args.Data)
 	return args
 }
 
@@ -219,7 +222,7 @@ func (c *Client) generateRandomRead(config *ClientConfig) *common.ReadArgs {
 	args.TD = make([]common.PirArgs, len(config.TrustDomains), len(config.TrustDomains))
 	for i := 0; i < len(args.TD); i++ {
 		args.TD[i].RequestVector = make([]byte, vectorSize, vectorSize)
-		c.rand.FillBytes(args.TD[i].RequestVector)
+		rand.Read(args.TD[i].RequestVector)
 		seed, err := drbg.NewSeed()
 		if err != nil {
 			c.log.Error.Fatalf("Error creating random seed: %v\n", err)

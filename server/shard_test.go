@@ -3,12 +3,13 @@ package server
 import (
 	"bytes"
 	"fmt"
-	"github.com/privacylab/talek/common"
-	"github.com/privacylab/talek/pir"
 	"math/rand"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/pir"
 )
 
 import "testing"
@@ -21,20 +22,22 @@ func fromEnvOrDefault(envKey string, default_val int) int {
 	return default_val
 }
 
-func testConf() ServerConfig {
-	return ServerConfig{
-		&common.CommonConfig{
-			uint64(fromEnvOrDefault("NUM_BUCKETS", 512)), // num buckets
-			fromEnvOrDefault("BUCKET_DEPTH", 4),          // depth
-			fromEnvOrDefault("DATA_SIZE", 512),           // data size
-			0.95, // bloom false positive
-			0.95, // max load
-			0.02, // load step
+func testConf() Config {
+	return Config{
+		CommonConfig: &common.CommonConfig{
+			NumBuckets:         uint64(fromEnvOrDefault("NUM_BUCKETS", 512)),
+			BucketDepth:        fromEnvOrDefault("BUCKET_DEPTH", 4),
+			DataSize:           fromEnvOrDefault("DATA_SIZE", 512),
+			BloomFalsePositive: 0.95,
+			MaxLoadFactor:      0.95,
+			LoadFactorStep:     0.02,
 		},
-		fromEnvOrDefault("BATCH_SIZE", 8), // batch size
-		time.Second,                       //write interval
-		time.Second,                       //read interval
-		nil,
+		ReadBatch:        fromEnvOrDefault("BATCH_SIZE", 8),
+		WriteInterval:    time.Second,
+		ReadInterval:     time.Second,
+		TrustDomain:      nil,
+		TrustDomainIndex: 0,
+		ServerAddrs:      nil,
 	}
 }
 
@@ -51,7 +54,7 @@ func TestShardSanity(t *testing.T) {
 	}
 
 	writeReplyChan := make(chan *common.WriteReply)
-	shard.Write(&common.WriteArgs{0, 1, bytes.NewBufferString("Magic").Bytes(), []byte{}, 0, writeReplyChan})
+	shard.Write(&common.WriteArgs{Bucket1: 0, Bucket2: 1, Data: bytes.NewBufferString("Magic").Bytes(), InterestVector: []byte{}, ReplyChan: writeReplyChan})
 
 	// Force DB write.
 	shard.syncChan <- 1
@@ -60,12 +63,12 @@ func TestShardSanity(t *testing.T) {
 
 	rv := make([]byte, 512)
 	rv[0] = 0xff
-	req := common.PirArgs{rv, nil}
+	req := common.PirArgs{RequestVector: rv}
 	reqs := make([]common.PirArgs, 8)
 	for i := 0; i < 8; i++ {
 		reqs[i] = req
 	}
-	shard.BatchRead(&common.BatchReadRequest{reqs, common.Range{0, 0, nil}, 0, replychan})
+	shard.BatchRead(&DecodedBatchReadRequest{Args: reqs, ReplyChan: replychan})
 
 	reply := <-replychan
 	if reply.Replies[0].Data[0] != bytes.NewBufferString("Magic").Bytes()[0] {
@@ -98,7 +101,7 @@ func BenchmarkShard(b *testing.B) {
 	replychan := make(chan *common.BatchReadReply)
 
 	//A default write request
-	stdWrite := &common.WriteArgs{0, 1, bytes.NewBufferString("Magic").Bytes(), []byte{}, 0, nil}
+	stdWrite := &common.WriteArgs{Bucket1: 0, Bucket2: 1, Data: bytes.NewBufferString("Magic").Bytes(), InterestVector: []byte{}}
 
 	//A default read request
 	reqs := make([]common.PirArgs, conf.ReadBatch)
@@ -106,11 +109,11 @@ func BenchmarkShard(b *testing.B) {
 	for i := 0; i < len(rv); i++ {
 		rv[i] = byte(rand.Int())
 	}
-	req := common.PirArgs{rv, nil}
+	req := common.PirArgs{RequestVector: rv}
 	for i := 0; i < conf.ReadBatch; i++ {
 		reqs[i] = req
 	}
-	stdRead := &common.BatchReadRequest{reqs, common.Range{0, 0, nil}, 0, replychan}
+	stdRead := &DecodedBatchReadRequest{reqs, replychan}
 
 	b.ResetTimer()
 

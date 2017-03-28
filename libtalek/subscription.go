@@ -3,6 +3,8 @@ package libtalek
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
+
 	"github.com/agl/ed25519"
 	"github.com/dchest/siphash"
 	"github.com/privacylab/talek/common"
@@ -10,13 +12,18 @@ import (
 	"golang.org/x/crypto/nacl/box"
 )
 
+// Subscription is the readable component of a Talek Log.
+// Subscriptions are created by making a NewTopic, but can be independently
+// shared, and restored from a serialized state. A Subscription is read
+// by calling Client.Poll(subscription) to recieve a channel with new messages
+// read from the Subscription.
 type Subscription struct {
 	// for random looking pir requests
 	drbg *drbg.HashDrbg
 
 	// For learning log positions
-	Seed1 drbg.Seed
-	Seed2 drbg.Seed
+	Seed1 *drbg.Seed
+	Seed2 *drbg.Seed
 
 	// For decrypting messages
 	SharedSecret     *[32]byte
@@ -26,40 +33,57 @@ type Subscription struct {
 	Seqno uint64
 
 	// Notifications of new messages
-	Updates chan []byte
+	updates chan []byte
 }
 
 func NewSubscription() (s *Subscription, err error) {
 	s = &Subscription{}
-	s.Updates = make(chan []byte)
+	err = initSubscription(s)
+	return
+}
+
+func initSubscription(s *Subscription) (err error) {
+	s.updates = make(chan []byte)
 
 	s.drbg, err = drbg.NewHashDrbg(nil)
 	return
 }
 
-func (s *Subscription) generatePoll(config *ClientConfig, seqNo uint64) (*common.ReadArgs, *common.ReadArgs, error) {
+// nextBuckets returns the pair of buckets that will be used in the next poll or publish of this
+// topic given the current sequence number of the subscription.
+// The buckets returned by this method must still be wrapped by the NumBuckets config paramter of talek instance it is requested against.
+func (s *Subscription) nextBuckets(conf *common.CommonConfig) (uint64, uint64) {
+	seqNoBytes := make([]byte, 12)
+	_ = binary.PutUvarint(seqNoBytes, s.Seqno)
+
+	k0, k1 := s.Seed1.KeyUint128()
+	b1 := siphash.Hash(k0, k1, seqNoBytes)
+	k0, k1 = s.Seed2.KeyUint128()
+	b2 := siphash.Hash(k0, k1, seqNoBytes)
+
+	return b1 % conf.NumBuckets, b2 % conf.NumBuckets
+}
+
+func (s *Subscription) generatePoll(config *ClientConfig, _ uint64) (*common.ReadArgs, *common.ReadArgs, error) {
 	if s.SharedSecret == nil || s.SigningPublicKey == nil {
 		return nil, nil, errors.New("Subscription not fully initialized")
 	}
 
 	args := make([]*common.ReadArgs, 2)
-	seqNoBytes := make([]byte, 12)
-	_ = binary.PutUvarint(seqNoBytes, seqNo)
+	bucket1, bucket2 := s.nextBuckets(config.CommonConfig)
 
 	num := len(config.TrustDomains)
 
 	args[0] = &common.ReadArgs{}
 	args[0].TD = make([]common.PirArgs, num)
 	// The first Trust domain is the one with the explicit bucket bit-flip.
-	k0, k1 := s.Seed1.KeyUint128()
-	bucket1 := siphash.Hash(k0, k1, seqNoBytes) % config.CommonConfig.NumBuckets
-	args[0].TD[0].RequestVector = make([]byte, config.CommonConfig.NumBuckets/8+1)
+	args[0].TD[0].RequestVector = make([]byte, (config.CommonConfig.NumBuckets+7)/8)
 	args[0].TD[0].RequestVector[bucket1/8] |= 1 << (bucket1 % 8)
 	args[0].TD[0].PadSeed = make([]byte, drbg.SeedLength)
 	s.drbg.FillBytes(args[0].TD[0].PadSeed)
 
 	for j := 1; j < num; j++ {
-		args[0].TD[j].RequestVector = make([]byte, config.CommonConfig.NumBuckets/8+1)
+		args[0].TD[j].RequestVector = make([]byte, (config.CommonConfig.NumBuckets+7)/8)
 		s.drbg.FillBytes(args[0].TD[j].RequestVector)
 		args[0].TD[j].PadSeed = make([]byte, drbg.SeedLength)
 		s.drbg.FillBytes(args[0].TD[j].PadSeed)
@@ -72,15 +96,13 @@ func (s *Subscription) generatePoll(config *ClientConfig, seqNo uint64) (*common
 	args[1] = &common.ReadArgs{}
 	args[1].TD = make([]common.PirArgs, num)
 	// The first Trust domain is the one with the explicit bucket bit-flip.
-	k0, k1 = s.Seed2.KeyUint128()
-	bucket2 := siphash.Hash(k0, k1, seqNoBytes) % config.CommonConfig.NumBuckets
-	args[1].TD[0].RequestVector = make([]byte, config.CommonConfig.NumBuckets/8+1)
-	args[1].TD[0].RequestVector[bucket2/8] |= 1 << (bucket1 % 8)
+	args[1].TD[0].RequestVector = make([]byte, (config.CommonConfig.NumBuckets+7)/8)
+	args[1].TD[0].RequestVector[bucket2/8] |= 1 << (bucket2 % 8)
 	args[1].TD[0].PadSeed = make([]byte, drbg.SeedLength)
 	s.drbg.FillBytes(args[1].TD[0].PadSeed)
 
 	for j := 1; j < num; j++ {
-		args[1].TD[j].RequestVector = make([]byte, config.CommonConfig.NumBuckets/8+1)
+		args[1].TD[j].RequestVector = make([]byte, (config.CommonConfig.NumBuckets+7)/8)
 		s.drbg.FillBytes(args[1].TD[j].RequestVector)
 		args[1].TD[j].PadSeed = make([]byte, drbg.SeedLength)
 		s.drbg.FillBytes(args[1].TD[j].PadSeed)
@@ -119,27 +141,31 @@ func (s *Subscription) Decrypt(cyphertext []byte, nonce *[24]byte) ([]byte, erro
 	return plaintext[0:cap(plaintext)], nil
 }
 
-func (s *Subscription) OnResponse(args *common.ReadArgs, reply *common.ReadReply) {
-	msg := s.retrieveResponse(args, reply)
-	if msg != nil && s.Updates != nil {
-		s.Updates <- msg
+func (s *Subscription) OnResponse(args *common.ReadArgs, reply *common.ReadReply, dataSize uint) {
+	msg := s.retrieveResponse(args, reply, dataSize)
+	if msg != nil && s.updates != nil {
+		s.updates <- msg
 	}
 }
 
-// TODO: checksum msgs at topic level so if something random comes back it is filtered out.
-func (s *Subscription) retrieveResponse(args *common.ReadArgs, reply *common.ReadReply) []byte {
+func (s *Subscription) retrieveResponse(args *common.ReadArgs, reply *common.ReadReply, dataSize uint) []byte {
 	data := reply.Data
 
+	// strip out the padding injected by trust domains.
 	for i := 0; i < len(args.TD); i++ {
-		pad := make([]byte, len(data))
-		seed := drbg.Seed{}
-		seed.UnmarshalBinary(args.TD[i].PadSeed)
-		hashDrbg, _ := drbg.NewHashDrbg(&seed)
-		hashDrbg.FillBytes(pad)
-		for j := 0; j < len(data); j++ {
-			data[j] ^= pad[j]
-		}
+		drbg.Overlay(args.TD[i].PadSeed, data)
 	}
 
-	return data
+	var seqNoBytes [24]byte
+	_ = binary.PutUvarint(seqNoBytes[:], s.Seqno)
+
+	// A 'bucket' likely has multiple messages in it. See if any of them are ours.
+	for i := uint(0); i < uint(len(data)); i += dataSize {
+		plaintext, err := s.Decrypt(data[i:i+dataSize], &seqNoBytes)
+		if err == nil {
+			return plaintext
+		}
+		fmt.Printf("decryption failed for read %d of bucket %d [%v](%d): %v\n", i/dataSize, args.Bucket(), data[i:i+4], len(data[i:i+dataSize]), err)
+	}
+	return nil
 }

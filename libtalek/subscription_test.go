@@ -2,8 +2,9 @@ package libtalek
 
 import (
 	"fmt"
-	"github.com/privacylab/talek/common"
 	"testing"
+
+	"github.com/privacylab/talek/common"
 )
 
 func TestGeneratePoll(t *testing.T) {
@@ -21,11 +22,15 @@ func TestGeneratePoll(t *testing.T) {
 		t.Fatalf("Could generate a poll from an un-configured subscription")
 	}
 
-	topic, err := NewTopic()
+	topic, _ := NewTopic()
 	sub = &topic.Subscription
 	args0, _, err := sub.generatePoll(config, 1)
 	if err != nil {
 		t.Fatalf("Error creating ReadArgs: %v\n", err)
+	}
+
+	if uint64(len(args0.TD[0].RequestVector)) != config.CommonConfig.NumBuckets/8 {
+		t.Fatalf("Length of request was incorrect. %d vs %d", len(args0.TD[0].RequestVector), config.CommonConfig.NumBuckets/8)
 	}
 
 	fmt.Printf("len(args0)=%v; \n", 3*(len(args0.TD[0].RequestVector)+len(args0.TD[0].PadSeed)))
@@ -80,7 +85,7 @@ func BenchmarkRetrieveResponse(b *testing.B) {
 	// Start timing
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = sub.retrieveResponse(args, reply)
+		_ = sub.retrieveResponse(args, reply, 1024)
 	}
 
 }

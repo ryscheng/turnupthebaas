@@ -2,12 +2,13 @@ package server
 
 import (
 	"fmt"
-	"github.com/privacylab/talek/common"
-	"github.com/privacylab/talek/cuckoo"
-	"github.com/privacylab/talek/pir"
 	"math/rand"
 	"os"
 	"sync/atomic"
+
+	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/cuckoo"
+	"github.com/privacylab/talek/pir"
 )
 
 func getSocket() string {
@@ -18,11 +19,10 @@ func getSocket() string {
 	return fmt.Sprintf("pirtest%d.socket", rand.Int())
 }
 
-/**
- * Handles a shard of the data
- * Goroutines:
- * - 1x processRequests()
- */
+// Shard represents a single shard of the PIR database.
+// It runs a thread handling processing of incoming requests. It is
+// responsible for the logic of placing writes into memory and managing a cuckoo
+// hash table for doing so, and of driving the PIR daemon.
 type Shard struct {
 	// Private State
 	log  *common.Logger
@@ -30,15 +30,16 @@ type Shard struct {
 
 	*pir.PirServer
 	*pir.PirDB
+	dead int
 
 	Entries []cuckoo.Item
 	*cuckoo.Table
 
-	config atomic.Value // ServerConfig
+	config atomic.Value // Config
 
 	// Channels
 	writeChan        chan *common.WriteArgs
-	readChan         chan *common.BatchReadRequest
+	readChan         chan *DecodedBatchReadRequest
 	outstandingReads chan chan *common.BatchReadReply
 	readReplies      chan []byte
 	syncChan         chan int
@@ -47,14 +48,24 @@ type Shard struct {
 	outstandingLimit int
 }
 
-func NewShard(name string, socket string, config ServerConfig) *Shard {
+// DecodedBatchReadRequest represents a set of PIR args from clients.
+// The Centralized server manages decoding of read requests to the client and
+// applying the PadSeed for the TrustDomain
+type DecodedBatchReadRequest struct {
+	Args      []common.PirArgs
+	ReplyChan chan *common.BatchReadReply
+}
+
+// NewShard creates an interface to a PIR daemon at socket, using a given
+// server configuration for sizing and locating data.
+func NewShard(name string, socket string, config Config) *Shard {
 	s := &Shard{}
 	s.log = common.NewLogger(name)
 	s.name = name
 
 	s.config.Store(config)
 	s.writeChan = make(chan *common.WriteArgs)
-	s.readChan = make(chan *common.BatchReadRequest)
+	s.readChan = make(chan *DecodedBatchReadRequest)
 	s.syncChan = make(chan int)
 	s.outstandingReads = make(chan chan *common.BatchReadReply, 5)
 	s.readReplies = make(chan []byte)
@@ -95,8 +106,14 @@ func NewShard(name string, socket string, config ServerConfig) *Shard {
 }
 
 /** PUBLIC METHODS (threadsafe) **/
+
+// Ping checks that the shard is alive.
 func (s *Shard) Ping(args *common.PingArgs, reply *common.PingReply) error {
 	s.log.Info.Println("Ping: " + args.Msg + ", ... Pong")
+	if s.dead > 0 {
+		reply.Err = "Shard Dead"
+		return nil
+	}
 	reply.Err = ""
 	reply.Msg = "PONG"
 	return nil
@@ -108,6 +125,7 @@ func (s *Shard) Write(args *common.WriteArgs) error {
 	return nil
 }
 
+// GetUpdates returns the current global interest vector of changed items.
 func (s *Shard) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdatesReply) error {
 	s.log.Trace.Println("GetUpdates: ")
 	// @TODO
@@ -116,26 +134,32 @@ func (s *Shard) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdates
 	return nil
 }
 
-func (s *Shard) BatchRead(args *common.BatchReadRequest) {
+// BatchRead performs a read of a set of client requests against the database.
+func (s *Shard) BatchRead(args *DecodedBatchReadRequest) {
 	s.readChan <- args
 }
 
+// Close shuts down the database.
 func (s *Shard) Close() {
 	s.log.Info.Printf("Graceful shutdown of shard.")
+	if s.dead > 0 {
+		s.log.Warn.Printf("Shard already stopped / stopping.")
+		return
+	}
+	s.dead = 1
 	s.writeChan <- nil
 	s.readChan <- nil
 	<-s.syncChan
-	s.log.Info.Printf("Caller thread knows read loop closed.")
 }
 
 /** PRIVATE METHODS (singlethreaded) **/
 func (s *Shard) processReads() {
 	// The read thread searializs all access to the underlying DB
-	var batchReadReq *common.BatchReadRequest
+	var batchReadReq *DecodedBatchReadRequest
 
 	defer s.PirDB.Free()
 	defer s.PirServer.Disconnect()
-	conf := s.config.Load().(ServerConfig)
+	conf := s.config.Load().(Config)
 	for {
 		select {
 		case batchReadReq = <-s.readChan:
@@ -154,7 +178,7 @@ func (s *Shard) processReads() {
 
 func (s *Shard) processReplies() {
 	var outputChannel chan *common.BatchReadReply
-	conf := s.config.Load().(ServerConfig)
+	conf := s.config.Load().(Config)
 	itemLength := conf.DataSize * conf.BucketDepth
 
 	for {
@@ -163,8 +187,8 @@ func (s *Shard) processReplies() {
 			// get the corresponding read request.
 			outputChannel = <-s.outstandingReads
 
-			response := &common.BatchReadReply{"", make([]common.ReadReply, conf.ReadBatch)}
-			for i := 0; i < conf.ReadBatch; i += 1 {
+			response := &common.BatchReadReply{Err: "", Replies: make([]common.ReadReply, conf.ReadBatch)}
+			for i := 0; i < conf.ReadBatch; i++ {
 				response.Replies[i].Data = reply[i*itemLength : (i+1)*itemLength]
 				//TODO: reply.GlobalSeqNo
 			}
@@ -175,7 +199,7 @@ func (s *Shard) processReplies() {
 
 func (s *Shard) processWrites() {
 	var writeReq *common.WriteArgs
-	conf := s.config.Load().(ServerConfig)
+	conf := s.config.Load().(Config)
 	for {
 		select {
 		case writeReq = <-s.writeChan:
@@ -197,20 +221,27 @@ func (s *Shard) processWrites() {
 					s.log.Error.Fatalf("Consistency violation: lost an in-window DB item.")
 				}
 			}
-			s.sinceFlip += 1
+			s.sinceFlip++
 
 			// Trigger to swap to next DB.
-			// TODO: time based write interval. likely via a leader-triggered signal.
 			if s.sinceFlip > s.outstandingLimit {
-				s.syncChan <- 1
-				s.sinceFlip = 0
+				s.ApplyWrites()
 			}
 		}
 	}
 }
 
+// ApplyWrites will enque a command to apply any outstanding writes to the
+// database to be seen by subsequent reads.
+// TODO: should take a sequence number to do a better job of consistent
+// interleaving with enqueued reads.
+func (s *Shard) ApplyWrites() {
+	s.syncChan <- 1
+	s.sinceFlip = 0
+}
+
 func (s *Shard) evictOldItems() {
-	conf := s.config.Load().(ServerConfig)
+	conf := s.config.Load().(Config)
 	toRemove := int(float32(int(conf.CommonConfig.NumBuckets)*conf.CommonConfig.BucketDepth) * conf.CommonConfig.LoadFactorStep)
 	if toRemove >= len(s.Entries) {
 		toRemove = len(s.Entries) - 1
@@ -223,10 +254,10 @@ func (s *Shard) evictOldItems() {
 
 func asCuckooItem(wa *common.WriteArgs) *cuckoo.Item {
 	//TODO: cuckoo should continue int64 sized buckets if needed.
-	return &cuckoo.Item{int(wa.GlobalSeqNo), wa.Data, int(wa.Bucket1), int(wa.Bucket2)}
+	return &cuckoo.Item{Id: int(wa.GlobalSeqNo), Data: wa.Data, Bucket1: int(wa.Bucket1), Bucket2: int(wa.Bucket2)}
 }
 
-func (s *Shard) batchRead(req *common.BatchReadRequest, conf ServerConfig) {
+func (s *Shard) batchRead(req *DecodedBatchReadRequest, conf Config) {
 	s.log.Trace.Printf("batchRead: enter\n")
 
 	// Run PIR
@@ -235,19 +266,18 @@ func (s *Shard) batchRead(req *common.BatchReadRequest, conf ServerConfig) {
 
 	if len(req.Args) != conf.ReadBatch {
 		s.log.Info.Printf("Read operation failed: incorrect number of reads.")
-		req.ReplyChan <- &common.BatchReadReply{fmt.Sprintf("Invalid batch size."), nil}
+		req.ReplyChan <- &common.BatchReadReply{Err: fmt.Sprintf("Invalid batch size.")}
 		return
 	}
 
-	for i := 0; i < conf.ReadBatch; i += 1 {
-		//TODO: what's the deal with trust domains? (the forTD parameter)
+	for i := 0; i < conf.ReadBatch; i++ {
 		reqVector := req.Args[i].RequestVector
 		copy(pirvector[reqlength*i:reqlength*(i+1)], reqVector)
 	}
 	err := s.PirServer.Read(pirvector, s.readReplies)
 	if err != nil {
 		s.log.Error.Fatalf("Reading from PIR Server failed: %v", err)
-		req.ReplyChan <- &common.BatchReadReply{fmt.Sprintf("Failed to read: %v", err), nil}
+		req.ReplyChan <- &common.BatchReadReply{Err: fmt.Sprintf("Failed to read: %v", err)}
 		return
 	}
 	s.outstandingReads <- req.ReplyChan
