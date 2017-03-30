@@ -28,8 +28,8 @@ type Shard struct {
 	log  *common.Logger
 	name string
 
-	*pir.PirServer
-	*pir.PirDB
+	*pir.Server
+	*pir.DB
 	dead int
 
 	Entries []cuckoo.Item
@@ -76,8 +76,8 @@ func NewShard(name string, socket string, config Config) *Shard {
 		s.log.Error.Fatalf("Could not connect to pir back end: %v", err)
 		return nil
 	}
-	s.PirServer = pirServer
-	err = s.PirServer.Configure(config.CommonConfig.DataSize*config.CommonConfig.BucketDepth, int(config.CommonConfig.NumBuckets), config.ReadBatch)
+	s.Server = pirServer
+	err = s.Server.Configure(config.CommonConfig.DataSize*config.CommonConfig.BucketDepth, int(config.CommonConfig.NumBuckets), config.ReadBatch)
 	if err != nil {
 		s.log.Error.Fatalf("Could not start PIR back end with correct parameters: %v", err)
 		return nil
@@ -88,9 +88,9 @@ func NewShard(name string, socket string, config Config) *Shard {
 		s.log.Error.Fatalf("Could not allocate DB region: %v", err)
 		return nil
 	}
-	s.PirDB = db
+	s.DB = db
 	//Set initial DB
-	s.PirServer.SetDB(s.PirDB)
+	s.Server.SetDB(s.DB)
 
 	// TODO: rand seed
 	s.Table = cuckoo.NewTable(name+"-Table", int(config.CommonConfig.NumBuckets), config.CommonConfig.BucketDepth, config.CommonConfig.DataSize, db.DB, 0)
@@ -157,8 +157,8 @@ func (s *Shard) processReads() {
 	// The read thread searializs all access to the underlying DB
 	var batchReadReq *DecodedBatchReadRequest
 
-	defer s.PirDB.Free()
-	defer s.PirServer.Disconnect()
+	defer s.DB.Free()
+	defer s.Server.Disconnect()
 	conf := s.config.Load().(Config)
 	for {
 		select {
@@ -171,7 +171,7 @@ func (s *Shard) processReads() {
 			s.batchRead(batchReadReq, conf)
 			continue
 		case <-s.syncChan:
-			s.PirServer.SetDB(s.PirDB)
+			s.Server.SetDB(s.DB)
 		}
 	}
 }
@@ -274,7 +274,7 @@ func (s *Shard) batchRead(req *DecodedBatchReadRequest, conf Config) {
 		reqVector := req.Args[i].RequestVector
 		copy(pirvector[reqlength*i:reqlength*(i+1)], reqVector)
 	}
-	err := s.PirServer.Read(pirvector, s.readReplies)
+	err := s.Server.Read(pirvector, s.readReplies)
 	if err != nil {
 		s.log.Error.Fatalf("Reading from PIR Server failed: %v", err)
 		req.ReplyChan <- &common.BatchReadReply{Err: fmt.Sprintf("Failed to read: %v", err)}

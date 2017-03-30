@@ -7,7 +7,8 @@ import "fmt"
 import "net"
 import "github.com/YoshikiShibata/xusyscall"
 
-type PirDB struct {
+// DB is a memory area for PIR computations shared with a PIR daemon.
+type DB struct {
 	DB    []byte
 	shmid int
 }
@@ -17,19 +18,22 @@ type pirReq struct {
 	response chan []byte
 }
 
-type PirServer struct {
+// Server is a connection and state for a running PIR Server.
+type Server struct {
 	sock          net.Conn
 	responseQueue chan *pirReq
 	CellLength    int
 	CellCount     int
 	BatchSize     int
-	DB            *PirDB
+	DB            *DB
 }
 
 const pirCommands = `123`
 const defaultSocket = "pir.socket"
 
-func Connect(socket string) (*PirServer, error) {
+// Connect opens a Server for communication with a unix-socket representating a
+// running PIR Daemon.
+func Connect(socket string) (*Server, error) {
 	if len(socket) == 0 {
 		socket = defaultSocket
 	}
@@ -39,7 +43,7 @@ func Connect(socket string) (*PirServer, error) {
 		return nil, err
 	}
 
-	server := new(PirServer)
+	server := new(Server)
 	server.sock = sock
 	server.responseQueue = make(chan *pirReq)
 
@@ -48,7 +52,7 @@ func Connect(socket string) (*PirServer, error) {
 	return server, nil
 }
 
-func (s *PirServer) watchResponses() {
+func (s *Server) watchResponses() {
 	var responseSize int
 
 	for req := range s.responseQueue {
@@ -72,19 +76,21 @@ func (s *PirServer) watchResponses() {
 	}
 }
 
-func (s *PirServer) Disconnect() error {
+// Disconnect closes a Server connection
+func (s *Server) Disconnect() error {
 	s.responseQueue <- &pirReq{-1, nil}
 	defer close(s.responseQueue)
 	return s.sock.Close()
 }
 
-func (s *PirServer) Configure(celllength int, cellcount int, batchsize int) error {
+// Configure sets the size of the DB and operational parameters.
+func (s *Server) Configure(celllength int, cellcount int, batchsize int) error {
 	s.BatchSize = batchsize
 	s.CellCount = cellcount
 	s.CellLength = celllength
 
 	if s.CellCount%8 != 0 || s.CellLength%8 != 0 {
-		return errors.New("Invalid sizing of database. everything needs to be multiples of 8 bytes.")
+		return errors.New("invalid sizing of database; everything needs to be multiples of 8 bytes")
 	}
 
 	buf := new(bytes.Buffer)
@@ -103,11 +109,12 @@ func (s *PirServer) Configure(celllength int, cellcount int, batchsize int) erro
 	return nil
 }
 
-func (s *PirServer) GetDB() (*PirDB, error) {
+// GetDB provides direct access to the DB of the Server.
+func (s *Server) GetDB() (*DB, error) {
 	if s.CellCount == 0 || s.CellLength == 0 {
-		return nil, errors.New("PIR Server unconfigured.")
+		return nil, errors.New("pir server unconfigured")
 	}
-	db := new(PirDB)
+	db := new(DB)
 	shmid, err := xusyscall.Shmget(0, s.CellLength*s.CellCount, xusyscall.IPC_CREAT|xusyscall.IPC_EXCL|0777)
 	if err != nil {
 		return nil, err
@@ -120,7 +127,8 @@ func (s *PirServer) GetDB() (*PirDB, error) {
 	return db, nil
 }
 
-func (s *PirServer) SetDB(db *PirDB) error {
+// SetDB updates the PIR Server Database
+func (s *Server) SetDB(db *DB) error {
 	if _, err := s.sock.Write([]byte{pirCommands[2]}); err != nil {
 		return err
 	}
@@ -135,18 +143,20 @@ func (s *PirServer) SetDB(db *PirDB) error {
 	return nil
 }
 
-func (db *PirDB) Free() error {
+// Free releases memory for a DB instance
+func (db *DB) Free() error {
 	xusyscall.Shmrm(db.shmid)
 	return xusyscall.Shmdt(db.DB)
 }
 
-func (s *PirServer) Read(masks []byte, responseChan chan []byte) error {
+// Read makes a PIR request against the server.
+func (s *Server) Read(masks []byte, responseChan chan []byte) error {
 	if s.DB == nil || s.CellCount == 0 {
-		return errors.New("DB not configured.")
+		return errors.New("db not configured")
 	}
 
 	if len(masks) != (s.CellCount*s.BatchSize)/8 {
-		return errors.New("Wrong Mask Length.")
+		return errors.New("wrong mask length")
 	}
 
 	if _, err := s.sock.Write([]byte{pirCommands[0]}); err != nil {

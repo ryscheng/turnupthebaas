@@ -11,6 +11,7 @@ import "github.com/YoshikiShibata/xusyscall"
 // will be much slower. It does, however, make the prospect of testing the
 // code base much simpler.
 
+// CreateMockServer runs a CPU-based PIR server listening at a specified file.
 func CreateMockServer(status chan int, socket string) error {
 	if len(socket) == 0 {
 		socket = defaultSocket
@@ -82,10 +83,10 @@ func handle(conn net.Conn) {
 
 			// calculate pir
 			response := make([]byte, CellLength*BatchSize)
-			for batch := 0; batch < BatchSize; batch += 1 {
-				for cell := 0; cell < CellCount; cell += 1 {
+			for batch := 0; batch < BatchSize; batch++ {
+				for cell := 0; cell < CellCount; cell++ {
 					if (masks[(batch*CellCount+cell)/8] & (1 << uint(cell%8))) != 0 {
-						for off := 0; off < CellLength; off += 1 {
+						for off := 0; off < CellLength; off++ {
 							response[batch*CellLength+off] ^= database[CellLength*cell+off]
 						}
 					}
