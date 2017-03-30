@@ -31,17 +31,17 @@ func TestGetCapacity(t *testing.T) {
 
 	table := NewTable("t", 10, 2, 64, nil, 0)
 	if table.GetCapacity() != 20 {
-		t.Fatalf("table returned wrong value for GetCapacity=%v. Expecting 20\n")
+		t.Fatalf("table returned wrong value for GetCapacity=%v. Expecting 20\n", table.GetCapacity())
 	}
 
 	table = NewTable("t", 1, 1, 64, nil, 0)
 	if table.GetCapacity() != 1 {
-		t.Fatalf("table returned wrong value for GetCapacity=%v. Expecting 1\n")
+		t.Fatalf("table returned wrong value for GetCapacity=%v. Expecting 1\n", table.GetCapacity())
 	}
 
 	table = NewTable("t", 0, 0, 64, nil, 0)
 	if table.GetCapacity() != 0 {
-		t.Fatalf("table returned wrong value for GetCapacity=%v. Expecting 0\n")
+		t.Fatalf("table returned wrong value for GetCapacity=%v. Expecting 0\n", table.GetCapacity())
 	}
 
 	fmt.Printf("... done \n")
@@ -179,7 +179,7 @@ func TestFullTable(t *testing.T) {
 		ok, evic = table.Insert(&Item{id, val, b1, b2})
 
 		if ok {
-			count += 1
+			count++
 			if table.Contains(&Item{id, nil, b1, b2}) == false {
 				t.Fatalf("Insert() succeeded, but Contains failed\n")
 			}
@@ -204,7 +204,7 @@ func TestFullTable(t *testing.T) {
 			if ok == false {
 				t.Fatalf("Cannot Remove() an element believed to be in the table. item %d of %d", count, maxCount)
 			} else {
-				count -= 1
+				count--
 				if count != table.GetNumElements() {
 					t.Fatalf("GetNumElements()=%v returned a value that didn't match what was expected=%v \n", table.GetNumElements(), count)
 				}
@@ -265,7 +265,7 @@ func TestLoadFactor(t *testing.T) {
 		ok := true
 		table = NewTable("t", numBuckets, depth, 64, nil, int64(depth))
 		for ok {
-			count += 1
+			count++
 			val := GetBytes(strconv.Itoa(rand.Int()))
 			ok, _ = table.Insert(&Item{rand.Int(), val, randBucket(numBuckets), randBucket(numBuckets)})
 		}

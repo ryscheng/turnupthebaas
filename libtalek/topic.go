@@ -18,7 +18,7 @@ import (
 type Topic struct {
 
 	// For updates?
-	Id uint64
+	ID uint64
 
 	// For authenticity
 	// TODO: this should ratchet.
@@ -49,7 +49,7 @@ func NewTopic() (t *Topic, err error) {
 		return
 	}
 
-	t.Id, _ = binary.Uvarint(id[0:8])
+	t.ID, _ = binary.Uvarint(id[0:8])
 	t.Handle.Seed1 = seed1
 	t.Handle.Seed2 = seed2
 	if err = initHandle(&t.Handle); err != nil {
@@ -72,6 +72,8 @@ func NewTopic() (t *Topic, err error) {
 	return
 }
 
+// GeneratePublish creates a set of write args for writing message as the next
+// entry in this topic log.
 func (t *Topic) GeneratePublish(commonConfig *common.CommonConfig, message []byte) (*common.WriteArgs, error) {
 	args := &common.WriteArgs{}
 	bucket1, bucket2 := t.Handle.nextBuckets(commonConfig)
@@ -90,7 +92,7 @@ func (t *Topic) GeneratePublish(commonConfig *common.CommonConfig, message []byt
 	// @todo - just send the k bit locations
 	bloomFilter := bloom.NewWithEstimates(uint(commonConfig.WindowSize()), commonConfig.BloomFalsePositive)
 	idBytes := make([]byte, 8, 20)
-	_ = binary.PutUvarint(idBytes, t.Id)
+	_ = binary.PutUvarint(idBytes, t.ID)
 	idBytes = append(idBytes, seqNoBytes[:]...)
 	bloomFilter.Add(idBytes)
 	//args.InterestVector, _ = bloomFilter.GobEncode()

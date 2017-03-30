@@ -254,7 +254,7 @@ func (s *Shard) evictOldItems() {
 
 func asCuckooItem(wa *common.WriteArgs) *cuckoo.Item {
 	//TODO: cuckoo should continue int64 sized buckets if needed.
-	return &cuckoo.Item{Id: int(wa.GlobalSeqNo), Data: wa.Data, Bucket1: int(wa.Bucket1), Bucket2: int(wa.Bucket2)}
+	return &cuckoo.Item{ID: int(wa.GlobalSeqNo), Data: wa.Data, Bucket1: int(wa.Bucket1), Bucket2: int(wa.Bucket2)}
 }
 
 func (s *Shard) batchRead(req *DecodedBatchReadRequest, conf Config) {
