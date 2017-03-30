@@ -10,7 +10,7 @@ import (
 )
 
 func BenchmarkWrite(b *testing.B) {
-	config := common.CommonConfig{}
+	config := common.Config{}
 	config.NumBuckets = 128
 	config.BucketDepth = 4
 	config.DataSize = 256

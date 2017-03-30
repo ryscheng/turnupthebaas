@@ -29,7 +29,7 @@ func main() {
 	log.Println("--------------------")
 	flag.Parse()
 
-	config := common.CommonConfigFromFile(*configPath)
+	config := common.ConfigFromFile(*configPath)
 	tdString, err := ioutil.ReadFile(*trustDomainPath)
 	if err != nil {
 		log.Printf("Could not read %s!\n", *trustDomainPath)
@@ -44,7 +44,7 @@ func main() {
 	// Default configuration. The server can be started with just a trustdomain
 	// config and this will be used for the serverConfig struct in that case.
 	serverConfig := server.Config{
-		CommonConfig:     config,
+		Config:           config,
 		WriteInterval:    time.Second,
 		ReadInterval:     time.Second,
 		ReadBatch:        8,

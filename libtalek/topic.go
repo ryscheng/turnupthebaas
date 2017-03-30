@@ -74,7 +74,7 @@ func NewTopic() (t *Topic, err error) {
 
 // GeneratePublish creates a set of write args for writing message as the next
 // entry in this topic log.
-func (t *Topic) GeneratePublish(commonConfig *common.CommonConfig, message []byte) (*common.WriteArgs, error) {
+func (t *Topic) GeneratePublish(commonConfig *common.Config, message []byte) (*common.WriteArgs, error) {
 	args := &common.WriteArgs{}
 	bucket1, bucket2 := t.Handle.nextBuckets(commonConfig)
 	args.Bucket1 = bucket1

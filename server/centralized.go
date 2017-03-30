@@ -288,10 +288,10 @@ func (c *Centralized) triggerBatchRead(batch []*common.ReadRequest) {
 	// Choose a SeqNoRange
 	currSeqNo := atomic.LoadUint64(&c.committedSeqNo) + 1
 	args.SeqNoRange = common.Range{}
-	if currSeqNo <= uint64(config.CommonConfig.WindowSize()) {
+	if currSeqNo <= uint64(config.Config.WindowSize()) {
 		args.SeqNoRange.Start = 1 // Minimum of 1
 	} else {
-		args.SeqNoRange.Start = currSeqNo - uint64(config.CommonConfig.WindowSize()) // Inclusive
+		args.SeqNoRange.Start = currSeqNo - uint64(config.Config.WindowSize()) // Inclusive
 	}
 	args.SeqNoRange.End = currSeqNo // Exclusive
 	args.SeqNoRange.Aborted = make([]uint64, 0, 0)

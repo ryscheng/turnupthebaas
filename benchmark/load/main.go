@@ -36,7 +36,7 @@ func main() {
 	// Config
 	trustDomainConfig0 := common.NewTrustDomainConfig("t0", "localhost:9000", true, false)
 	trustDomainConfig1 := common.NewTrustDomainConfig("t1", "localhost:9001", true, false)
-	config := common.CommonConfigFromFile("commonconfig.json")
+	config := common.ConfigFromFile("commonconfig.json")
 	serverConfig1 := server.ConfigFromFile("serverconfig.json", config)
 	serverConfig1.TrustDomainIndex = 1
 	serverConfig1.TrustDomain = trustDomainConfig1
@@ -60,12 +60,12 @@ func main() {
 
 	// Trust Domain 0
 	//t0 := server.NewCentralized("t0", config, t1, true)
-	t0 := server.NewCentralized("t0", *leaderPIR, *serverConfig0, common.NewFollowerRpc("t0->t1", trustDomainConfig1), true)
+	t0 := server.NewCentralized("t0", *leaderPIR, *serverConfig0, common.NewFollowerRPC("t0->t1", trustDomainConfig1), true)
 	s["t0"] = server.NewNetworkRPC(t0, 9000)
 
 	// Client
 	clientConfig := libtalek.ClientConfig{
-		CommonConfig:  config,
+		Config:        config,
 		WriteInterval: time.Second,
 		ReadInterval:  time.Second,
 		TrustDomains:  []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1},
@@ -73,7 +73,7 @@ func main() {
 	//c0 := libtalek.NewClient("c0", config, t0)
 	//c1 := libtalek.NewClient("c1", config, t0)
 	clients := make([]*libtalek.Client, *numClients)
-	clientLeaderSock := common.NewLeaderRpc("c0->t0", trustDomainConfig0)
+	clientLeaderSock := common.NewLeaderRPC("c0->t0", trustDomainConfig0)
 	for i := 0; i < *numClients; i++ {
 		clients[i] = libtalek.NewClient("c"+string(i), clientConfig, clientLeaderSock)
 		clients[i].Ping()

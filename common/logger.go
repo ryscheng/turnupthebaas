@@ -6,6 +6,7 @@ import (
 	//"io/ioutil"
 )
 
+// Logger tracks status.
 type Logger struct {
 	name  string
 	Trace *log.Logger
@@ -14,6 +15,7 @@ type Logger struct {
 	Error *log.Logger
 }
 
+// NewLogger makes a logger.
 func NewLogger(name string) *Logger {
 	l := &Logger{}
 	l.name = name

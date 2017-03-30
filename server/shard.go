@@ -77,7 +77,7 @@ func NewShard(name string, socket string, config Config) *Shard {
 		return nil
 	}
 	s.Server = pirServer
-	err = s.Server.Configure(config.CommonConfig.DataSize*config.CommonConfig.BucketDepth, int(config.CommonConfig.NumBuckets), config.ReadBatch)
+	err = s.Server.Configure(config.Config.DataSize*config.Config.BucketDepth, int(config.Config.NumBuckets), config.ReadBatch)
 	if err != nil {
 		s.log.Error.Fatalf("Could not start PIR back end with correct parameters: %v", err)
 		return nil
@@ -93,11 +93,11 @@ func NewShard(name string, socket string, config Config) *Shard {
 	s.Server.SetDB(s.DB)
 
 	// TODO: rand seed
-	s.Table = cuckoo.NewTable(name+"-Table", int(config.CommonConfig.NumBuckets), config.CommonConfig.BucketDepth, config.CommonConfig.DataSize, db.DB, 0)
-	s.Entries = make([]cuckoo.Item, 0, int(config.CommonConfig.NumBuckets)*config.CommonConfig.BucketDepth)
+	s.Table = cuckoo.NewTable(name+"-Table", int(config.Config.NumBuckets), config.Config.BucketDepth, config.Config.DataSize, db.DB, 0)
+	s.Entries = make([]cuckoo.Item, 0, int(config.Config.NumBuckets)*config.Config.BucketDepth)
 
 	//TODO: should be a parameter in globalconfig
-	s.outstandingLimit = int(float32(config.CommonConfig.NumBuckets*uint64(config.CommonConfig.BucketDepth)) * 0.50)
+	s.outstandingLimit = int(float32(config.Config.NumBuckets*uint64(config.Config.BucketDepth)) * 0.50)
 
 	go s.processReads()
 	go s.processReplies()
@@ -212,7 +212,7 @@ func (s *Shard) processWrites() {
 			ok, evicted := s.Table.Insert(itm)
 			// No longer need this pointer.
 			itm.Data = nil
-			if !ok || len(s.Entries) > int(float32(int(conf.CommonConfig.NumBuckets)*conf.CommonConfig.BucketDepth)*conf.CommonConfig.MaxLoadFactor) {
+			if !ok || len(s.Entries) > int(float32(int(conf.Config.NumBuckets)*conf.Config.BucketDepth)*conf.Config.MaxLoadFactor) {
 				s.evictOldItems()
 			}
 			if evicted != nil {
@@ -242,7 +242,7 @@ func (s *Shard) ApplyWrites() {
 
 func (s *Shard) evictOldItems() {
 	conf := s.config.Load().(Config)
-	toRemove := int(float32(int(conf.CommonConfig.NumBuckets)*conf.CommonConfig.BucketDepth) * conf.CommonConfig.LoadFactorStep)
+	toRemove := int(float32(int(conf.Config.NumBuckets)*conf.Config.BucketDepth) * conf.Config.LoadFactorStep)
 	if toRemove >= len(s.Entries) {
 		toRemove = len(s.Entries) - 1
 	}
@@ -261,7 +261,7 @@ func (s *Shard) batchRead(req *DecodedBatchReadRequest, conf Config) {
 	s.log.Trace.Printf("batchRead: enter\n")
 
 	// Run PIR
-	reqlength := int(conf.CommonConfig.NumBuckets) / 8
+	reqlength := int(conf.Config.NumBuckets) / 8
 	pirvector := make([]byte, reqlength*conf.ReadBatch)
 
 	if len(req.Args) != conf.ReadBatch {

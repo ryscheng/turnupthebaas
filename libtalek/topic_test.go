@@ -64,7 +64,7 @@ func TestSerializeRestore(t *testing.T) {
 
 func TestGeneratePublish(t *testing.T) {
 	fmt.Printf("TestGeneratePublish:\n")
-	config := &common.CommonConfig{}
+	config := &common.Config{}
 	config.NumBuckets = 100
 	config.BucketDepth = 2
 	config.DataSize = 1024
@@ -157,7 +157,7 @@ func BenchmarkGeneratePublishN1M(b *testing.B) {
 }
 
 func HelperBenchmarkGeneratePublish(b *testing.B, BucketDepth int) {
-	config := &common.CommonConfig{}
+	config := &common.Config{}
 	config.NumBuckets = 100
 	config.BucketDepth = BucketDepth
 	config.DataSize = 1024

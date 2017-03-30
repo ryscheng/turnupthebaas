@@ -11,7 +11,7 @@ import (
 // ClientConfig represents the configuration parameters to Talek needed by
 // the client.
 type ClientConfig struct {
-	*common.CommonConfig `json:"-"`
+	*common.Config `json:"-"`
 
 	// How often should Writes be made to the server
 	WriteInterval time.Duration `json:",string"`
@@ -24,7 +24,7 @@ type ClientConfig struct {
 }
 
 // ClientConfigFromFile restores a client configuration from on-disk form.
-func ClientConfigFromFile(file string, commonBase *common.CommonConfig) *ClientConfig {
+func ClientConfigFromFile(file string, commonBase *common.Config) *ClientConfig {
 	configString, err := ioutil.ReadFile(file)
 	if err != nil {
 		return nil
@@ -33,6 +33,6 @@ func ClientConfigFromFile(file string, commonBase *common.CommonConfig) *ClientC
 	if err := json.Unmarshal(configString, config); err != nil {
 		return nil
 	}
-	config.CommonConfig = commonBase
+	config.Config = commonBase
 	return config
 }
