@@ -5,7 +5,8 @@ import (
 	"io/ioutil"
 )
 
-type CommonConfig struct {
+// Config is a shared configuration needed by both libtalek and server
+type Config struct {
 	// How many Buckets are in the server?
 	NumBuckets uint64
 	// How many items are in a bucket?
@@ -20,18 +21,19 @@ type CommonConfig struct {
 	LoadFactorStep float32
 }
 
-func (cc *CommonConfig) WindowSize() int {
+// WindowSize is a computed property of Config for how many items are available at a time
+func (cc *Config) WindowSize() int {
 	return int(float32(int(cc.NumBuckets)*cc.BucketDepth) * cc.MaxLoadFactor)
 }
 
-// Load configuration from a JSON file. returns the config on success or nil if
+// ConfigFromFile restores a JSON file. returns the config on success or nil if
 // loading or parsing the file fails.
-func CommonConfigFromFile(file string) *CommonConfig {
+func ConfigFromFile(file string) *Config {
 	configString, err := ioutil.ReadFile(file)
 	if err != nil {
 		return nil
 	}
-	config := new(CommonConfig)
+	config := new(Config)
 	if err := json.Unmarshal(configString, config); err != nil {
 		return nil
 	}

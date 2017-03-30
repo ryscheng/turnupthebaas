@@ -9,8 +9,8 @@ import (
 
 func TestGeneratePoll(t *testing.T) {
 	fmt.Printf("TestGeneratePoll:\n")
-	config := &ClientConfig{&common.CommonConfig{}, 0, 0, nil}
-	config.CommonConfig.NumBuckets = 1000000
+	config := &ClientConfig{&common.Config{}, 0, 0, nil}
+	config.Config.NumBuckets = 1000000
 	config.TrustDomains = make([]*common.TrustDomainConfig, 3)
 
 	h, err := NewHandle()
@@ -29,8 +29,8 @@ func TestGeneratePoll(t *testing.T) {
 		t.Fatalf("Error creating ReadArgs: %v\n", err)
 	}
 
-	if uint64(len(args0.TD[0].RequestVector)) != config.CommonConfig.NumBuckets/8 {
-		t.Fatalf("Length of request was incorrect. %d vs %d", len(args0.TD[0].RequestVector), config.CommonConfig.NumBuckets/8)
+	if uint64(len(args0.TD[0].RequestVector)) != config.Config.NumBuckets/8 {
+		t.Fatalf("Length of request was incorrect. %d vs %d", len(args0.TD[0].RequestVector), config.Config.NumBuckets/8)
 	}
 
 	fmt.Printf("len(args0)=%v; \n", 3*(len(args0.TD[0].RequestVector)+len(args0.TD[0].PadSeed)))
@@ -49,9 +49,9 @@ func BenchmarkGeneratePollN1M(b *testing.B) {
 }
 
 func HelperBenchmarkGeneratePoll(b *testing.B, NumBuckets uint64) {
-	config := &ClientConfig{&common.CommonConfig{}, 0, 0, nil}
+	config := &ClientConfig{&common.Config{}, 0, 0, nil}
 	config.TrustDomains = make([]*common.TrustDomainConfig, 3)
-	config.CommonConfig.NumBuckets = NumBuckets
+	config.Config.NumBuckets = NumBuckets
 
 	topic, err := NewTopic()
 	h := topic.Handle
@@ -67,9 +67,9 @@ func HelperBenchmarkGeneratePoll(b *testing.B, NumBuckets uint64) {
 }
 
 func BenchmarkRetrieveResponse(b *testing.B) {
-	config := &ClientConfig{&common.CommonConfig{}, 0, 0, nil}
+	config := &ClientConfig{&common.Config{}, 0, 0, nil}
 	config.TrustDomains = make([]*common.TrustDomainConfig, 3)
-	config.CommonConfig.NumBuckets = 10
+	config.Config.NumBuckets = 10
 
 	topic, err := NewTopic()
 	h := topic.Handle

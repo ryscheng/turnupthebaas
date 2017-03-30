@@ -68,14 +68,14 @@ func TestPir(t *testing.T) {
 		return
 	}
 
-	response := <- responseChan
+	response := <-responseChan
 	if response == nil {
-		t.Error(errors.New("No response received."))
+		t.Error(errors.New("no response received"))
 		return
 	}
 
 	if response[1] != byte(1) {
-		t.Error(fmt.Sprintf("Response is incorrect. byte 1 was %d, not '1'.", response[1]))
+		t.Errorf("response is incorrect. byte 1 was %d, not '1'", response[1])
 	}
 
 	pirServer.Disconnect()

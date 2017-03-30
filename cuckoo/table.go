@@ -6,8 +6,11 @@ import (
 	"os"
 )
 
-const MAX_EVICTIONS int = 500
+// MaxEvictions represents the number of chained evictions before an insert
+// attempt fails.
+const MaxEvictions int = 500
 
+// ItemLocation holds metadata for item placement in a cuckoo table.
 type ItemLocation struct {
 	id      int
 	filled  bool
@@ -15,16 +18,18 @@ type ItemLocation struct {
 	bucket2 int
 }
 
+// Item holds a full item data for cuckoo table placement.
 type Item struct {
-	Id      int
+	ID      int
 	Data    []byte
 	Bucket1 int
 	Bucket2 int
 }
 
+// Copy duplicates an Item.
 func (i Item) Copy() *Item {
 	other := &Item{}
-	other.Id = i.Id
+	other.ID = i.ID
 	other.Data = make([]byte, len(i.Data))
 	other.Bucket1 = i.Bucket1
 	other.Bucket2 = i.Bucket2
@@ -32,13 +37,14 @@ func (i Item) Copy() *Item {
 	return other
 }
 
+// Equals compares item equality.
 func (i *Item) Equals(other *Item) bool {
 	if other == nil {
 		return false
 	}
 	return i.Bucket1 == other.Bucket1 &&
 		i.Bucket2 == other.Bucket2 &&
-		i.Id == other.Id
+		i.ID == other.ID
 }
 
 // Bucket returns the bucket in a table that the Item is in, if it is in the table.
@@ -51,6 +57,7 @@ func (i *Item) Bucket(table *Table) int {
 	return -1
 }
 
+// Table is a cuckoo table managing placement of Items.
 type Table struct {
 	name        string
 	numBuckets  int // Number of buckets
@@ -63,7 +70,7 @@ type Table struct {
 	data  []byte
 }
 
-// Creates a new cuckoo table optionaly backed by a pre-allocated memory area.
+// NewTable creates a new cuckoo table optionaly backed by a pre-allocated memory area.
 // Two cuckoo tables will have identical state iff,
 // 1. the same randSeed is used
 // 2. the same operations are applied in the same order
@@ -92,29 +99,25 @@ func NewTable(name string, numBuckets int, bucketDepth int, itemSize int, data [
  * PUBLIC METHODS
  ********************/
 
-/**
- * Returns the total capacity of the table (numBuckets * depth)
- **/
+// GetCapacity returns the total capacity of the table (numBuckets * depth)
 func (t *Table) GetCapacity() int {
 	return t.numBuckets * t.bucketDepth
 }
 
-/**
- * Returns the number of elements stored in the table
- * Load factor = GetNumElements() / GetCapacity()
- **/
+// GetNumElements returns the number of elements stored in the table
+// Load factor = GetNumElements() / GetCapacity()
 func (t *Table) GetNumElements() int {
 	result := 0
 	for _, itemLocation := range t.index {
 		if itemLocation.filled {
-			result += 1
+			result++
 		}
 	}
 
 	return result
 }
 
-// Checks if value exists in specified buckets
+// Contains checks if value exists in specified buckets
 // the value must have been inserted with the same bucket1 and bucket2 values
 // Returns:
 // - true if the item is in either bucket
@@ -128,8 +131,8 @@ func (t *Table) Contains(item *Item) bool {
 	return t.isInBucket(item.Bucket1, item) || t.isInBucket(item.Bucket2, item)
 }
 
-// Inserts the value into the cuckoo table, even if duplicate value already exists in table.
-// Returns:
+// Insert adds item into the cuckoo table, even if a duplicate value already
+// exists in table. Returns:
 // - true on success, false on failure
 // - false if either bucket is out of range
 // - false if insertion cannot complete because reached MAX_EVICTIONS
@@ -154,10 +157,9 @@ func (t *Table) Insert(item *Item) (bool, *Item) {
 	}
 
 	// Then try the other bucket, starting the eviction loop
-	ok := true
-	for i := 0; i < MAX_EVICTIONS; i++ {
-		ok, item = t.insertAndEvict(nextBucket, item)
-		if !ok {
+	var ok bool
+	for i := 0; i < MaxEvictions; i++ {
+		if ok, item = t.insertAndEvict(nextBucket, item); !ok {
 			t.log.Fatalf("Lost item. Evicted, but was unable to add.")
 			return false, item
 		} else if item == nil {
@@ -173,7 +175,7 @@ func (t *Table) Insert(item *Item) (bool, *Item) {
 	return false, item
 }
 
-// Removes the value from the cuckoo table, looking in only 2 specified buckets
+// Remove deletes item from the cuckoo table, looking in only 2 specified buckets
 // Only matches if the value was previously inserted with the same {bucket1, bucket2} values
 // If the incorrect buckets were specified, it won't go searching for you
 // If the value exists in the table multiple times, it will only remove one
@@ -213,7 +215,7 @@ func (t *Table) isInBucket(bucketIndex int, item *Item) bool {
 		if t.index[idx].filled &&
 			t.index[idx].bucket1 == item.Bucket1 &&
 			t.index[idx].bucket2 == item.Bucket2 &&
-			t.index[idx].id == item.Id {
+			t.index[idx].id == item.ID {
 			return true
 		}
 	}
@@ -230,7 +232,7 @@ func (t *Table) tryInsertToBucket(bucketIndex int, item *Item) bool {
 	for i := bucketIndex * t.bucketDepth; i < (bucketIndex+1)*t.bucketDepth; i++ {
 		if !t.index[i].filled {
 			copy(t.data[i*t.itemSize:], item.Data)
-			t.index[i].id = item.Id
+			t.index[i].id = item.ID
 			t.index[i].bucket1 = item.Bucket1
 			t.index[i].bucket2 = item.Bucket2
 			t.index[i].filled = true

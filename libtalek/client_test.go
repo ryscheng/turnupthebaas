@@ -38,7 +38,7 @@ func (m *mockLeader) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUp
 
 func TestWrite(t *testing.T) {
 	config := ClientConfig{
-		&common.CommonConfig{NumBuckets: 64, BucketDepth: 4, DataSize: 1024, BloomFalsePositive: 0.05, MaxLoadFactor: 0.95, LoadFactorStep: 0.05},
+		&common.Config{NumBuckets: 64, BucketDepth: 4, DataSize: 1024, BloomFalsePositive: 0.05, MaxLoadFactor: 0.95, LoadFactorStep: 0.05},
 		time.Second,
 		time.Second,
 		[]*common.TrustDomainConfig{common.NewTrustDomainConfig("TestTrustDomain", "127.0.0.1", true, false)},
@@ -56,7 +56,7 @@ func TestWrite(t *testing.T) {
 
 	// Recreate the expected buckets to make sure we're seeing
 	// the real write.
-	bucket, _ := handle.Handle.nextBuckets(config.CommonConfig)
+	bucket, _ := handle.Handle.nextBuckets(config.Config)
 
 	c.Publish(handle, []byte("hello world"))
 	write1 := <-writes
@@ -71,7 +71,7 @@ func TestWrite(t *testing.T) {
 
 func TestRead(t *testing.T) {
 	config := ClientConfig{
-		&common.CommonConfig{NumBuckets: 64, BucketDepth: 4, DataSize: 1024, BloomFalsePositive: 0.05, MaxLoadFactor: 0.95, LoadFactorStep: 0.05},
+		&common.Config{NumBuckets: 64, BucketDepth: 4, DataSize: 1024, BloomFalsePositive: 0.05, MaxLoadFactor: 0.95, LoadFactorStep: 0.05},
 		time.Second,
 		time.Second,
 		[]*common.TrustDomainConfig{common.NewTrustDomainConfig("TestTrustDomain", "127.0.0.1", true, false)},
@@ -92,7 +92,7 @@ func TestRead(t *testing.T) {
 	var seqNoBytes [24]byte
 	_ = binary.PutUvarint(seqNoBytes[:], handle.Seqno)
 	// Clone seed so they advance together.
-	bucket, _ := handle.Handle.nextBuckets(config.CommonConfig)
+	bucket, _ := handle.Handle.nextBuckets(config.Config)
 
 	c.Poll(&handle.Handle)
 	read1 := <-reads

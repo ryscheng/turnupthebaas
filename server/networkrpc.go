@@ -9,13 +9,11 @@ import (
 	"sync/atomic"
 )
 
-/**
- * Registers RPC server with a specified handler
- * Goroutines:
- * - 1x n.listener.Accept() loop
- * - New goroutine for every new connection
- */
-type NetworkRpc struct {
+// NetworkRPC Registers an RPC server with a specified handler
+// Goroutines:
+// - 1x n.listener.Accept() loop
+// - New goroutine for every new connection
+type NetworkRPC struct {
 	log      *log.Logger
 	dead     int32
 	handler  interface{}
@@ -24,8 +22,9 @@ type NetworkRpc struct {
 	listener net.Listener
 }
 
-func NewNetworkRpc(handler interface{}, port int) *NetworkRpc {
-	n := &NetworkRpc{}
+// NewNetworkRPC creates a NetworkRPC on a given port.
+func NewNetworkRPC(handler interface{}, port int) *NetworkRPC {
+	n := &NetworkRPC{}
 	n.log = log.New(os.Stdout, "[NetworkRpc] ", log.Ldate|log.Ltime|log.Lshortfile)
 	n.dead = 0
 	n.handler = handler
@@ -64,13 +63,14 @@ func NewNetworkRpc(handler interface{}, port int) *NetworkRpc {
 	return n
 }
 
-func (n *NetworkRpc) Kill() {
+// Kill Stops a running server.
+func (n *NetworkRPC) Kill() {
 	atomic.StoreInt32(&n.dead, 1)
 	if n.listener != nil {
 		n.listener.Close()
 	}
 }
 
-func (n *NetworkRpc) isDead() bool {
+func (n *NetworkRPC) isDead() bool {
 	return atomic.LoadInt32(&n.dead) != 0
 }

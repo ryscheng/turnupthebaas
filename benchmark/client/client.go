@@ -25,7 +25,7 @@ func main() {
 	flag.Parse()
 
 	// Config
-	config := common.CommonConfigFromFile(*configPath)
+	config := common.ConfigFromFile(*configPath)
 	domainPaths := strings.Split(*trustDomainPath, ",")
 	trustDomains := make([]*common.TrustDomainConfig, len(domainPaths))
 	for i, path := range domainPaths {
@@ -41,10 +41,10 @@ func main() {
 		}
 	}
 
-	leaderRPC := common.NewLeaderRpc("c0->t0", trustDomains[0])
+	leaderRPC := common.NewLeaderRPC("c0->t0", trustDomains[0])
 
 	clientConfig := libtalek.ClientConfig{
-		CommonConfig:  config,
+		Config:        config,
 		ReadInterval:  time.Second,
 		WriteInterval: time.Second,
 		TrustDomains:  trustDomains,

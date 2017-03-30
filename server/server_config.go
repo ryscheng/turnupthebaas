@@ -11,7 +11,7 @@ import (
 // Config represents the configuration needed to start a Talek server.
 // configurations can be generated through util/talekutil
 type Config struct {
-	*common.CommonConfig `json:"-"`
+	*common.Config `json:"-"`
 
 	// How many read requests should be made of the PIR server at a time?
 	ReadBatch int
@@ -33,7 +33,7 @@ type Config struct {
 
 // ConfigFromFile restores a json cofig. returns the config on success or nil if
 // loading or parsing the file fails.
-func ConfigFromFile(file string, commonBase *common.CommonConfig) *Config {
+func ConfigFromFile(file string, commonBase *common.Config) *Config {
 	configString, err := ioutil.ReadFile(file)
 	if err != nil {
 		return nil
@@ -42,6 +42,6 @@ func ConfigFromFile(file string, commonBase *common.CommonConfig) *Config {
 	if err := json.Unmarshal(configString, config); err != nil {
 		return nil
 	}
-	config.CommonConfig = commonBase
+	config.Config = commonBase
 	return config
 }

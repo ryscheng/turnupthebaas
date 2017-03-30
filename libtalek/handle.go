@@ -53,7 +53,7 @@ func initHandle(h *Handle) (err error) {
 // nextBuckets returns the pair of buckets that will be used in the next poll or publish of this
 // topic given the current sequence number of the handle.
 // The buckets returned by this method must still be wrapped by the NumBuckets config paramter of talek instance it is requested against.
-func (h *Handle) nextBuckets(conf *common.CommonConfig) (uint64, uint64) {
+func (h *Handle) nextBuckets(conf *common.Config) (uint64, uint64) {
 	seqNoBytes := make([]byte, 24)
 	_ = binary.PutUvarint(seqNoBytes, h.Seqno)
 
@@ -71,20 +71,20 @@ func (h *Handle) generatePoll(config *ClientConfig, _ uint64) (*common.ReadArgs,
 	}
 
 	args := make([]*common.ReadArgs, 2)
-	bucket1, bucket2 := h.nextBuckets(config.CommonConfig)
+	bucket1, bucket2 := h.nextBuckets(config.Config)
 
 	num := len(config.TrustDomains)
 
 	args[0] = &common.ReadArgs{}
 	args[0].TD = make([]common.PirArgs, num)
 	// The first Trust domain is the one with the explicit bucket bit-flip.
-	args[0].TD[0].RequestVector = make([]byte, (config.CommonConfig.NumBuckets+7)/8)
+	args[0].TD[0].RequestVector = make([]byte, (config.Config.NumBuckets+7)/8)
 	args[0].TD[0].RequestVector[bucket1/8] |= 1 << (bucket1 % 8)
 	args[0].TD[0].PadSeed = make([]byte, drbg.SeedLength)
 	h.drbg.FillBytes(args[0].TD[0].PadSeed)
 
 	for j := 1; j < num; j++ {
-		args[0].TD[j].RequestVector = make([]byte, (config.CommonConfig.NumBuckets+7)/8)
+		args[0].TD[j].RequestVector = make([]byte, (config.Config.NumBuckets+7)/8)
 		h.drbg.FillBytes(args[0].TD[j].RequestVector)
 		args[0].TD[j].PadSeed = make([]byte, drbg.SeedLength)
 		h.drbg.FillBytes(args[0].TD[j].PadSeed)
@@ -97,13 +97,13 @@ func (h *Handle) generatePoll(config *ClientConfig, _ uint64) (*common.ReadArgs,
 	args[1] = &common.ReadArgs{}
 	args[1].TD = make([]common.PirArgs, num)
 	// The first Trust domain is the one with the explicit bucket bit-flip.
-	args[1].TD[0].RequestVector = make([]byte, (config.CommonConfig.NumBuckets+7)/8)
+	args[1].TD[0].RequestVector = make([]byte, (config.Config.NumBuckets+7)/8)
 	args[1].TD[0].RequestVector[bucket2/8] |= 1 << (bucket2 % 8)
 	args[1].TD[0].PadSeed = make([]byte, drbg.SeedLength)
 	h.drbg.FillBytes(args[1].TD[0].PadSeed)
 
 	for j := 1; j < num; j++ {
-		args[1].TD[j].RequestVector = make([]byte, (config.CommonConfig.NumBuckets+7)/8)
+		args[1].TD[j].RequestVector = make([]byte, (config.Config.NumBuckets+7)/8)
 		h.drbg.FillBytes(args[1].TD[j].RequestVector)
 		args[1].TD[j].PadSeed = make([]byte, drbg.SeedLength)
 		h.drbg.FillBytes(args[1].TD[j].PadSeed)

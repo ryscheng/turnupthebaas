@@ -7,7 +7,8 @@ import (
 	"os"
 )
 
-type LeaderRpc struct {
+// LeaderRPC is a stub for RPCs to the talek server.
+type LeaderRPC struct {
 	log          *log.Logger
 	name         string
 	config       *TrustDomainConfig
@@ -15,9 +16,10 @@ type LeaderRpc struct {
 	client       *rpc.Client
 }
 
-func NewLeaderRpc(name string, config *TrustDomainConfig) *LeaderRpc {
-	l := &LeaderRpc{}
-	l.log = log.New(os.Stdout, "[LeaderRpc:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
+// NewLeaderRPC instantiates a LeaderRPC stub
+func NewLeaderRPC(name string, config *TrustDomainConfig) *LeaderRPC {
+	l := &LeaderRPC{}
+	l.log = log.New(os.Stdout, "[LeaderRPC:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	l.name = name
 	l.config = config
 	l.client = nil
@@ -30,7 +32,8 @@ func NewLeaderRpc(name string, config *TrustDomainConfig) *LeaderRpc {
 	return l
 }
 
-func (l *LeaderRpc) Call(methodName string, args interface{}, reply interface{}) error {
+// Call implements an RPC call
+func (l *LeaderRPC) Call(methodName string, args interface{}, reply interface{}) error {
 	// Get address
 	var err error
 	addr, okAddr := l.config.GetAddress()
@@ -60,30 +63,33 @@ func (l *LeaderRpc) Call(methodName string, args interface{}, reply interface{})
 	return nil
 }
 
-func (l *LeaderRpc) GetName(_ *interface{}, reply *string) error {
+// GetName returns the name of the leader.
+func (l *LeaderRPC) GetName(_ *interface{}, reply *string) error {
 	*reply = l.name
 	return nil
 }
 
-func (l *LeaderRpc) Ping(args *PingArgs, reply *PingReply) error {
+// Ping tracks latency.
+func (l *LeaderRPC) Ping(args *PingArgs, reply *PingReply) error {
 	//l.log.Printf("Ping: enter\n")
 	err := l.Call(l.methodPrefix+".Ping", args, reply)
 	return err
 }
 
-func (l *LeaderRpc) Write(args *WriteArgs, reply *WriteReply) error {
+func (l *LeaderRPC) Write(args *WriteArgs, reply *WriteReply) error {
 	//l.log.Printf("Write: enter\n")
 	err := l.Call(l.methodPrefix+".Write", args, reply)
 	return err
 }
 
-func (l *LeaderRpc) Read(args *EncodedReadArgs, reply *ReadReply) error {
+func (l *LeaderRPC) Read(args *EncodedReadArgs, reply *ReadReply) error {
 	//l.log.Printf("Read: enter\n")
 	err := l.Call(l.methodPrefix+".Read", args, reply)
 	return err
 }
 
-func (l *LeaderRpc) GetUpdates(args *GetUpdatesArgs, reply *GetUpdatesReply) error {
+// GetUpdates provides the global interest vector.
+func (l *LeaderRPC) GetUpdates(args *GetUpdatesArgs, reply *GetUpdatesReply) error {
 	//l.log.Printf("GetUpdates: enter\n")
 	err := l.Call(l.methodPrefix+".GetUpdates", args, reply)
 	return err

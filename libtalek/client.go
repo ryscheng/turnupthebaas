@@ -99,7 +99,7 @@ func (c *Client) Publish(handle *Topic, data []byte) error {
 		data = allocation
 	}
 
-	writeArgs, err := handle.GeneratePublish(config.CommonConfig, data)
+	writeArgs, err := handle.GeneratePublish(config.Config, data)
 	c.log.Info.Printf("Wrote %v(%d) to %d,%d.", writeArgs.Data[0:4], len(writeArgs.Data), writeArgs.Bucket1, writeArgs.Bucket2)
 	if err != nil {
 		return err
@@ -211,14 +211,14 @@ func (c *Client) generateRandomWrite(config ClientConfig) *common.WriteArgs {
 	b2, _ := rand.Int(rand.Reader, max.SetUint64(config.NumBuckets))
 	args.Bucket1 = b1.Uint64()
 	args.Bucket2 = b2.Uint64()
-	args.Data = make([]byte, config.CommonConfig.DataSize, config.CommonConfig.DataSize)
+	args.Data = make([]byte, config.Config.DataSize, config.Config.DataSize)
 	rand.Read(args.Data)
 	return args
 }
 
 func (c *Client) generateRandomRead(config *ClientConfig) *common.ReadArgs {
 	args := &common.ReadArgs{}
-	vectorSize := uint32((config.CommonConfig.NumBuckets+7)/8 + 1)
+	vectorSize := uint32((config.Config.NumBuckets+7)/8 + 1)
 	args.TD = make([]common.PirArgs, len(config.TrustDomains), len(config.TrustDomains))
 	for i := 0; i < len(args.TD); i++ {
 		args.TD[i].RequestVector = make([]byte, vectorSize, vectorSize)

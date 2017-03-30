@@ -14,17 +14,17 @@ import (
 
 import "testing"
 
-func fromEnvOrDefault(envKey string, default_val int) int {
+func fromEnvOrDefault(envKey string, defaultVal int) int {
 	if os.Getenv(envKey) != "" {
 		val, _ := strconv.Atoi(os.Getenv(envKey))
 		return val
 	}
-	return default_val
+	return defaultVal
 }
 
 func testConf() Config {
 	return Config{
-		CommonConfig: &common.CommonConfig{
+		Config: &common.Config{
 			NumBuckets:         uint64(fromEnvOrDefault("NUM_BUCKETS", 512)),
 			BucketDepth:        fromEnvOrDefault("BUCKET_DEPTH", 4),
 			DataSize:           fromEnvOrDefault("DATA_SIZE", 512),
