@@ -14,12 +14,12 @@ import (
 
 import "testing"
 
-func fromEnvOrDefault(envKey string, default_val int) int {
+func fromEnvOrDefault(envKey string, defaultVal int) int {
 	if os.Getenv(envKey) != "" {
 		val, _ := strconv.Atoi(os.Getenv(envKey))
 		return val
 	}
-	return default_val
+	return defaultVal
 }
 
 func testConf() Config {

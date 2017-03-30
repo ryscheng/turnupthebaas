@@ -56,12 +56,12 @@ func main() {
 
 	// Trust Domain 1
 	t1 := server.NewCentralized("t1", *followerPIR, *serverConfig1, nil, false)
-	s["t1"] = server.NewNetworkRpc(t1, 9001)
+	s["t1"] = server.NewNetworkRPC(t1, 9001)
 
 	// Trust Domain 0
 	//t0 := server.NewCentralized("t0", config, t1, true)
 	t0 := server.NewCentralized("t0", *leaderPIR, *serverConfig0, common.NewFollowerRpc("t0->t1", trustDomainConfig1), true)
-	s["t0"] = server.NewNetworkRpc(t0, 9000)
+	s["t0"] = server.NewNetworkRPC(t0, 9000)
 
 	// Client
 	clientConfig := libtalek.ClientConfig{

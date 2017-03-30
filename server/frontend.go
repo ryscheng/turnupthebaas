@@ -7,6 +7,7 @@ import (
 	"github.com/privacylab/talek/common"
 )
 
+// Frontend terminates client connections to the leader server.
 type Frontend struct {
 	// Private State
 	log          *log.Logger
@@ -18,6 +19,7 @@ type Frontend struct {
 	//dataLayerRef *DataLayerRef
 }
 
+// NewFrontend creates a new Frontend for a provided configuration.
 func NewFrontend(name string, serverConfig *Config, follower common.FollowerInterface, isLeader bool) *Frontend {
 	fe := &Frontend{}
 	fe.log = log.New(os.Stdout, "[Frontend:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
@@ -30,6 +32,8 @@ func NewFrontend(name string, serverConfig *Config, follower common.FollowerInte
 }
 
 /** PUBLIC METHODS (threadsafe) **/
+
+// Ping implements latency testing determination.
 func (fe *Frontend) Ping(args *common.PingArgs, reply *common.PingReply) error {
 	fe.log.Println("Ping: " + args.Msg + ", ... Pong")
 
@@ -64,6 +68,7 @@ func (fe *Frontend) Read(args *common.EncodedReadArgs, reply *common.ReadReply) 
 	return nil
 }
 
+// GetUpdates provides the most recent global interest vector deltas.
 func (fe *Frontend) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdatesReply) error {
 	fe.log.Println("GetUpdates: ")
 	// @TODO

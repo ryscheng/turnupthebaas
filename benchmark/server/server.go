@@ -69,7 +69,7 @@ func main() {
 	s := server.NewCentralized(td.Name, *pirSocket, serverConfig, nil, serverConfig.TrustDomainIndex == 0)
 	_, port, _ := net.SplitHostPort(td.Address)
 	pnum, _ := strconv.Atoi(port)
-	_ = server.NewNetworkRpc(s, pnum)
+	_ = server.NewNetworkRPC(s, pnum)
 
 	log.Println("Running.")
 
