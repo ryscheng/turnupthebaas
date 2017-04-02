@@ -17,6 +17,9 @@ func (m *mockLeader) GetName(_ *interface{}, reply *string) error {
 	*reply = "Mock Leader"
 	return nil
 }
+func (m *mockLeader) GetConfig(_ *interface{}, reply *common.Config) error {
+	return nil
+}
 func (m *mockLeader) Ping(args *common.PingArgs, reply *common.PingReply) error {
 	return nil
 }

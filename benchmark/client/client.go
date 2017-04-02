@@ -41,7 +41,7 @@ func main() {
 		}
 	}
 
-	leaderRPC := common.NewLeaderRPC("c0->t0", trustDomains[0])
+	leaderRPC := common.NewFrontendRPC("c0->t0", trustDomains[0])
 
 	clientConfig := libtalek.ClientConfig{
 		Config:        config,

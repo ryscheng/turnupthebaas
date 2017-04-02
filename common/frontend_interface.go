@@ -1,8 +1,9 @@
 package common
 
-// LeaderInterface is the interface between libtalek and the frontend
-type LeaderInterface interface {
+// FrontendInterface is the interface between libtalek and the frontend
+type FrontendInterface interface {
 	GetName(args *interface{}, reply *string) error
+	GetConfig(args *interface{}, reply *Config) error
 	Ping(args *PingArgs, reply *PingReply) error
 	Write(args *WriteArgs, reply *WriteReply) error
 	Read(args *EncodedReadArgs, reply *ReadReply) error

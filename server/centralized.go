@@ -76,6 +76,13 @@ func (c *Centralized) GetName(args *interface{}, reply *string) error {
 	return nil
 }
 
+// GetConfig returns the current common configuration from the server.
+func (c *Centralized) GetConfig(args *interface{}, reply *common.Config) error {
+	config := c.config.Load().(Config)
+	*reply = *config.Config
+	return nil
+}
+
 // Ping allows probing the latency of the server.
 func (c *Centralized) Ping(args *common.PingArgs, reply *common.PingReply) error {
 	c.log.Trace.Println("Ping: enter")

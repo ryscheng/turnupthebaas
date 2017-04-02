@@ -7,8 +7,8 @@ import (
 	"os"
 )
 
-// LeaderRPC is a stub for RPCs to the talek server.
-type LeaderRPC struct {
+// FrontendRPC is a stub for RPCs to the talek server.
+type FrontendRPC struct {
 	log          *log.Logger
 	name         string
 	config       *TrustDomainConfig
@@ -16,46 +16,46 @@ type LeaderRPC struct {
 	client       *rpc.Client
 }
 
-// NewLeaderRPC instantiates a LeaderRPC stub
-func NewLeaderRPC(name string, config *TrustDomainConfig) *LeaderRPC {
-	l := &LeaderRPC{}
-	l.log = log.New(os.Stdout, "[LeaderRPC:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
-	l.name = name
-	l.config = config
-	l.client = nil
-	if l.config.IsDistributed {
-		l.methodPrefix = "Frontend"
+// NewFrontendRPC instantiates a LeaderRPC stub
+func NewFrontendRPC(name string, config *TrustDomainConfig) *FrontendRPC {
+	f := &FrontendRPC{}
+	f.log = log.New(os.Stdout, "[FrontendRPC:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
+	f.name = name
+	f.config = config
+	f.client = nil
+	if f.config.IsDistributed {
+		f.methodPrefix = "Frontend"
 	} else {
-		l.methodPrefix = "Centralized"
+		f.methodPrefix = "Centralized"
 	}
 
-	return l
+	return f
 }
 
 // Call implements an RPC call
-func (l *LeaderRPC) Call(methodName string, args interface{}, reply interface{}) error {
+func (f *FrontendRPC) Call(methodName string, args interface{}, reply interface{}) error {
 	// Get address
 	var err error
-	addr, okAddr := l.config.GetAddress()
+	addr, okAddr := f.config.GetAddress()
 	if !okAddr {
 		return fmt.Errorf("No address available")
 	}
 
 	// Setup connection
-	if l.client == nil {
-		l.client, err = rpc.Dial("tcp", addr)
+	if f.client == nil {
+		f.client, err = rpc.Dial("tcp", addr)
 		if err != nil {
-			l.log.Printf("rpc dialing failed: %v\n", err)
-			l.client = nil
+			f.log.Printf("rpc dialing failed: %v\n", err)
+			f.client = nil
 			return err
 		}
 		//defer client.Close()
 	}
 
 	// Do RPC
-	err = l.client.Call(methodName, args, reply)
+	err = f.client.Call(methodName, args, reply)
 	if err != nil {
-		l.log.Printf("rpc error: %v", err)
+		f.log.Printf("rpc error: %v", err)
 		return err
 	}
 
@@ -64,33 +64,39 @@ func (l *LeaderRPC) Call(methodName string, args interface{}, reply interface{})
 }
 
 // GetName returns the name of the leader.
-func (l *LeaderRPC) GetName(_ *interface{}, reply *string) error {
-	*reply = l.name
+func (f *FrontendRPC) GetName(_ *interface{}, reply *string) error {
+	*reply = f.name
 	return nil
 }
 
+// GetConfig tells the client about current config.
+func (f *FrontendRPC) GetConfig(_ *interface{}, reply *Config) error {
+	err := f.Call(f.methodPrefix+".Config", nil, reply)
+	return err
+}
+
 // Ping tracks latency.
-func (l *LeaderRPC) Ping(args *PingArgs, reply *PingReply) error {
+func (f *FrontendRPC) Ping(args *PingArgs, reply *PingReply) error {
 	//l.log.Printf("Ping: enter\n")
-	err := l.Call(l.methodPrefix+".Ping", args, reply)
+	err := f.Call(f.methodPrefix+".Ping", args, reply)
 	return err
 }
 
-func (l *LeaderRPC) Write(args *WriteArgs, reply *WriteReply) error {
+func (f *FrontendRPC) Write(args *WriteArgs, reply *WriteReply) error {
 	//l.log.Printf("Write: enter\n")
-	err := l.Call(l.methodPrefix+".Write", args, reply)
+	err := f.Call(f.methodPrefix+".Write", args, reply)
 	return err
 }
 
-func (l *LeaderRPC) Read(args *EncodedReadArgs, reply *ReadReply) error {
+func (f *FrontendRPC) Read(args *EncodedReadArgs, reply *ReadReply) error {
 	//l.log.Printf("Read: enter\n")
-	err := l.Call(l.methodPrefix+".Read", args, reply)
+	err := f.Call(f.methodPrefix+".Read", args, reply)
 	return err
 }
 
 // GetUpdates provides the global interest vector.
-func (l *LeaderRPC) GetUpdates(args *GetUpdatesArgs, reply *GetUpdatesReply) error {
+func (f *FrontendRPC) GetUpdates(args *GetUpdatesArgs, reply *GetUpdatesReply) error {
 	//l.log.Printf("GetUpdates: enter\n")
-	err := l.Call(l.methodPrefix+".GetUpdates", args, reply)
+	err := f.Call(f.methodPrefix+".GetUpdates", args, reply)
 	return err
 }

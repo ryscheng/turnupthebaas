@@ -19,7 +19,7 @@ type Client struct {
 	name   string
 	config atomic.Value //ClientConfig
 	dead   int32
-	leader common.LeaderInterface
+	leader common.FrontendInterface
 
 	handles       []Handle
 	pendingWrites chan *common.WriteArgs
@@ -35,7 +35,7 @@ type request struct {
 }
 
 // NewClient creates a Talek client for reading and writing metadata-protected messages.
-func NewClient(name string, config ClientConfig, leader common.LeaderInterface) *Client {
+func NewClient(name string, config ClientConfig, leader common.FrontendInterface) *Client {
 	c := &Client{}
 	c.log = common.NewLogger(name)
 	c.name = name

@@ -37,7 +37,6 @@ func testConf() Config {
 		ReadInterval:     time.Second,
 		TrustDomain:      nil,
 		TrustDomainIndex: 0,
-		ServerAddrs:      nil,
 	}
 }
 

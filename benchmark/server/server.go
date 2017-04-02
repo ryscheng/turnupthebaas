@@ -50,7 +50,6 @@ func main() {
 		ReadBatch:        8,
 		TrustDomain:      td,
 		TrustDomainIndex: 0,
-		ServerAddrs:      nil,
 	}
 	if err := json.Unmarshal(tdString, &serverConfig); err != nil {
 		log.Printf("Could not parse %s: %v\n", *trustDomainPath, err)

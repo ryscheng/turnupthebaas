@@ -1,4 +1,3 @@
 {
-  "ReadBatch": 8,
-  "ServerAddrs": {}
+  "ReadBatch": 8
 }

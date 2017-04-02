@@ -100,7 +100,7 @@ func main() {
 		return
 	}
 
-	leaderRPC := common.NewLeaderRPC("RPC", conf.TrustDomains[0])
+	leaderRPC := common.NewFrontendRPC("RPC", conf.TrustDomains[0])
 	cli := libtalek.NewClient("talekcli", conf, leaderRPC)
 
 	// Read a message.

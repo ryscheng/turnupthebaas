@@ -25,10 +25,6 @@ type Config struct {
 	TrustDomain *common.TrustDomainConfig
 	// In client read requests, which index is relevant for this server.
 	TrustDomainIndex int
-
-	// The names of the different servers participating as leader/followers within
-	// a single trust domain
-	ServerAddrs map[string]map[string]string `json:",omitempty"` //groupName -> serverName -> serverAddr
 }
 
 // ConfigFromFile restores a json cofig. returns the config on success or nil if
