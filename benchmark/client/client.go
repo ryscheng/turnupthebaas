@@ -12,7 +12,6 @@ import (
 	"github.com/privacylab/talek/libtalek"
 )
 
-var configPath = flag.String("config", "../commonconfig.json", "Talek Common Configuration")
 var trustDomainPath = flag.String("trust", "../keys/leaderpublic.json,../keys/followerpublic.json", "Server keys (comma separated)")
 var repetitions = flag.Int("repetitions", 10, "How many reads and writes to make")
 
@@ -25,7 +24,6 @@ func main() {
 	flag.Parse()
 
 	// Config
-	config := common.ConfigFromFile(*configPath)
 	domainPaths := strings.Split(*trustDomainPath, ",")
 	trustDomains := make([]*common.TrustDomainConfig, len(domainPaths))
 	for i, path := range domainPaths {
@@ -44,7 +42,6 @@ func main() {
 	leaderRPC := common.NewFrontendRPC("c0->t0", trustDomains[0])
 
 	clientConfig := libtalek.ClientConfig{
-		Config:        config,
 		ReadInterval:  time.Second,
 		WriteInterval: time.Second,
 		TrustDomains:  trustDomains,

@@ -41,6 +41,9 @@ func NewClient(name string, config ClientConfig, leader common.FrontendInterface
 	c.name = name
 	c.config.Store(config)
 	c.leader = leader
+	if config.Config == nil {
+		c.getConfig()
+	}
 
 	//todo: should channel capacity be smarter?
 	c.pendingReads = make(chan request, 5)
@@ -59,6 +62,9 @@ func NewClient(name string, config ClientConfig, leader common.FrontendInterface
 // or speed characteristics for the system are changed.
 func (c *Client) SetConfig(config ClientConfig) {
 	c.config.Store(config)
+	if config.Config == nil {
+		c.getConfig()
+	}
 }
 
 // Kill stops client processing. This allows for graceful shutdown or suspension of requests.
@@ -146,6 +152,14 @@ func (c *Client) Done(handle *Handle) bool {
 }
 
 /** Private methods **/
+func (c *Client) getConfig() {
+	reply := new(common.Config)
+	c.leader.GetConfig(nil, reply)
+	conf := c.config.Load().(ClientConfig)
+	conf.Config = reply
+	c.config.Store(conf)
+}
+
 func (c *Client) writePeriodic() {
 	var req *common.WriteArgs
 
