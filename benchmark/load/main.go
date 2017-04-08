@@ -76,7 +76,6 @@ func main() {
 	clientLeaderSock := common.NewFrontendRPC("c0->t0", trustDomainConfig0)
 	for i := 0; i < *numClients; i++ {
 		clients[i] = libtalek.NewClient("c"+string(i), clientConfig, clientLeaderSock)
-		clients[i].Ping()
 		handle, _ := libtalek.NewTopic()
 		clients[i].Publish(handle, []byte("Hello from client"+string(i)))
 		data := clients[i].Poll(&handle.Handle)

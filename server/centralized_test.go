@@ -30,26 +30,23 @@ func BenchmarkWrite(b *testing.B) {
 	if err != nil {
 		b.Fatalf("Error creating WriteArgs: %v\n", err)
 	}
+	repArgs := &common.ReplicaWriteArgs{
+		WriteArgs: *args,
+		EpochFlag: false,
+	}
 
-	var reply common.WriteReply
-	t1s := getSocket()
-	t1c := make(chan int)
-	go pir.CreateMockServer(t1c, t1s)
-	<-t1c
-	t1 := NewCentralized("t1", t1s, Config{&config, 1, 0, 0, nil, 0}, nil, false)
-
+	var reply common.ReplicaWriteReply
 	t0s := getSocket()
 	t0c := make(chan int)
 	go pir.CreateMockServer(t0c, t0s)
 	<-t0c
-	t0 := NewCentralized("t0", t0s, Config{&config, 1, 0, 0, nil, 0}, t1, true)
+	t0 := NewCentralized("t0", t0s, Config{&config, 1, 0, 0, nil, 0})
 
 	// Start timing
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = t0.Write(args, &reply)
+		_ = t0.Write(repArgs, &reply)
 	}
 
-	t1c <- 1
 	t0c <- 1
 }

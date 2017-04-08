@@ -38,7 +38,7 @@ type Shard struct {
 	config atomic.Value // Config
 
 	// Channels
-	writeChan        chan *common.WriteArgs
+	writeChan        chan *common.ReplicaWriteArgs
 	readChan         chan *DecodedBatchReadRequest
 	outstandingReads chan chan *common.BatchReadReply
 	readReplies      chan []byte
@@ -64,7 +64,7 @@ func NewShard(name string, socket string, config Config) *Shard {
 	s.name = name
 
 	s.config.Store(config)
-	s.writeChan = make(chan *common.WriteArgs)
+	s.writeChan = make(chan *common.ReplicaWriteArgs)
 	s.readChan = make(chan *DecodedBatchReadRequest)
 	s.syncChan = make(chan int)
 	s.outstandingReads = make(chan chan *common.BatchReadReply, 5)
@@ -107,7 +107,7 @@ func NewShard(name string, socket string, config Config) *Shard {
 
 /** PUBLIC METHODS (threadsafe) **/
 
-func (s *Shard) Write(args *common.WriteArgs) error {
+func (s *Shard) Write(args *common.ReplicaWriteArgs) error {
 	s.log.Trace.Println("Write: ")
 	s.writeChan <- args
 	return nil
@@ -186,16 +186,18 @@ func (s *Shard) processReplies() {
 }
 
 func (s *Shard) processWrites() {
-	var writeReq *common.WriteArgs
+	var writeReq *common.ReplicaWriteArgs
 	conf := s.config.Load().(Config)
 	for {
 		select {
 		case writeReq = <-s.writeChan:
 			if writeReq == nil {
 				return
+			} else if writeReq.EpochFlag {
+				s.applyWrites()
 			}
 
-			itm := asCuckooItem(writeReq)
+			itm := asCuckooItem(&writeReq.WriteArgs)
 			s.Entries = append(s.Entries, *itm)
 			ok, evicted := s.Table.Insert(itm)
 			// No longer need this pointer.
@@ -213,17 +215,15 @@ func (s *Shard) processWrites() {
 
 			// Trigger to swap to next DB.
 			if s.sinceFlip > s.outstandingLimit {
-				s.ApplyWrites()
+				s.applyWrites()
 			}
 		}
 	}
 }
 
-// ApplyWrites will enque a command to apply any outstanding writes to the
+// applyWrites will enque a command to apply any outstanding writes to the
 // database to be seen by subsequent reads.
-// TODO: should take a sequence number to do a better job of consistent
-// interleaving with enqueued reads.
-func (s *Shard) ApplyWrites() {
+func (s *Shard) applyWrites() {
 	s.syncChan <- 1
 	s.sinceFlip = 0
 }
