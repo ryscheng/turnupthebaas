@@ -69,13 +69,6 @@ func (f *FollowerRPC) GetName(_ *interface{}, reply *string) error {
 	return nil
 }
 
-// Ping checks latency.
-func (f *FollowerRPC) Ping(args *PingArgs, reply *PingReply) error {
-	//f.log.Printf("Ping: enter\n")
-	err := f.Call(f.methodPrefix+".Ping", args, reply)
-	return err
-}
-
 func (f *FollowerRPC) Write(args *WriteArgs, reply *WriteReply) error {
 	//f.log.Printf("Write: enter\n")
 	err := f.Call(f.methodPrefix+".Write", args, reply)

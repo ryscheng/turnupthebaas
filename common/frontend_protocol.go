@@ -11,17 +11,6 @@ type Error string
  * PROTOCOL
  *************/
 
-// PingArgs are passed in Pings.
-type PingArgs struct {
-	Msg string
-}
-
-// PingReply are passed in pongs.
-type PingReply struct {
-	Err string
-	Msg string
-}
-
 // WriteArgs are passed in writes.
 type WriteArgs struct {
 	Bucket1        uint64

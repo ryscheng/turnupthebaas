@@ -83,30 +83,6 @@ func (c *Centralized) GetConfig(args *interface{}, reply *common.Config) error {
 	return nil
 }
 
-// Ping allows probing the latency of the server.
-func (c *Centralized) Ping(args *common.PingArgs, reply *common.PingReply) error {
-	c.log.Trace.Println("Ping: enter")
-	// Try to ping the follower if one exists
-	if c.follower != nil {
-		var fReply common.PingReply
-		fErr := c.follower.Ping(&common.PingArgs{Msg: "PING"}, &fReply)
-		if fErr != nil {
-			var fName string
-			c.follower.GetName(nil, &fName)
-			reply.Err = fName + " Ping failed"
-		} else {
-			reply.Err = fReply.Err
-		}
-	} else {
-		reply.Err = ""
-	}
-
-	reply.Msg = "Centralied Pong"
-	c.log.Trace.Println("Ping: exit")
-	c.log.Info.Println("Ping: " + args.Msg + ", ... Pong")
-	return nil
-}
-
 func (c *Centralized) Write(args *common.WriteArgs, reply *common.WriteReply) error {
 	c.log.Trace.Println("Write: enter")
 	tr := trace.New("centralized.write", "Write")

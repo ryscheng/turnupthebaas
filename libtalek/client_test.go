@@ -20,9 +20,6 @@ func (m *mockLeader) GetName(_ *interface{}, reply *string) error {
 func (m *mockLeader) GetConfig(_ *interface{}, reply *common.Config) error {
 	return nil
 }
-func (m *mockLeader) Ping(args *common.PingArgs, reply *common.PingReply) error {
-	return nil
-}
 func (m *mockLeader) Write(args *common.WriteArgs, reply *common.WriteReply) error {
 	if m.ReceivedWrites != nil {
 		m.ReceivedWrites <- args

@@ -72,20 +72,6 @@ func (c *Client) Kill() {
 	atomic.StoreInt32(&c.dead, 1)
 }
 
-// Ping will perform an on-thread ping of the Talek system, allowing the client
-// to validate that it is connected to the Talek system, and check the latency
-// of connection to the server.
-func (c *Client) Ping() bool {
-	var reply common.PingReply
-	err := c.leader.Ping(&common.PingArgs{Msg: "PING"}, &reply)
-	if err == nil && reply.Err == "" {
-		c.log.Info.Printf("Ping success\n")
-		return true
-	}
-	c.log.Warn.Printf("Ping fail: err=%v, reply=%v\n", err, reply)
-	return false
-}
-
 // MaxLength returns the maximum allowed message the client can Publish.
 // TODO: support messages spanning multiple data items.
 func (c *Client) MaxLength() int {

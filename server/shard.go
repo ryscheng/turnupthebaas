@@ -107,18 +107,6 @@ func NewShard(name string, socket string, config Config) *Shard {
 
 /** PUBLIC METHODS (threadsafe) **/
 
-// Ping checks that the shard is alive.
-func (s *Shard) Ping(args *common.PingArgs, reply *common.PingReply) error {
-	s.log.Info.Println("Ping: " + args.Msg + ", ... Pong")
-	if s.dead > 0 {
-		reply.Err = "Shard Dead"
-		return nil
-	}
-	reply.Err = ""
-	reply.Msg = "PONG"
-	return nil
-}
-
 func (s *Shard) Write(args *common.WriteArgs) error {
 	s.log.Trace.Println("Write: ")
 	s.writeChan <- args

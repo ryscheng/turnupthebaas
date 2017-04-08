@@ -4,7 +4,6 @@ package common
 // in the Talek system
 type FollowerInterface interface {
 	GetName(args *interface{}, reply *string) error
-	Ping(args *PingArgs, reply *PingReply) error
 	Write(args *WriteArgs, reply *WriteReply) error
 	NextEpoch(args *uint64, reply *interface{}) error
 	BatchRead(args *BatchReadRequest, reply *BatchReadReply) error

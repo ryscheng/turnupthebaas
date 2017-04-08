@@ -75,13 +75,6 @@ func (f *FrontendRPC) GetConfig(_ *interface{}, reply *Config) error {
 	return err
 }
 
-// Ping tracks latency.
-func (f *FrontendRPC) Ping(args *PingArgs, reply *PingReply) error {
-	//l.log.Printf("Ping: enter\n")
-	err := f.Call(f.methodPrefix+".Ping", args, reply)
-	return err
-}
-
 func (f *FrontendRPC) Write(args *WriteArgs, reply *WriteReply) error {
 	//l.log.Printf("Write: enter\n")
 	err := f.Call(f.methodPrefix+".Write", args, reply)
