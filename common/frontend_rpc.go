@@ -23,11 +23,7 @@ func NewFrontendRPC(name string, config *TrustDomainConfig) *FrontendRPC {
 	f.name = name
 	f.config = config
 	f.client = nil
-	if f.config.IsDistributed {
-		f.methodPrefix = "Frontend"
-	} else {
-		f.methodPrefix = "Centralized"
-	}
+	f.methodPrefix = "Frontend"
 
 	return f
 }

@@ -73,7 +73,7 @@ func (c *Centralized) BatchRead(args *common.BatchReadRequest, reply *common.Bat
 
 	localArgs := new(DecodedBatchReadRequest)
 	localArgs.ReplyChan = make(chan *common.BatchReadReply)
-	localArgs.Args = make([]common.PirArgs, len(args.Args))
+	localArgs.Args = make([]common.PirArgs, config.ReadBatch)
 	for i, val := range args.Args {
 		//Handle pad requests.
 		if len(val.PirArgs) == 0 {
@@ -91,7 +91,7 @@ func (c *Centralized) BatchRead(args *common.BatchReadRequest, reply *common.Bat
 	}
 	c.shard.BatchRead(localArgs)
 
-	// Combine results
+	// wait for results
 	myReply := <-localArgs.ReplyChan
 
 	// Mutate results
@@ -103,7 +103,7 @@ func (c *Centralized) BatchRead(args *common.BatchReadRequest, reply *common.Bat
 		}
 	}
 
-	reply.Replies = myReply.Replies
+	reply.Replies = myReply.Replies[0:len(args.Args)]
 	c.log.Trace.Println("BatchRead: exit")
 	return nil
 }
