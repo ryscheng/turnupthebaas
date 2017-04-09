@@ -19,13 +19,18 @@ type FrontendServer struct {
 }
 
 // NewFrontendServer creates a new FrontEndServer for a given configuration.
-func NewFrontendServer(name string, rpcPort int, serverConfig *Config, follower *common.TrustDomainConfig, isLeader bool) *FrontendServer {
+func NewFrontendServer(name string, rpcPort int, serverConfig *Config, replicas []common.TrustDomainConfig) *FrontendServer {
 	fe := &FrontendServer{}
 	fe.log = log.New(os.Stdout, "[FrontendServer:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	fe.name = name
 	fe.rpcPort = rpcPort
 
-	fe.frontend = NewFrontend(name, serverConfig, nil)
+	rpcs := make([]common.ReplicaInterface, len(replicas))
+	for i, r := range replicas {
+		rpcs[i] = common.NewReplicaRPC(r.Name, &r)
+	}
+
+	fe.frontend = NewFrontend(name, serverConfig, rpcs)
 	if rpcPort != 0 {
 		fe.netRPC = NewNetworkRPC(fe.frontend, rpcPort)
 	}

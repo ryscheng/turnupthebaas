@@ -24,9 +24,9 @@ var pirSocket = flag.String("socket", "../../pird/pir.socket", "PIR daemon socke
 
 // Server starts a single, centralized talek server operating with a saved configuration.
 func main() {
-	log.Println("--------------------")
-	log.Println("--- Talek Server ---")
-	log.Println("--------------------")
+	log.Println("---------------------")
+	log.Println("--- Talek Replica ---")
+	log.Println("---------------------")
 	flag.Parse()
 
 	config := common.ConfigFromFile(*configPath)
@@ -65,7 +65,7 @@ func main() {
 		usingMock = true
 	}
 
-	s := server.NewCentralized(td.Name, *pirSocket, serverConfig, nil, serverConfig.TrustDomainIndex == 0)
+	s := server.NewCentralized(td.Name, *pirSocket, serverConfig)
 	_, port, _ := net.SplitHostPort(td.Address)
 	pnum, _ := strconv.Atoi(port)
 	_ = server.NewNetworkRPC(s, pnum)

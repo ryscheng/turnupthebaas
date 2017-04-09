@@ -20,7 +20,7 @@ type Frontend struct {
 	proposedSeqNo uint64 // Use atomic.AddUint64, atomic.LoadUint64
 	readChan      chan *readRequest
 
-	replicas []*common.ReplicaInterface
+	replicas []common.ReplicaInterface
 	dead     int
 }
 
@@ -33,7 +33,7 @@ type readRequest struct {
 }
 
 // NewFrontend creates a new Frontend for a provided configuration.
-func NewFrontend(name string, serverConfig *Config, replicas []*common.ReplicaInterface) *Frontend {
+func NewFrontend(name string, serverConfig *Config, replicas []common.ReplicaInterface) *Frontend {
 	fe := &Frontend{}
 	fe.log = log.New(os.Stdout, "[Frontend:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	fe.name = name
@@ -79,7 +79,7 @@ func (fe *Frontend) Write(args *common.WriteArgs, reply *common.WriteReply) erro
 	replicaReply := common.ReplicaWriteReply{}
 	//@todo writes in parallel
 	for i, r := range fe.replicas {
-		err := (*r).Write(replicaWrite, &replicaReply)
+		err := r.Write(replicaWrite, &replicaReply)
 		if err != nil {
 			reply.Err = err.Error()
 			fe.log.Fatalf("Error writing to replica %d: %v", i, err)
@@ -92,7 +92,7 @@ func (fe *Frontend) Write(args *common.WriteArgs, reply *common.WriteReply) erro
 }
 
 func (fe *Frontend) Read(args *common.EncodedReadArgs, reply *common.ReadReply) error {
-	ready := make(chan bool)
+	ready := make(chan bool, 1)
 	fe.readChan <- &readRequest{Args: args, Reply: reply, Done: ready}
 	<-ready
 
@@ -118,7 +118,7 @@ func (fe *Frontend) periodicWrite() {
 			}
 			var rep common.ReplicaWriteReply
 			for _, r := range fe.replicas {
-				(*r).Write(args, &rep)
+				r.Write(args, &rep)
 			}
 		}
 	}
@@ -150,7 +150,7 @@ func (fe *Frontend) batchReads() {
 	}
 }
 
-func (fe *Frontend) triggerBatchRead(batch []*readRequest) {
+func (fe *Frontend) triggerBatchRead(batch []*readRequest) error {
 	args := &common.BatchReadRequest{}
 	// Copy args
 	args.Args = make([]common.EncodedReadArgs, len(batch), len(batch))
@@ -162,7 +162,6 @@ func (fe *Frontend) triggerBatchRead(batch []*readRequest) {
 
 	// Choose a SeqNoRange
 	currSeqNo := atomic.LoadUint64(&fe.proposedSeqNo) + 1
-	args.SeqNoRange = common.Range{}
 	if currSeqNo <= uint64(fe.Config.WindowSize()) {
 		args.SeqNoRange.Start = 1 // Minimum of 1
 	} else {
@@ -175,9 +174,12 @@ func (fe *Frontend) triggerBatchRead(batch []*readRequest) {
 	// @todo reads in parallel
 	replies := make([]common.BatchReadReply, len(fe.replicas))
 	for i, r := range fe.replicas {
-		err := (*r).BatchRead(args, &replies[i])
+		err := r.BatchRead(args, &replies[i])
 		if err != nil || replies[i].Err != "" {
 			fe.log.Fatalf("Error making read to replica %d: %v%v", i, err, replies[i].Err)
+		}
+		if len(replies[i].Replies) != len(batch) {
+			fe.log.Fatalf("Replica %d gave the wrong number of replies (%d instead of %d)", i, len(replies[i].Replies), len(batch))
 		}
 	}
 
@@ -190,4 +192,6 @@ func (fe *Frontend) triggerBatchRead(batch []*readRequest) {
 		val.Reply.GlobalSeqNo = args.SeqNoRange
 		val.Done <- true
 	}
+
+	return nil
 }

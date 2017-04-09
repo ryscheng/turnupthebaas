@@ -7,8 +7,8 @@ import (
 	"os"
 )
 
-// FollowerRPC is a stub for the follower RPC interface
-type FollowerRPC struct {
+// ReplicaRPC is a stub for the replica RPC interface
+type ReplicaRPC struct {
 	log          *log.Logger
 	name         string
 	config       *TrustDomainConfig
@@ -16,46 +16,46 @@ type FollowerRPC struct {
 	client       *rpc.Client
 }
 
-// NewFollowerRPC creates a new FollowerRPC
-func NewFollowerRPC(name string, config *TrustDomainConfig) *FollowerRPC {
-	f := &FollowerRPC{}
-	f.log = log.New(os.Stdout, "[FollowerRPC:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
-	f.name = name
-	f.config = config
-	f.client = nil
-	if f.config.IsDistributed {
-		f.methodPrefix = "Frontend"
+// NewReplicaRPC creates a new ReplicaRPC
+func NewReplicaRPC(name string, config *TrustDomainConfig) *ReplicaRPC {
+	r := &ReplicaRPC{}
+	r.log = log.New(os.Stdout, "[ReplicaRPC:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
+	r.name = name
+	r.config = config
+	r.client = nil
+	if r.config.IsDistributed {
+		r.methodPrefix = "Frontend"
 	} else {
-		f.methodPrefix = "Centralized"
+		r.methodPrefix = "Centralized"
 	}
 
-	return f
+	return r
 }
 
 // Call calls an RPC method.
-func (f *FollowerRPC) Call(methodName string, args interface{}, reply interface{}) error {
+func (r *ReplicaRPC) Call(methodName string, args interface{}, reply interface{}) error {
 	// Get address
 	var err error
-	addr, okAddr := f.config.GetAddress()
+	addr, okAddr := r.config.GetAddress()
 	if !okAddr {
 		return fmt.Errorf("No address available")
 	}
 
 	// Setup connection
-	if f.client == nil {
-		f.client, err = rpc.Dial("tcp", addr)
+	if r.client == nil {
+		r.client, err = rpc.Dial("tcp", addr)
 		if err != nil {
-			f.log.Printf("rpc dialing failed: %v\n", err)
-			f.client = nil
+			r.log.Printf("rpc dialing failed: %v\n", err)
+			r.client = nil
 			return err
 		}
 		//defer client.Close()
 	}
 
 	// Do RPC
-	err = f.client.Call(methodName, args, reply)
+	err = r.client.Call(methodName, args, reply)
 	if err != nil {
-		f.log.Printf("rpc error: %v", err)
+		r.log.Printf("rpc error: %v", err)
 		return err
 	}
 
@@ -63,34 +63,22 @@ func (f *FollowerRPC) Call(methodName string, args interface{}, reply interface{
 	return nil
 }
 
-// GetName returns the name of the follower.
-func (f *FollowerRPC) GetName(_ *interface{}, reply *string) error {
-	*reply = f.name
-	return nil
-}
-
-func (f *FollowerRPC) Write(args *WriteArgs, reply *WriteReply) error {
+func (r *ReplicaRPC) Write(args *ReplicaWriteArgs, reply *ReplicaWriteReply) error {
 	//f.log.Printf("Write: enter\n")
-	err := f.Call(f.methodPrefix+".Write", args, reply)
-	return err
-}
-
-// NextEpoch signals a new write epoch
-func (f *FollowerRPC) NextEpoch(args *uint64, reply *interface{}) error {
-	err := f.Call(f.methodPrefix+".NextEpoch", args, reply)
+	err := r.Call(r.methodPrefix+".Write", args, reply)
 	return err
 }
 
 // BatchRead performs a set of PIR reads.
-func (f *FollowerRPC) BatchRead(args *BatchReadRequest, reply *BatchReadReply) error {
+func (r *ReplicaRPC) BatchRead(args *BatchReadRequest, reply *BatchReadReply) error {
 	//f.log.Printf("BatchRead: enter\n")
-	err := f.Call(f.methodPrefix+".BatchRead", args, reply)
+	err := r.Call(r.methodPrefix+".BatchRead", args, reply)
 	return err
 }
 
 // GetUpdates provies the most recent set of global interest vector changes.
-func (f *FollowerRPC) GetUpdates(args *GetUpdatesArgs, reply *GetUpdatesReply) error {
+func (r *ReplicaRPC) GetUpdates(args *GetUpdatesArgs, reply *GetUpdatesReply) error {
 	//f.log.Printf("GetUpdates: enter\n")
-	err := f.Call(f.methodPrefix+".GetUpdates", args, reply)
+	err := r.Call(r.methodPrefix+".GetUpdates", args, reply)
 	return err
 }
