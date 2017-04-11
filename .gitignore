@@ -1,6 +1,7 @@
-benchmark/client/client
+cli/talekclient/talekclient
+cli/talekfrontead/talekfrontend
+cli/talekreplica/talekreplica
+cli/talekutil/talekutil
 benchmark/consistency/consistency
-benchmark/server/server
+benchmark/load/load
 pird/pird
-util/talekcli/talekcli
-util/talekutil/talekutil

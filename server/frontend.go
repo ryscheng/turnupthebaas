@@ -33,11 +33,11 @@ type readRequest struct {
 }
 
 // NewFrontend creates a new Frontend for a provided configuration.
-func NewFrontend(name string, serverConfig *Config, replicas []common.ReplicaInterface) *Frontend {
+func NewFrontend(name string, config *Config, replicas []common.ReplicaInterface) *Frontend {
 	fe := &Frontend{}
 	fe.log = log.New(os.Stdout, "[Frontend:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	fe.name = name
-	fe.Config = serverConfig
+	fe.Config = config
 	fe.replicas = replicas
 	fe.readChan = make(chan *readRequest, 10)
 
@@ -64,8 +64,8 @@ func (fe *Frontend) GetName(args *interface{}, reply *string) error {
 
 // GetConfig returns the current common configuration from the server.
 func (fe *Frontend) GetConfig(args *interface{}, reply *common.Config) error {
-	config := fe.Config
-	*reply = *config.Config
+	config := *fe.Config.Config
+	*reply = config
 	return nil
 }
 
@@ -110,7 +110,7 @@ func (fe *Frontend) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpd
 // request to all replicas telling them to advance their write epoch.
 func (fe *Frontend) periodicWrite() {
 	for fe.dead == 0 {
-		tick := time.After(fe.Config.WriteInterval)
+		tick := time.After(fe.WriteInterval)
 		select {
 		case <-tick:
 			args := &common.ReplicaWriteArgs{

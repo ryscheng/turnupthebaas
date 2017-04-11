@@ -42,6 +42,7 @@ func TestWrite(t *testing.T) {
 		time.Second,
 		time.Second,
 		[]*common.TrustDomainConfig{common.NewTrustDomainConfig("TestTrustDomain", "127.0.0.1", true, false)},
+		"",
 	}
 
 	writes := make(chan *common.WriteArgs, 1)
@@ -75,6 +76,7 @@ func TestRead(t *testing.T) {
 		time.Second,
 		time.Second,
 		[]*common.TrustDomainConfig{common.NewTrustDomainConfig("TestTrustDomain", "127.0.0.1", true, false)},
+		"",
 	}
 
 	reads := make(chan *common.EncodedReadArgs, 1)
