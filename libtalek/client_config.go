@@ -21,10 +21,13 @@ type ClientConfig struct {
 
 	// Where are the different servers?
 	TrustDomains []*common.TrustDomainConfig
+
+	// Where should the client connect?
+	FrontendAddr string
 }
 
 // ClientConfigFromFile restores a client configuration from on-disk form.
-func ClientConfigFromFile(file string, commonBase *common.Config) *ClientConfig {
+func ClientConfigFromFile(file string) *ClientConfig {
 	configString, err := ioutil.ReadFile(file)
 	if err != nil {
 		return nil
@@ -33,6 +36,6 @@ func ClientConfigFromFile(file string, commonBase *common.Config) *ClientConfig 
 	if err := json.Unmarshal(configString, config); err != nil {
 		return nil
 	}
-	config.Config = commonBase
+
 	return config
 }

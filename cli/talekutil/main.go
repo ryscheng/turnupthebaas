@@ -16,7 +16,7 @@ import (
 )
 
 var outputClient = flag.Bool("client", false, "Create configuration for a talek client.")
-var outputServer = flag.Bool("server", false, "Create configuration for a talek server.")
+var outputReplica = flag.Bool("replica", false, "Create configuration for a talek server.")
 var outputTD = flag.Bool("trustdomain", false, "Create raw trustdomain configuration.")
 var name = flag.String("name", "talek", "Server Name.")
 var address = flag.String("address", "localhost:9000", "Server Address.")
@@ -31,10 +31,10 @@ var trustdomains = flag.String("trustdomains", "talek.json", "Comma separated li
 func main() {
 	flag.Parse()
 
-	if !*outputServer && !*outputTD && !*outputClient {
+	if !*outputReplica && !*outputTD && !*outputClient {
 		fmt.Println("Talekutil needs a mode: -client, -server, or -trustdomain.")
 		return
-	} else if (*outputServer && *outputTD) || (*outputClient && *outputServer) || (*outputClient && *outputTD) {
+	} else if (*outputReplica && *outputTD) || (*outputClient && *outputReplica) || (*outputClient && *outputTD) {
 		fmt.Println("Mode must be one of -server or -trustdomain or -client.")
 		return
 	}
@@ -103,8 +103,8 @@ func main() {
 			fmt.Printf("Failed to write file: %v\n", err)
 			return
 		}
-	} else if *outputServer {
-		// We write a custom version of the server config that is still able to be
+	} else if *outputReplica {
+		// We write a custom version of the replica config that is still able to be
 		// unmarshaled. In particular, the code below uses the serialized version of
 		// the trust domain from above, which may have it's private key stripped
 		// (which can't easily be directly specified), and with the pointer to the
@@ -113,14 +113,14 @@ func main() {
 		// first encode
 		servraw, err := json.Marshal(sc)
 		if err != nil {
-			fmt.Printf("Cannot flatten server: %v\n", err)
+			fmt.Printf("Cannot flatten replica: %v\n", err)
 			return
 		}
-		// reload both server config and trustdomain config as JSON messages
+		// reload both replica config and trustdomain config as JSON messages
 		var servstruct map[string]interface{}
 		err = json.Unmarshal(servraw, &servstruct)
 		if err != nil {
-			fmt.Printf("Failed to unmarshal server: %v\n", err)
+			fmt.Printf("Failed to unmarshal replica: %v\n", err)
 			return
 		}
 		delete(servstruct, "CommonConfig")
@@ -135,7 +135,7 @@ func main() {
 
 		servraw, err = json.MarshalIndent(servstruct, "", "  ")
 		if err != nil {
-			fmt.Printf("Could not flatten combined server config: %v\n", err)
+			fmt.Printf("Could not flatten combined replica config: %v\n", err)
 			return
 		}
 		err = ioutil.WriteFile(*outfile, servraw, 0640)

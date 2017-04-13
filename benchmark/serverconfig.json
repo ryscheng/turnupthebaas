@@ -1,3 +1,5 @@
 {
-  "ReadBatch": 8
+  "ReadBatch": 8,
+  "WriteInterval": "50000000",
+  "ReadInterval": "50000000"
 }

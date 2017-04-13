@@ -41,6 +41,9 @@ func NewClient(name string, config ClientConfig, leader common.FrontendInterface
 	c.name = name
 	c.config.Store(config)
 	c.leader = leader
+	if config.Config == nil {
+		c.getConfig()
+	}
 
 	//todo: should channel capacity be smarter?
 	c.pendingReads = make(chan request, 5)
@@ -59,25 +62,14 @@ func NewClient(name string, config ClientConfig, leader common.FrontendInterface
 // or speed characteristics for the system are changed.
 func (c *Client) SetConfig(config ClientConfig) {
 	c.config.Store(config)
+	if config.Config == nil {
+		c.getConfig()
+	}
 }
 
 // Kill stops client processing. This allows for graceful shutdown or suspension of requests.
 func (c *Client) Kill() {
 	atomic.StoreInt32(&c.dead, 1)
-}
-
-// Ping will perform an on-thread ping of the Talek system, allowing the client
-// to validate that it is connected to the Talek system, and check the latency
-// of connection to the server.
-func (c *Client) Ping() bool {
-	var reply common.PingReply
-	err := c.leader.Ping(&common.PingArgs{Msg: "PING"}, &reply)
-	if err == nil && reply.Err == "" {
-		c.log.Info.Printf("Ping success\n")
-		return true
-	}
-	c.log.Warn.Printf("Ping fail: err=%v, reply=%v\n", err, reply)
-	return false
 }
 
 // MaxLength returns the maximum allowed message the client can Publish.
@@ -146,6 +138,14 @@ func (c *Client) Done(handle *Handle) bool {
 }
 
 /** Private methods **/
+func (c *Client) getConfig() {
+	reply := new(common.Config)
+	c.leader.GetConfig(nil, reply)
+	conf := c.config.Load().(ClientConfig)
+	conf.Config = reply
+	c.config.Store(conf)
+}
+
 func (c *Client) writePeriodic() {
 	var req *common.WriteArgs
 

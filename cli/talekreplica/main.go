@@ -18,41 +18,34 @@ import (
 	"github.com/privacylab/talek/server"
 )
 
-var configPath = flag.String("config", "../commonconfig.json", "Talek Common Configuration")
-var trustDomainPath = flag.String("trust", "../keys/leaderprivate.json", "Server Configuration")
+var configPath = flag.String("config", "replica.conf", "Talek Replica Configuration")
 var pirSocket = flag.String("socket", "../../pird/pir.socket", "PIR daemon socket")
 
-// Server starts a single, centralized talek server operating with a saved configuration.
+// Starts a single, centralized talek replica operating with configuration from talekutil
 func main() {
-	log.Println("--------------------")
-	log.Println("--- Talek Server ---")
-	log.Println("--------------------")
+	log.Println("---------------------")
+	log.Println("--- Talek Replica ---")
+	log.Println("---------------------")
 	flag.Parse()
 
-	config := common.ConfigFromFile(*configPath)
-	tdString, err := ioutil.ReadFile(*trustDomainPath)
+	configString, err := ioutil.ReadFile(*configPath)
 	if err != nil {
-		log.Printf("Could not read %s!\n", *trustDomainPath)
-		return
-	}
-	td := new(common.TrustDomainConfig)
-	if err := json.Unmarshal(tdString, td); err != nil {
-		log.Printf("Could not parse %s: %v\n", *trustDomainPath, err)
+		log.Printf("Could not read %s!\n", *configPath)
 		return
 	}
 
 	// Default configuration. The server can be started with just a trustdomain
 	// config and this will be used for the serverConfig struct in that case.
 	serverConfig := server.Config{
-		Config:           config,
+		Config:           &common.Config{},
 		WriteInterval:    time.Second,
 		ReadInterval:     time.Second,
 		ReadBatch:        8,
-		TrustDomain:      td,
+		TrustDomain:      &common.TrustDomainConfig{},
 		TrustDomainIndex: 0,
 	}
-	if err := json.Unmarshal(tdString, &serverConfig); err != nil {
-		log.Printf("Could not parse %s: %v\n", *trustDomainPath, err)
+	if err := json.Unmarshal(configString, &serverConfig); err != nil {
+		log.Printf("Could not parse %s: %v\n", *configPath, err)
 		return
 	}
 
@@ -65,8 +58,8 @@ func main() {
 		usingMock = true
 	}
 
-	s := server.NewCentralized(td.Name, *pirSocket, serverConfig, nil, serverConfig.TrustDomainIndex == 0)
-	_, port, _ := net.SplitHostPort(td.Address)
+	s := server.NewCentralized(serverConfig.TrustDomain.Name, *pirSocket, serverConfig)
+	_, port, _ := net.SplitHostPort(serverConfig.TrustDomain.Address)
 	pnum, _ := strconv.Atoi(port)
 	_ = server.NewNetworkRPC(s, pnum)
 

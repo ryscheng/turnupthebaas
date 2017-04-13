@@ -1,7 +1,6 @@
 package common
 
 import (
-	"fmt"
 	"log"
 	"net/rpc"
 	"os"
@@ -11,23 +10,19 @@ import (
 type FrontendRPC struct {
 	log          *log.Logger
 	name         string
-	config       *TrustDomainConfig
+	address      string
 	methodPrefix string
 	client       *rpc.Client
 }
 
 // NewFrontendRPC instantiates a LeaderRPC stub
-func NewFrontendRPC(name string, config *TrustDomainConfig) *FrontendRPC {
+func NewFrontendRPC(name string, address string) *FrontendRPC {
 	f := &FrontendRPC{}
 	f.log = log.New(os.Stdout, "[FrontendRPC:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	f.name = name
-	f.config = config
+	f.address = address
 	f.client = nil
-	if f.config.IsDistributed {
-		f.methodPrefix = "Frontend"
-	} else {
-		f.methodPrefix = "Centralized"
-	}
+	f.methodPrefix = "Frontend"
 
 	return f
 }
@@ -36,14 +31,10 @@ func NewFrontendRPC(name string, config *TrustDomainConfig) *FrontendRPC {
 func (f *FrontendRPC) Call(methodName string, args interface{}, reply interface{}) error {
 	// Get address
 	var err error
-	addr, okAddr := f.config.GetAddress()
-	if !okAddr {
-		return fmt.Errorf("No address available")
-	}
 
 	// Setup connection
 	if f.client == nil {
-		f.client, err = rpc.Dial("tcp", addr)
+		f.client, err = rpc.Dial("tcp", f.address)
 		if err != nil {
 			f.log.Printf("rpc dialing failed: %v\n", err)
 			f.client = nil
@@ -72,13 +63,6 @@ func (f *FrontendRPC) GetName(_ *interface{}, reply *string) error {
 // GetConfig tells the client about current config.
 func (f *FrontendRPC) GetConfig(_ *interface{}, reply *Config) error {
 	err := f.Call(f.methodPrefix+".Config", nil, reply)
-	return err
-}
-
-// Ping tracks latency.
-func (f *FrontendRPC) Ping(args *PingArgs, reply *PingReply) error {
-	//l.log.Printf("Ping: enter\n")
-	err := f.Call(f.methodPrefix+".Ping", args, reply)
 	return err
 }
 
