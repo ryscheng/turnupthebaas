@@ -82,7 +82,7 @@ func main() {
 	//c0 := libtalek.NewClient("c0", config, t0)
 	//c1 := libtalek.NewClient("c1", config, t0)
 	clients := make([]*libtalek.Client, *numClients)
-	clientLeaderSock := common.NewFrontendRPC("c0->f0", trustDomainFE)
+	clientLeaderSock := common.NewFrontendRPC("c0->f0", trustDomainFE.Address)
 	for i := 0; i < *numClients; i++ {
 		clients[i] = libtalek.NewClient("c"+string(i), clientConfig, clientLeaderSock)
 		handle, _ := libtalek.NewTopic()

@@ -37,7 +37,7 @@ func main() {
 		}
 	}
 
-	leaderRPC := common.NewFrontendRPC("RPC", trustDomains[0])
+	leaderRPC := common.NewFrontendRPC("RPC", trustDomains[0].Address)
 
 	clientConfig := libtalek.ClientConfig{
 		ReadInterval:  time.Second,
