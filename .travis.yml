@@ -1,0 +1,16 @@
+language: go
+sudo: false
+before_install:
+  - go get -u github.com/alecthomas/gometalinter
+  - gometalinter --install
+install: true
+script:
+  - go test ./...
+  - gometalinter --vendor ./...
+go:
+  - 1.7
+  - 1.8
+  - master
+notifications:
+  email:
+    - me@raymondcheng.net
