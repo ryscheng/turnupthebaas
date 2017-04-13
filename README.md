@@ -29,9 +29,7 @@ Pull requests are welcome! Please run all tests (see below) before submitting a 
 - [gometalinter](https://github.com/alecthomas/gometalinter) for linting
 
 ```bash
-$ go get -u github.com/kardianos/govendor
-$ go get -u github.com/alecthomas/gometalinter
-$ gometalinter --install
+$ make get-tools
 ```
 
 ### Testing
@@ -39,8 +37,7 @@ $ gometalinter --install
 All tests should pass before submitting a pull request
 
 ```bash
-$ govendor test +local          # Run unit tests
-$ gometalinter --vendor ./...   # Run linter
+$ make test
 ```
 
 ### Vendoring

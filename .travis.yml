@@ -1,12 +1,10 @@
 language: go
 sudo: false
 before_install:
-  - go get -u github.com/alecthomas/gometalinter
-  - gometalinter --install
+  - make get-tools
 install: true
 script:
-  - go test ./...
-  - gometalinter --vendor ./...
+  - make test
 go:
   - 1.7
   - 1.8
