@@ -1,4 +1,5 @@
 # Talek
+[![Build Status](https://travis-ci.org/privacylab/talek.svg?branch=master)](https://travis-ci.org/privacylab/talek)
 
 Talek is a privacy-preserving messaging system. User communication is stored on untrusted systems using PIR.
 
