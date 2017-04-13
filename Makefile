@@ -5,10 +5,10 @@ get-tools:
 	go get -u github.com/alecthomas/gometalinter
 	gometalinter --install
 
-test: lint unit
+test: unit
 
 lint:
-	gometalinter --vendor ./...
+	gometalinter --vendor --deadline=60s ./...
 	#golint ./... | grep -v ^vendor || echo "golint: done"
 
 unit:
