@@ -12,6 +12,8 @@ import (
 	"github.com/privacylab/talek/libtalek"
 )
 
+const readTimeoutMultiple = 5
+
 var config = flag.String("config", "talek.conf", "Client configuration for talek")
 var create = flag.Bool("create", false, "Create a new talek handle")
 var share = flag.String("share", "", "Create a read-only version of the topic for sharing")
@@ -26,6 +28,10 @@ func main() {
 
 	// Config
 	config := libtalek.ClientConfigFromFile(*config)
+	if config == nil {
+		fmt.Fprintln(os.Stderr, "Talek Client must be run with --config specifying where the server is.")
+		os.Exit(1)
+	}
 	if config.Config == nil && *verbose {
 		fmt.Fprintln(os.Stderr, "Common configuration will be fetched from frontend.")
 	}
@@ -76,7 +82,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "No Read or Write operation requested. Closing.")
 	} else {
 		msgs := client.Poll(&topic.Handle)
-		timeout := time.After(config.ReadInterval * 5)
+		timeout := time.After(config.ReadInterval * readTimeoutMultiple)
 		select {
 		case next := <-msgs:
 			fmt.Println(next)
