@@ -21,6 +21,10 @@ below.
     talekclient --config=talek.conf --topic=newhandle --share=readOnlyHandle
     talekclient --config=talek.conf --topic=readOnlyHandle --read
 
+### Following Along:
+
+Join the mailing list: https://lists.riseup.net/www/info/talek
+
 ## Develop
 Pull requests are welcome! Please run all tests (see below) before submitting a PR.
 
