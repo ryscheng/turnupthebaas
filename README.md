@@ -43,7 +43,6 @@ $ make get-tools
 All tests should pass before submitting a pull request
 
 ```bash
-$ make lint
 $ make test
 ```
 
