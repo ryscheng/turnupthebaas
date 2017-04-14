@@ -9,7 +9,9 @@ test: unit
 
 lint:
 	gometalinter --vendor --tests --deadline=60s ./...
-	#golint ./... | grep -v ^vendor || echo "golint: done"
+
+basic-lint:
+	golint ./... | grep -v ^vendor || echo "golint: done"
 
 unit:
 	govendor test +local
