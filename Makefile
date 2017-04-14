@@ -8,7 +8,7 @@ get-tools:
 test: unit
 
 lint:
-	gometalinter --vendor --deadline=60s ./...
+	gometalinter --vendor --tests --deadline=60s ./...
 	#golint ./... | grep -v ^vendor || echo "golint: done"
 
 unit:
