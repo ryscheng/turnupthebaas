@@ -10,6 +10,7 @@ test: lint unit
 lint:
 	gometalinter --vendor --tests --deadline=60s \
 		--disable-all \
+		--enable=gofmt \
 		--enable=vet \
 		--enable=vetshadow \
 		--enable=golint \
