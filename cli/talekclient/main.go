@@ -26,6 +26,10 @@ func main() {
 
 	// Config
 	config := libtalek.ClientConfigFromFile(*config)
+	if config == nil {
+		fmt.Fprintln(os.Stderr, "Talek Client must be run with --config specifying where the server is.")
+		os.Exit(1)
+	}
 	if config.Config == nil && *verbose {
 		fmt.Fprintln(os.Stderr, "Common configuration will be fetched from frontend.")
 	}
