@@ -1,9 +1,11 @@
 package libtalek
 
 import (
+	"crypto/rand"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/agl/ed25519"
 	"github.com/dchest/siphash"
@@ -15,7 +17,7 @@ import (
 // Handle is the readable component of a Talek Log.
 // Handles are created by making a NewTopic, but can be independently
 // shared, and restored from a serialized state. A Handle is read
-// by calling Client.Poll(handle) to recieve a channel with new messages
+// by calling Client.Poll(handle) to receive a channel with new messages
 // read from the Handle.
 type Handle struct {
 	// for random looking pir requests
@@ -52,7 +54,8 @@ func initHandle(h *Handle) (err error) {
 
 // nextBuckets returns the pair of buckets that will be used in the next poll or publish of this
 // topic given the current sequence number of the handle.
-// The buckets returned by this method must still be wrapped by the NumBuckets config paramter of talek instance it is requested against.
+// The buckets returned by this method must still be wrapped by the NumBuckets config
+// parameter of talek instance it is requested against.
 func (h *Handle) nextBuckets(conf *common.Config) (uint64, uint64) {
 	seqNoBytes := make([]byte, 24)
 	_ = binary.PutUvarint(seqNoBytes, h.Seqno)
@@ -65,6 +68,33 @@ func (h *Handle) nextBuckets(conf *common.Config) (uint64, uint64) {
 	return b1 % conf.NumBuckets, b2 % conf.NumBuckets
 }
 
+func makeReadArg(config *ClientConfig, bucket uint64) *common.ReadArgs {
+	arg := &common.ReadArgs{}
+	num := len(config.TrustDomains)
+	arg.TD = make([]common.PirArgs, num)
+	arg.TD[0].RequestVector = make([]byte, (config.Config.NumBuckets+7)/8)
+	arg.TD[0].RequestVector[bucket/8] |= 1 << (bucket % 8)
+	arg.TD[0].PadSeed = make([]byte, drbg.SeedLength)
+	if _, err := rand.Read(arg.TD[0].PadSeed); err != nil {
+		return nil
+	}
+
+	for j := 1; j < num; j++ {
+		arg.TD[j].RequestVector = make([]byte, (config.Config.NumBuckets+7)/8)
+		if _, err := rand.Read(arg.TD[j].RequestVector); err != nil {
+			return nil
+		}
+		arg.TD[j].PadSeed = make([]byte, drbg.SeedLength)
+		if _, err := rand.Read(arg.TD[j].PadSeed); err != nil {
+			return nil
+		}
+		for k := 0; k < len(arg.TD[j].RequestVector); k++ {
+			arg.TD[0].RequestVector[k] ^= arg.TD[j].RequestVector[k]
+		}
+	}
+	return arg
+}
+
 func (h *Handle) generatePoll(config *ClientConfig, _ uint64) (*common.ReadArgs, *common.ReadArgs, error) {
 	if h.SharedSecret == nil || h.SigningPublicKey == nil {
 		return nil, nil, errors.New("Subscription not fully initialized")
@@ -73,45 +103,8 @@ func (h *Handle) generatePoll(config *ClientConfig, _ uint64) (*common.ReadArgs,
 	args := make([]*common.ReadArgs, 2)
 	bucket1, bucket2 := h.nextBuckets(config.Config)
 
-	num := len(config.TrustDomains)
-
-	args[0] = &common.ReadArgs{}
-	args[0].TD = make([]common.PirArgs, num)
-	// The first Trust domain is the one with the explicit bucket bit-flip.
-	args[0].TD[0].RequestVector = make([]byte, (config.Config.NumBuckets+7)/8)
-	args[0].TD[0].RequestVector[bucket1/8] |= 1 << (bucket1 % 8)
-	args[0].TD[0].PadSeed = make([]byte, drbg.SeedLength)
-	h.drbg.FillBytes(args[0].TD[0].PadSeed)
-
-	for j := 1; j < num; j++ {
-		args[0].TD[j].RequestVector = make([]byte, (config.Config.NumBuckets+7)/8)
-		h.drbg.FillBytes(args[0].TD[j].RequestVector)
-		args[0].TD[j].PadSeed = make([]byte, drbg.SeedLength)
-		h.drbg.FillBytes(args[0].TD[j].PadSeed)
-
-		for k := 0; k < len(args[0].TD[j].RequestVector); k++ {
-			args[0].TD[0].RequestVector[k] ^= args[0].TD[j].RequestVector[k]
-		}
-	}
-
-	args[1] = &common.ReadArgs{}
-	args[1].TD = make([]common.PirArgs, num)
-	// The first Trust domain is the one with the explicit bucket bit-flip.
-	args[1].TD[0].RequestVector = make([]byte, (config.Config.NumBuckets+7)/8)
-	args[1].TD[0].RequestVector[bucket2/8] |= 1 << (bucket2 % 8)
-	args[1].TD[0].PadSeed = make([]byte, drbg.SeedLength)
-	h.drbg.FillBytes(args[1].TD[0].PadSeed)
-
-	for j := 1; j < num; j++ {
-		args[1].TD[j].RequestVector = make([]byte, (config.Config.NumBuckets+7)/8)
-		h.drbg.FillBytes(args[1].TD[j].RequestVector)
-		args[1].TD[j].PadSeed = make([]byte, drbg.SeedLength)
-		h.drbg.FillBytes(args[1].TD[j].PadSeed)
-
-		for k := 0; k < len(args[1].TD[j].RequestVector); k++ {
-			args[1].TD[0].RequestVector[k] ^= args[1].TD[j].RequestVector[k]
-		}
-	}
+	args[0] = makeReadArg(config, bucket1)
+	args[1] = makeReadArg(config, bucket2)
 
 	return args[0], args[1], nil
 }
@@ -157,7 +150,10 @@ func (h *Handle) retrieveResponse(args *common.ReadArgs, reply *common.ReadReply
 
 	// strip out the padding injected by trust domains.
 	for i := 0; i < len(args.TD); i++ {
-		drbg.Overlay(args.TD[i].PadSeed, data)
+		if err := drbg.Overlay(args.TD[i].PadSeed, data); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to remove pad on returned read: %v\n", err)
+			return nil
+		}
 	}
 
 	var seqNoBytes [24]byte
@@ -169,7 +165,12 @@ func (h *Handle) retrieveResponse(args *common.ReadArgs, reply *common.ReadReply
 		if err == nil {
 			return plaintext
 		}
-		fmt.Printf("decryption failed for read %d of bucket %d [%v](%d): %v\n", i/dataSize, args.Bucket(), data[i:i+4], len(data[i:i+dataSize]), err)
+		fmt.Fprintf(os.Stderr, "decryption failed for read %d of bucket %d [%v](%d): %v\n",
+			i/dataSize,
+			args.Bucket(),
+			data[i:i+4],
+			len(data[i:i+dataSize]),
+			err)
 	}
 	return nil
 }

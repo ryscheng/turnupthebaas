@@ -44,7 +44,10 @@ func NewHashDrbg(seed *Seed) (*HashDrbg, error) {
 // Next returns the next 8 byte DRBG block.
 func (d *HashDrbg) Next() []byte {
 	d.mu.Lock()
-	d.sip.Write(d.ofb[:])
+	_, err := d.sip.Write(d.ofb[:])
+	if err != nil {
+		return nil
+	}
 	copy(d.ofb[:], d.sip.Sum(nil))
 	ret := make([]byte, siphash.Size)
 	copy(ret, d.ofb[:])
@@ -87,7 +90,9 @@ func Overlay(seed, data []byte) error {
 		return errors.New("invalid seed provided")
 	}
 	s := Seed{}
-	s.UnmarshalBinary(seed)
+	if err := s.UnmarshalBinary(seed); err != nil {
+		return err
+	}
 	d, err := NewHashDrbg(&s)
 	if err != nil {
 		return err

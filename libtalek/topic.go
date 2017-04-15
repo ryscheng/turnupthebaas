@@ -102,7 +102,7 @@ func (t *Topic) GeneratePublish(commonConfig *common.Config, message []byte) (*c
 
 // @TODO: long-term, keys should ratchet, so that messages outside of the
 // active range become refutable. perhaps this could alternatively be done with
-// a server managed primative, with releases of a rachet update as each DB epoch
+// a server managed primitive, with releases of a rachet update as each DB epoch
 // advances.
 func (t *Topic) encrypt(plaintext []byte, nonce *[24]byte) ([]byte, error) {
 	buf := make([]byte, 0, len(plaintext)+box.Overhead)

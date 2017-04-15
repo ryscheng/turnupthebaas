@@ -41,8 +41,8 @@ func NewClient(name string, config ClientConfig, leader common.FrontendInterface
 	c.name = name
 	c.config.Store(config)
 	c.leader = leader
-	if config.Config == nil {
-		c.getConfig()
+	if config.Config == nil && c.getConfig() != nil {
+		return nil
 	}
 
 	//todo: should channel capacity be smarter?
@@ -58,7 +58,7 @@ func NewClient(name string, config ClientConfig, leader common.FrontendInterface
 
 /** PUBLIC METHODS (threadsafe) **/
 
-// SetConfig allows updating the configuraton of a Client, e.g. if server memebership
+// SetConfig allows updating the configuration of a Client, e.g. if server memebership
 // or speed characteristics for the system are changed.
 func (c *Client) SetConfig(config ClientConfig) {
 	c.config.Store(config)
@@ -92,7 +92,11 @@ func (c *Client) Publish(handle *Topic, data []byte) error {
 	}
 
 	writeArgs, err := handle.GeneratePublish(config.Config, data)
-	c.log.Info.Printf("Wrote %v(%d) to %d,%d.", writeArgs.Data[0:4], len(writeArgs.Data), writeArgs.Bucket1, writeArgs.Bucket2)
+	c.log.Info.Printf("Wrote %v(%d) to %d,%d.",
+		writeArgs.Data[0:4],
+		len(writeArgs.Data),
+		writeArgs.Bucket1,
+		writeArgs.Bucket2)
 	if err != nil {
 		return err
 	}
@@ -114,7 +118,9 @@ func (c *Client) Poll(handle *Handle) chan []byte {
 		}
 	}
 	if handle.updates == nil {
-		initHandle(handle)
+		if err := initHandle(handle); err != nil {
+			return nil
+		}
 	}
 	c.handles = append(c.handles, *handle)
 	c.handleMutex.Unlock()
@@ -138,12 +144,15 @@ func (c *Client) Done(handle *Handle) bool {
 }
 
 /** Private methods **/
-func (c *Client) getConfig() {
+func (c *Client) getConfig() error {
 	reply := new(common.Config)
-	c.leader.GetConfig(nil, reply)
+	if err := c.leader.GetConfig(nil, reply); err != nil {
+		return err
+	}
 	conf := c.config.Load().(ClientConfig)
 	conf.Config = reply
 	c.config.Store(conf)
+	return nil
 }
 
 func (c *Client) writePeriodic() {
@@ -212,7 +221,9 @@ func (c *Client) generateRandomWrite(config ClientConfig) *common.WriteArgs {
 	args.Bucket1 = b1.Uint64()
 	args.Bucket2 = b2.Uint64()
 	args.Data = make([]byte, config.Config.DataSize, config.Config.DataSize)
-	rand.Read(args.Data)
+	if _, err := rand.Read(args.Data); err != nil {
+		return nil
+	}
 	return args
 }
 
