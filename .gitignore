@@ -1,3 +1,4 @@
+# Binaries
 cli/talekclient/talekclient
 cli/talekfrontead/talekfrontend
 cli/talekreplica/talekreplica
@@ -5,3 +6,7 @@ cli/talekutil/talekutil
 benchmark/consistency/consistency
 benchmark/load/load
 pird/pird
+
+# Coverage
+overalls.coverprofile
+profile.coverprofile
