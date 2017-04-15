@@ -4,7 +4,7 @@ before_install:
   - make get-tools
 install: true
 script:
-  - make test
+  - make ci
 go:
   - 1.7
   - 1.8

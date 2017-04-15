@@ -1,5 +1,7 @@
 # Talek
 [![Build Status](https://travis-ci.org/privacylab/talek.svg?branch=master)](https://travis-ci.org/privacylab/talek)
+[![Coverage Status](https://coveralls.io/repos/github/privacylab/talek/badge.svg?branch=master)](https://coveralls.io/github/privacylab/talek?branch=master)
+[![GoDoc](https://godoc.org/github.com/privacylab/talek?status.svg)](https://godoc.org/github.com/privacylab/talek)
 
 Talek is a privacy-preserving messaging system. User communication is stored on untrusted systems using PIR.
 
@@ -42,7 +44,6 @@ $ make get-tools
 All tests should pass before submitting a pull request
 
 ```bash
-$ make lint
 $ make test
 ```
 
