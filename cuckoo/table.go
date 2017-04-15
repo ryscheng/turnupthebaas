@@ -77,7 +77,8 @@ type Table struct {
 // numBuckets = number of buckets
 // depth = the number of entries per bucket
 // randSeed = seed for PRNG
-func NewTable(name string, numBuckets int, bucketDepth int, itemSize int, data []byte, randSeed int64) *Table {
+func NewTable(name string, numBuckets int, bucketDepth int, itemSize int,
+	data []byte, randSeed int64) *Table {
 	t := &Table{name, numBuckets, bucketDepth, itemSize, nil, nil, nil, nil}
 	t.log = log.New(os.Stderr, "[Cuckoo:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	t.rand = rand.New(rand.NewSource(randSeed))
@@ -208,7 +209,8 @@ func (t *Table) Remove(item *Item) bool {
 
 // Checks if the `value` is in a specified bucket
 // - bucket MUST be within bounds
-// Returns: the true if `value.Equals(...)` returns true for any value in bucket, false if not present
+// Returns: the true if `value.Equals(...)`
+// returns true for any value in bucket, false if not present
 func (t *Table) isInBucket(bucketIndex int, item *Item) bool {
 	for i := 0; i < t.bucketDepth; i++ {
 		idx := t.bucketDepth*bucketIndex + i
@@ -286,7 +288,7 @@ func (t *Table) removeFromBucket(bucketIndex int, item *Item) bool {
 }
 
 func (t *Table) getItem(itemIndex int) *Item {
-	if t.index[itemIndex].filled == false {
+	if !t.index[itemIndex].filled {
 		return nil
 	}
 	return &Item{

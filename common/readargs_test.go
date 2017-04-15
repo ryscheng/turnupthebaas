@@ -3,8 +3,9 @@ package common
 import (
 	"bytes"
 	"crypto/rand"
-	"golang.org/x/crypto/nacl/box"
 	"testing"
+
+	"golang.org/x/crypto/nacl/box"
 )
 
 func TestEncodeDecode(t *testing.T) {
@@ -32,8 +33,8 @@ func TestEncodeDecode(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error Decoding TD[%d] len(%d): %v\n", i, len(encodedArgs.PirArgs[i]), err)
 		}
-		if bytes.Compare(pir.PadSeed, msg.TD[i].PadSeed) != 0 ||
-			bytes.Compare(pir.RequestVector, msg.TD[i].RequestVector) != 0 {
+		if !bytes.Equal(pir.PadSeed, msg.TD[i].PadSeed) ||
+			!bytes.Equal(pir.RequestVector, msg.TD[i].RequestVector) {
 			t.Fatalf("Decryption not equal.")
 		}
 	}

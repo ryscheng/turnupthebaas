@@ -21,10 +21,10 @@ func TestTrustDomainMarshaling(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Compare(publicDomain.privateKey[:], tdc.privateKey[:]) == 0 {
+	if bytes.Equal(publicDomain.privateKey[:], tdc.privateKey[:]) {
 		t.Fatal("Serialization should not re-create private key")
 	}
-	if bytes.Compare(publicDomain.PublicKey[:], tdc.PublicKey[:]) != 0 {
+	if !bytes.Equal(publicDomain.PublicKey[:], tdc.PublicKey[:]) {
 		t.Fatal("Serialization should re-create public key")
 	}
 
@@ -39,7 +39,7 @@ func TestTrustDomainMarshaling(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if bytes.Compare(privateDomain.privateKey[:], tdc.privateKey[:]) != 0 {
+	if !bytes.Equal(privateDomain.privateKey[:], tdc.privateKey[:]) {
 		t.Fatal("Serialization of private() should re-create private key")
 	}
 }

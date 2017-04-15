@@ -59,7 +59,9 @@ func TestWrite(t *testing.T) {
 	// the real write.
 	bucket, _ := handle.Handle.nextBuckets(config.Config)
 
-	c.Publish(handle, []byte("hello world"))
+	if err := c.Publish(handle, []byte("hello world")); err != nil {
+		t.Fatalf("failed to publish: %v", err)
+	}
 	write1 := <-writes
 	write2 := <-writes
 	c.Kill()
@@ -99,7 +101,7 @@ func TestRead(t *testing.T) {
 	c.Poll(&handle.Handle)
 	read1 := <-reads
 	read2 := <-reads
-	// There may be a random read occuring before the enqueued one.
+	// There may be a random read occurring before the enqueued one.
 	c.Kill()
 
 	//Due to thread race, there may be a random read made before

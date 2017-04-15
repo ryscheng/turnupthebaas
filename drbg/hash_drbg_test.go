@@ -22,12 +22,12 @@ func TestOverlay(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if bytes.Compare(initBuffer, buffer) == 0 {
+	if bytes.Equal(initBuffer, buffer) {
 		t.Fatal("Overlay failed to perturb buffer!")
 	}
 
 	_ = Overlay(seed, buffer)
-	if bytes.Compare(initBuffer, buffer) != 0 {
+	if !bytes.Equal(initBuffer, buffer) {
 		t.Fatal("Overlay applied twice should be identity!")
 	}
 }

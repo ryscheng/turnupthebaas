@@ -24,7 +24,8 @@ type PrivateTrustDomainConfig struct {
 }
 
 // NewTrustDomainConfig creates a TrustDomainConfig with a freshly generated keypair.
-func NewTrustDomainConfig(name string, address string, isValid bool, isDistributed bool) *TrustDomainConfig {
+func NewTrustDomainConfig(name string, address string, isValid bool,
+	isDistributed bool) *TrustDomainConfig {
 	td := &TrustDomainConfig{}
 	td.Name = name
 	td.Address = address
@@ -80,7 +81,7 @@ func (td *TrustDomainConfig) Private() *PrivateTrustDomainConfig {
 
 // GetName provides the name of the trust domain.
 func (td *TrustDomainConfig) GetName() (string, bool) {
-	if td.IsValid == false {
+	if !td.IsValid {
 		return "", false
 	}
 	return td.Name, td.IsValid
@@ -88,7 +89,7 @@ func (td *TrustDomainConfig) GetName() (string, bool) {
 
 // GetAddress returns the remote address of the TrustDomain
 func (td *TrustDomainConfig) GetAddress() (string, bool) {
-	if td.IsValid == false {
+	if !td.IsValid {
 		return "", false
 	}
 	return td.Address, td.IsValid
