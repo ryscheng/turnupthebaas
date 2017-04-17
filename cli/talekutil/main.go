@@ -16,8 +16,6 @@ import (
 	"github.com/spf13/pflag"
 )
 
-const envPrefix = "TALEK"
-
 // Talekutil is used to generate configuration files for structuring a talek
 // deployment.  In particular, creating a set of configuration files for the
 // clients and various trust domains.
@@ -32,7 +30,7 @@ func main() {
 	outfile := pflag.String("outfile", "talek.json", "Save configuration to file.")
 	private := pflag.Bool("private", false, "Include private key configuration.")
 	trustdomains := pflag.String("trustdomains", "talek.json", "Comma separated list of trust domains.")
-	ferr := flags.SetPflagsFromEnv(envPrefix, pflag.CommandLine)
+	ferr := flags.SetPflagsFromEnv(common.EnvPrefix, pflag.CommandLine)
 	if ferr != nil {
 		fmt.Printf("Error reading environment variables, %v\n", ferr)
 		return

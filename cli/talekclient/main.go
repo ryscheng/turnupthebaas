@@ -13,7 +13,6 @@ import (
 	"github.com/spf13/pflag"
 )
 
-const envPrefix = "TALEK"
 const readTimeoutMultiple = 5
 
 // The CLI client will read or write a single item for talek
@@ -25,7 +24,7 @@ func main() {
 	write := pflag.String("write", "", "A message to append to the log (If not specified, the next item will be read.)")
 	read := pflag.Bool("read", false, "Read from the provided topic")
 	verbose := pflag.Bool("verbose", false, "Print diagnostic information")
-	err := flags.SetPflagsFromEnv(envPrefix, pflag.CommandLine)
+	err := flags.SetPflagsFromEnv(common.EnvPrefix, pflag.CommandLine)
 	if err != nil {
 		fmt.Printf("Error reading environment variables, %v\n", err)
 		return
