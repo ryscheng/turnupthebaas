@@ -7,6 +7,9 @@ benchmark/consistency/consistency
 benchmark/load/load
 pird/pird
 
+# Config files
+*.conf
+
 # Coverage
 overalls.coverprofile
 profile.coverprofile

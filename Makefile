@@ -29,3 +29,10 @@ unit:
 coverage:
 	overalls -project=github.com/privacylab/talek -covermode=count -debug
 	goveralls -coverprofile=overalls.coverprofile -service=travis-ci
+
+docker-build:
+	docker build -t talek-base:latest ./
+	docker build -t talek-replica:latest ./cli/talekreplica/
+
+docker-bash:
+	docker run -it talek-base:latest bash
