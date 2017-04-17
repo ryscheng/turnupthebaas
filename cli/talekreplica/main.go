@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -13,20 +12,35 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/coreos/etcd/pkg/flags"
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/pir"
 	"github.com/privacylab/talek/server"
+	"github.com/spf13/pflag"
 )
 
-var configPath = flag.String("config", "replica.conf", "Talek Replica Configuration")
-var pirSocket = flag.String("socket", "../../pird/pir.socket", "PIR daemon socket")
+const ENV_PREFIX = "TALEK"
 
 // Starts a single, centralized talek replica operating with configuration from talekutil
 func main() {
 	log.Println("---------------------")
 	log.Println("--- Talek Replica ---")
 	log.Println("---------------------")
-	flag.Parse()
+
+	// Support setting flags from either command-line arguments or environment variables
+	// command-line arguments take priority
+	configPath := pflag.StringP("config", "c", "replica.conf", "Talek Replica Configuration (env TALEK_CONFIG)")
+	pirSocket := pflag.StringP("socket", "s", "../../pird/pir.socket", "PIR daemon socket (env TALEK_SOCKET)")
+	err := flags.SetPflagsFromEnv(ENV_PREFIX, pflag.CommandLine)
+	if err != nil {
+		log.Printf("Error reading environment variables, %v\n", err)
+		return
+	}
+	pflag.Parse()
+
+	log.Printf("Arguments:\n")
+	log.Printf("config=%v\n", *configPath)
+	log.Printf("socket=%v\n", *pirSocket)
 
 	configString, err := ioutil.ReadFile(*configPath)
 	if err != nil {
@@ -48,6 +62,11 @@ func main() {
 		log.Printf("Could not parse %s: %v\n", *configPath, err)
 		return
 	}
+
+	log.Printf("Using the following configuration:")
+	log.Printf("serverConfig=%#+v\n", serverConfig)
+	log.Printf("serverConfig.Config=%#+v\n", serverConfig.Config)
+	log.Printf("serverConfig.TrustDomain=%#+v\n", serverConfig.TrustDomain)
 
 	mockPirStatus := make(chan int)
 	usingMock := false

@@ -51,10 +51,10 @@
 			"revisionTime": "2016-08-31T15:17:26Z"
 		},
 		{
-			"checksumSHA1": "LXkmb3vu7MUi9E55m1k1Cil4PiE=",
-			"path": "github.com/juju/gnuflag",
-			"revision": "4e76c56581859c14d9d87e1ddbe29e1c0f10195f",
-			"revisionTime": "2016-08-09T16:52:03Z"
+			"checksumSHA1": "0Qi2QAv9T10RCUs9vhbIAAnyEZU=",
+			"path": "github.com/spf13/pflag",
+			"revision": "e453343e6260b4a3a89f1f0e10a2fbb07f8d9750",
+			"revisionTime": "2017-04-12T15:22:49Z"
 		},
 		{
 			"checksumSHA1": "YPUzwYX7ji8jMLe7QAPjFwG9lTU=",
