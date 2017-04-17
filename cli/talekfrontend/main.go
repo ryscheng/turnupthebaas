@@ -1,27 +1,35 @@
 package main
 
 import (
-	"flag"
 	"log"
 	"net"
 	"os"
 	"os/signal"
 	"strconv"
 
+	"github.com/coreos/etcd/pkg/flags"
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/libtalek"
 	"github.com/privacylab/talek/server"
+	"github.com/spf13/pflag"
 )
 
-var configPath = flag.String("config", "talek.conf", "Talek Client Configuration")
-var systemPath = flag.String("server", "server.conf", "Talek Server Configuration")
+const ENV_PREFIX = "TALEK"
 
 // Starts a talek frontend operating with configuration from talekutil
 func main() {
 	log.Println("----------------------")
 	log.Println("--- Talek Frontend ---")
 	log.Println("----------------------")
-	flag.Parse()
+
+	configPath := pflag.String("config", "talek.conf", "Talek Client Configuration")
+	systemPath := pflag.String("server", "server.conf", "Talek Server Configuration")
+	err := flags.SetPflagsFromEnv(ENV_PREFIX, pflag.CommandLine)
+	if err != nil {
+		log.Printf("Error reading environment variables, %v\n", err)
+		return
+	}
+	pflag.Parse()
 
 	config := libtalek.ClientConfigFromFile(*configPath)
 	serverConfig := server.ConfigFromFile(*systemPath, config.Config)

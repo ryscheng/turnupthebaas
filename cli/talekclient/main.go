@@ -2,32 +2,38 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"time"
 
+	"github.com/coreos/etcd/pkg/flags"
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/libtalek"
+	"github.com/spf13/pflag"
 )
 
+const ENV_PREFIX = "TALEK"
 const readTimeoutMultiple = 5
-
-var config = flag.String("config", "talek.conf", "Client configuration for talek")
-var create = flag.Bool("create", false, "Create a new talek handle")
-var share = flag.String("share", "", "Create a read-only version of the topic for sharing")
-var handle = flag.String("topic", "talek.handle", "The talek handle to use")
-var write = flag.String("write", "", "A message to append to the log (If not specified, the next item will be read.)")
-var read = flag.Bool("read", false, "Read from the provided topic")
-var verbose = flag.Bool("verbose", false, "Print diagnostic information")
 
 // The CLI client will read or write a single item for talek
 func main() {
-	flag.Parse()
+	configPath := pflag.String("config", "talek.conf", "Client configuration for talek")
+	create := pflag.Bool("create", false, "Create a new talek handle")
+	share := pflag.String("share", "", "Create a read-only version of the topic for sharing")
+	handle := pflag.String("topic", "talek.handle", "The talek handle to use")
+	write := pflag.String("write", "", "A message to append to the log (If not specified, the next item will be read.)")
+	read := pflag.Bool("read", false, "Read from the provided topic")
+	verbose := pflag.Bool("verbose", false, "Print diagnostic information")
+	err := flags.SetPflagsFromEnv(ENV_PREFIX, pflag.CommandLine)
+	if err != nil {
+		fmt.Printf("Error reading environment variables, %v\n", err)
+		return
+	}
+	pflag.Parse()
 
 	// Config
-	config := libtalek.ClientConfigFromFile(*config)
+	config := libtalek.ClientConfigFromFile(*configPath)
 	if config == nil {
 		fmt.Fprintln(os.Stderr, "Talek Client must be run with --config specifying where the server is.")
 		os.Exit(1)

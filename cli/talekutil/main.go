@@ -3,33 +3,41 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"strings"
 	"time"
 
+	"github.com/coreos/etcd/pkg/flags"
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/libtalek"
 	"github.com/privacylab/talek/server"
+	"github.com/spf13/pflag"
 )
 
-var outputClient = flag.Bool("client", false, "Create configuration for a talek client.")
-var outputReplica = flag.Bool("replica", false, "Create configuration for a talek server.")
-var outputTD = flag.Bool("trustdomain", false, "Create raw trustdomain configuration.")
-var name = flag.String("name", "talek", "Server Name.")
-var address = flag.String("address", "localhost:9000", "Server Address.")
-var infile = flag.String("infile", "", "Begin with configuration from file.")
-var outfile = flag.String("outfile", "talek.json", "Save configuration to file.")
-var private = flag.Bool("private", false, "Include private key configuration.")
-var trustdomains = flag.String("trustdomains", "talek.json", "Comma separated list of trust domains.")
+const ENV_PREFIX = "TALEK"
 
 // Talekutil is used to generate configuration files for structuring a talek
 // deployment.  In particular, creating a set of configuration files for the
 // clients and various trust domains.
 func main() {
-	flag.Parse()
+
+	outputClient := pflag.Bool("client", false, "Create configuration for a talek client.")
+	outputReplica := pflag.Bool("replica", false, "Create configuration for a talek server.")
+	outputTD := pflag.Bool("trustdomain", false, "Create raw trustdomain configuration.")
+	name := pflag.String("name", "talek", "Server Name.")
+	address := pflag.String("address", "localhost:9000", "Server Address.")
+	infile := pflag.String("infile", "", "Begin with configuration from file.")
+	outfile := pflag.String("outfile", "talek.json", "Save configuration to file.")
+	private := pflag.Bool("private", false, "Include private key configuration.")
+	trustdomains := pflag.String("trustdomains", "talek.json", "Comma separated list of trust domains.")
+	ferr := flags.SetPflagsFromEnv(ENV_PREFIX, pflag.CommandLine)
+	if ferr != nil {
+		fmt.Printf("Error reading environment variables, %v\n", ferr)
+		return
+	}
+	pflag.Parse()
 
 	if !*outputReplica && !*outputTD && !*outputClient {
 		fmt.Println("Talekutil needs a mode: -client, -server, or -trustdomain.")
