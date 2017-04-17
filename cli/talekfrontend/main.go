@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-const ENV_PREFIX = "TALEK"
+const envPrefix = "TALEK"
 
 // Starts a talek frontend operating with configuration from talekutil
 func main() {
@@ -24,7 +24,7 @@ func main() {
 
 	configPath := pflag.String("config", "talek.conf", "Talek Client Configuration")
 	systemPath := pflag.String("server", "server.conf", "Talek Server Configuration")
-	err := flags.SetPflagsFromEnv(ENV_PREFIX, pflag.CommandLine)
+	err := flags.SetPflagsFromEnv(envPrefix, pflag.CommandLine)
 	if err != nil {
 		log.Printf("Error reading environment variables, %v\n", err)
 		return

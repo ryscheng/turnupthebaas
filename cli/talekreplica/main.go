@@ -19,7 +19,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-const ENV_PREFIX = "TALEK"
+const envPrefix = "TALEK"
 
 // Starts a single, centralized talek replica operating with configuration from talekutil
 func main() {
@@ -31,7 +31,7 @@ func main() {
 	// command-line arguments take priority
 	configPath := pflag.StringP("config", "c", "replica.conf", "Talek Replica Configuration (env TALEK_CONFIG)")
 	pirSocket := pflag.StringP("socket", "s", "../../pird/pir.socket", "PIR daemon socket (env TALEK_SOCKET)")
-	err := flags.SetPflagsFromEnv(ENV_PREFIX, pflag.CommandLine)
+	err := flags.SetPflagsFromEnv(envPrefix, pflag.CommandLine)
 	if err != nil {
 		log.Printf("Error reading environment variables, %v\n", err)
 		return

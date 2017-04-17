@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-const ENV_PREFIX = "TALEK"
+const envPrefix = "TALEK"
 const readTimeoutMultiple = 5
 
 // The CLI client will read or write a single item for talek
@@ -21,11 +21,11 @@ func main() {
 	configPath := pflag.String("config", "talek.conf", "Client configuration for talek")
 	create := pflag.Bool("create", false, "Create a new talek handle")
 	share := pflag.String("share", "", "Create a read-only version of the topic for sharing")
-	handle := pflag.String("topic", "talek.handle", "The talek handle to use")
+	handlePath := pflag.String("topic", "talek.handle", "The talek handle to use")
 	write := pflag.String("write", "", "A message to append to the log (If not specified, the next item will be read.)")
 	read := pflag.Bool("read", false, "Read from the provided topic")
 	verbose := pflag.Bool("verbose", false, "Print diagnostic information")
-	err := flags.SetPflagsFromEnv(ENV_PREFIX, pflag.CommandLine)
+	err := flags.SetPflagsFromEnv(envPrefix, pflag.CommandLine)
 	if err != nil {
 		fmt.Printf("Error reading environment variables, %v\n", err)
 		return
@@ -42,7 +42,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Common configuration will be fetched from frontend.")
 	}
 
-	topicdata, err := ioutil.ReadFile(*handle)
+	topicdata, err := ioutil.ReadFile(*handlePath)
 	if err != nil {
 		panic(err)
 	}
@@ -105,7 +105,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	if err = ioutil.WriteFile(*handle, updatedTopic, 0600); err != nil {
+	if err = ioutil.WriteFile(*handlePath, updatedTopic, 0600); err != nil {
 		panic(err)
 	}
 }
