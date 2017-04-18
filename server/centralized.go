@@ -103,6 +103,10 @@ func (c *Centralized) BatchRead(args *common.BatchReadRequest, reply *common.Bat
 		}
 	}
 
+	if len(args.Args) > len(myReply.Replies) {
+		c.log.Warn.Println("Shard did not respond to all reads!")
+		return nil
+	}
 	reply.Replies = myReply.Replies[0:len(args.Args)]
 	c.log.Trace.Println("BatchRead: exit")
 	return nil

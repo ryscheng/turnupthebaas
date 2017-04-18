@@ -86,6 +86,9 @@ func main() {
 	} else if *read == false {
 		fmt.Fprintf(os.Stderr, "No Read or Write operation requested. Closing.")
 	} else {
+		if len(*write) > 0 {
+			fmt.Fprintf(os.Stderr, "Cannot read and write at the same time. Ignoring write.")
+		}
 		msgs := client.Poll(&topic.Handle)
 		timeout := time.After(config.ReadInterval * readTimeoutMultiple)
 		select {

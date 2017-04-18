@@ -21,7 +21,7 @@ type Frontend struct {
 	readChan      chan *readRequest
 
 	replicas []common.ReplicaInterface
-	dead     int
+	dead     int32
 }
 
 // readRequest is the grouped request and reply memory used for batching
@@ -53,7 +53,7 @@ func NewFrontend(name string, config *Config, replicas []common.ReplicaInterface
 
 // Close goroutines associated with this object.
 func (fe *Frontend) Close() {
-	fe.dead = 1
+	atomic.StoreInt32(&fe.dead, 1)
 }
 
 // GetName exports the name of the server.
@@ -109,7 +109,7 @@ func (fe *Frontend) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpd
 // periodicWrite runs until the dead flag is set, and periodically send a write
 // request to all replicas telling them to advance their write epoch.
 func (fe *Frontend) periodicWrite() {
-	for fe.dead == 0 {
+	for atomic.LoadInt32(&fe.dead) == 0 {
 		tick := time.After(fe.WriteInterval)
 		select {
 		case <-tick:
@@ -128,7 +128,7 @@ func (fe *Frontend) batchReads() {
 	batch := make([]*readRequest, 0, fe.Config.ReadBatch)
 	var readReq *readRequest
 	tick := time.After(fe.Config.ReadInterval)
-	for fe.dead == 0 {
+	for atomic.LoadInt32(&fe.dead) == 0 {
 		select {
 		case readReq = <-fe.readChan:
 			batch = append(batch, readReq)
