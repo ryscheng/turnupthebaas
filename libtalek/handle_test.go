@@ -9,7 +9,7 @@ import (
 
 func TestGeneratePoll(t *testing.T) {
 	fmt.Printf("TestGeneratePoll:\n")
-	config := &ClientConfig{&common.Config{}, 0, 0, nil}
+	config := &ClientConfig{&common.Config{}, 0, 0, nil, ""}
 	config.Config.NumBuckets = 1000000
 	config.TrustDomains = make([]*common.TrustDomainConfig, 3)
 
@@ -49,7 +49,7 @@ func BenchmarkGeneratePollN1M(b *testing.B) {
 }
 
 func HelperBenchmarkGeneratePoll(b *testing.B, NumBuckets uint64) {
-	config := &ClientConfig{&common.Config{}, 0, 0, nil}
+	config := &ClientConfig{&common.Config{}, 0, 0, nil, ""}
 	config.TrustDomains = make([]*common.TrustDomainConfig, 3)
 	config.Config.NumBuckets = NumBuckets
 
@@ -67,7 +67,7 @@ func HelperBenchmarkGeneratePoll(b *testing.B, NumBuckets uint64) {
 }
 
 func BenchmarkRetrieveResponse(b *testing.B) {
-	config := &ClientConfig{&common.Config{}, 0, 0, nil}
+	config := &ClientConfig{&common.Config{}, 0, 0, nil, ""}
 	config.TrustDomains = make([]*common.TrustDomainConfig, 3)
 	config.Config.NumBuckets = 10
 

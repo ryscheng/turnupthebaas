@@ -41,6 +41,9 @@ func NewClient(name string, config ClientConfig, leader common.FrontendInterface
 	c.name = name
 	c.config.Store(config)
 	c.leader = leader
+	if config.Config == nil && c.getConfig() != nil {
+		return nil
+	}
 
 	//todo: should channel capacity be smarter?
 	c.pendingReads = make(chan request, 5)
@@ -55,29 +58,18 @@ func NewClient(name string, config ClientConfig, leader common.FrontendInterface
 
 /** PUBLIC METHODS (threadsafe) **/
 
-// SetConfig allows updating the configuraton of a Client, e.g. if server memebership
+// SetConfig allows updating the configuration of a Client, e.g. if server memebership
 // or speed characteristics for the system are changed.
 func (c *Client) SetConfig(config ClientConfig) {
 	c.config.Store(config)
+	if config.Config == nil {
+		c.getConfig()
+	}
 }
 
 // Kill stops client processing. This allows for graceful shutdown or suspension of requests.
 func (c *Client) Kill() {
 	atomic.StoreInt32(&c.dead, 1)
-}
-
-// Ping will perform an on-thread ping of the Talek system, allowing the client
-// to validate that it is connected to the Talek system, and check the latency
-// of connection to the server.
-func (c *Client) Ping() bool {
-	var reply common.PingReply
-	err := c.leader.Ping(&common.PingArgs{Msg: "PING"}, &reply)
-	if err == nil && reply.Err == "" {
-		c.log.Info.Printf("Ping success\n")
-		return true
-	}
-	c.log.Warn.Printf("Ping fail: err=%v, reply=%v\n", err, reply)
-	return false
 }
 
 // MaxLength returns the maximum allowed message the client can Publish.
@@ -100,7 +92,11 @@ func (c *Client) Publish(handle *Topic, data []byte) error {
 	}
 
 	writeArgs, err := handle.GeneratePublish(config.Config, data)
-	c.log.Info.Printf("Wrote %v(%d) to %d,%d.", writeArgs.Data[0:4], len(writeArgs.Data), writeArgs.Bucket1, writeArgs.Bucket2)
+	c.log.Info.Printf("Wrote %v(%d) to %d,%d.",
+		writeArgs.Data[0:4],
+		len(writeArgs.Data),
+		writeArgs.Bucket1,
+		writeArgs.Bucket2)
 	if err != nil {
 		return err
 	}
@@ -122,7 +118,9 @@ func (c *Client) Poll(handle *Handle) chan []byte {
 		}
 	}
 	if handle.updates == nil {
-		initHandle(handle)
+		if err := initHandle(handle); err != nil {
+			return nil
+		}
 	}
 	c.handles = append(c.handles, *handle)
 	c.handleMutex.Unlock()
@@ -146,6 +144,17 @@ func (c *Client) Done(handle *Handle) bool {
 }
 
 /** Private methods **/
+func (c *Client) getConfig() error {
+	reply := new(common.Config)
+	if err := c.leader.GetConfig(nil, reply); err != nil {
+		return err
+	}
+	conf := c.config.Load().(ClientConfig)
+	conf.Config = reply
+	c.config.Store(conf)
+	return nil
+}
+
 func (c *Client) writePeriodic() {
 	var req *common.WriteArgs
 
@@ -212,7 +221,9 @@ func (c *Client) generateRandomWrite(config ClientConfig) *common.WriteArgs {
 	args.Bucket1 = b1.Uint64()
 	args.Bucket2 = b2.Uint64()
 	args.Data = make([]byte, config.Config.DataSize, config.Config.DataSize)
-	rand.Read(args.Data)
+	if _, err := rand.Read(args.Data); err != nil {
+		return nil
+	}
 	return args
 }
 

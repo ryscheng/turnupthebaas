@@ -1,11 +1,25 @@
-OpenCL PIR Daemon
-=================
+# OpenCL PIR Daemon
 
-Usage
------
+## Compile
+PIR daemon depends on OpenCL headers to compile. For example on Ubuntu:
 
-Optimization
-------------
+```bash
+$ sudo apt-get install opencl-headers
+$ make    # creates ./pird binary
+```
+
+## Usage
+
+```bash
+$ ./pird [-l] [-d <device id>] [-s <socket>]
+```
+
+`pird` must be assigned dedicated GPU. 
+To see what GPU devices exist, use `-l`.
+Then pin `pird` to that GPU with the `-d` flag.
+Applications interact with `pird` using the UNIX socket specified with `-s`.
+
+## Optimization
 
 Communication with the Daemon occurs over a unix socket interface.
 To optmize capacity over this interace, transmitted communication should

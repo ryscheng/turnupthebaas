@@ -53,7 +53,16 @@ func TestShardSanity(t *testing.T) {
 	}
 
 	writeReplyChan := make(chan *common.WriteReply)
-	shard.Write(&common.WriteArgs{Bucket1: 0, Bucket2: 1, Data: bytes.NewBufferString("Magic").Bytes(), InterestVector: []byte{}, ReplyChan: writeReplyChan})
+	shard.Write(&common.ReplicaWriteArgs{
+		WriteArgs: common.WriteArgs{
+			Bucket1:        0,
+			Bucket2:        1,
+			Data:           bytes.NewBufferString("Magic").Bytes(),
+			InterestVector: []byte{},
+			ReplyChan:      writeReplyChan,
+		},
+		EpochFlag: false,
+	})
 
 	// Force DB write.
 	shard.syncChan <- 1
@@ -100,7 +109,11 @@ func BenchmarkShard(b *testing.B) {
 	replychan := make(chan *common.BatchReadReply)
 
 	//A default write request
-	stdWrite := &common.WriteArgs{Bucket1: 0, Bucket2: 1, Data: bytes.NewBufferString("Magic").Bytes(), InterestVector: []byte{}}
+	stdWrite := common.WriteArgs{Bucket1: 0, Bucket2: 1, Data: bytes.NewBufferString("Magic").Bytes(), InterestVector: []byte{}}
+	shardWrite := &common.ReplicaWriteArgs{
+		WriteArgs: stdWrite,
+		EpochFlag: false,
+	}
 
 	//A default read request
 	reqs := make([]common.PirArgs, conf.ReadBatch)
@@ -120,7 +133,7 @@ func BenchmarkShard(b *testing.B) {
 		if i%readsPerWrite == 0 {
 			stdWrite.Bucket1 = uint64(rand.Int()) % conf.NumBuckets
 			stdWrite.Bucket2 = uint64(rand.Int()) % conf.NumBuckets
-			shard.Write(stdWrite)
+			shard.Write(shardWrite)
 		} else {
 			shard.BatchRead(stdRead)
 			reply := <-replychan

@@ -12,7 +12,6 @@ import (
 	"github.com/privacylab/talek/libtalek"
 )
 
-var configPath = flag.String("config", "../commonconfig.json", "Talek Common Configuration")
 var trustDomainPath = flag.String("trust", "../keys/leaderpublic.json,../keys/followerpublic.json", "Server keys (comma separated)")
 
 // Consistency acts as a client driver against a talek system to verify that
@@ -23,7 +22,6 @@ func main() {
 	flag.Parse()
 
 	// Config
-	config := common.ConfigFromFile(*configPath)
 	domainPaths := strings.Split(*trustDomainPath, ",")
 	trustDomains := make([]*common.TrustDomainConfig, len(domainPaths))
 	for i, path := range domainPaths {
@@ -39,10 +37,9 @@ func main() {
 		}
 	}
 
-	leaderRPC := common.NewFrontendRPC("RPC", trustDomains[0])
+	leaderRPC := common.NewFrontendRPC("RPC", trustDomains[0].Address)
 
 	clientConfig := libtalek.ClientConfig{
-		Config:        config,
 		ReadInterval:  time.Second,
 		WriteInterval: time.Second,
 		TrustDomains:  trustDomains,

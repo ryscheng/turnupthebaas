@@ -20,9 +20,6 @@ func (m *mockLeader) GetName(_ *interface{}, reply *string) error {
 func (m *mockLeader) GetConfig(_ *interface{}, reply *common.Config) error {
 	return nil
 }
-func (m *mockLeader) Ping(args *common.PingArgs, reply *common.PingReply) error {
-	return nil
-}
 func (m *mockLeader) Write(args *common.WriteArgs, reply *common.WriteReply) error {
 	if m.ReceivedWrites != nil {
 		m.ReceivedWrites <- args
@@ -45,6 +42,7 @@ func TestWrite(t *testing.T) {
 		time.Second,
 		time.Second,
 		[]*common.TrustDomainConfig{common.NewTrustDomainConfig("TestTrustDomain", "127.0.0.1", true, false)},
+		"",
 	}
 
 	writes := make(chan *common.WriteArgs, 1)
@@ -61,7 +59,9 @@ func TestWrite(t *testing.T) {
 	// the real write.
 	bucket, _ := handle.Handle.nextBuckets(config.Config)
 
-	c.Publish(handle, []byte("hello world"))
+	if err := c.Publish(handle, []byte("hello world")); err != nil {
+		t.Fatalf("failed to publish: %v", err)
+	}
 	write1 := <-writes
 	write2 := <-writes
 	c.Kill()
@@ -78,6 +78,7 @@ func TestRead(t *testing.T) {
 		time.Second,
 		time.Second,
 		[]*common.TrustDomainConfig{common.NewTrustDomainConfig("TestTrustDomain", "127.0.0.1", true, false)},
+		"",
 	}
 
 	reads := make(chan *common.EncodedReadArgs, 1)
@@ -100,7 +101,7 @@ func TestRead(t *testing.T) {
 	c.Poll(&handle.Handle)
 	read1 := <-reads
 	read2 := <-reads
-	// There may be a random read occuring before the enqueued one.
+	// There may be a random read occurring before the enqueued one.
 	c.Kill()
 
 	//Due to thread race, there may be a random read made before
