@@ -6,7 +6,7 @@ import (
 	"github.com/willf/bitset"
 )
 
-// Shard represents a read-only shard of the database
+// ShardCPU represents a read-only shard of the database
 // Databases are range partitioned by bucket.
 // Thus, a shard represents a range of `numBuckets` buckets,
 // where each bucket is []byte of length `bucketSize`.
@@ -21,7 +21,7 @@ type ShardCPU struct {
 	readVersion int
 }
 
-// Creates a new CPU-backed shard
+// NewShardCPU creates a new CPU-backed shard
 // Pre-conditions:
 // - len(data) must be a multiple of bucketSize
 // Returns: the shard, or an error if mismatched size
@@ -48,19 +48,22 @@ func (s *ShardCPU) Free() error {
 	return nil
 }
 
+// GetName returns the name of the shard
 func (s *ShardCPU) GetName() string {
 	return s.name
 }
 
+// GetBucketSize returns the size (in bytes) of a bucket
 func (s *ShardCPU) GetBucketSize() int {
 	return s.bucketSize
 }
 
+// GetNumBuckets returns the number of buckets in the shard
 func (s *ShardCPU) GetNumBuckets() int {
 	return s.numBuckets
 }
 
-// Return a slice of the data
+// GetData returns a slice of the data
 func (s *ShardCPU) GetData() []byte {
 	return s.data[:]
 }
