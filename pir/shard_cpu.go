@@ -84,7 +84,7 @@ func (s *ShardCPU) Insert(bucket int, offset int, toCopy []byte) int {
 
 // Read handles a batch read, where each request is represented by a BitSet
 // Returns: a single byte array where responses are concatenated by the order in `reqs`
-func (s *ShardCPU) Read(reqs []bitset.BitSet) ([]byte, error) {
+func (s *ShardCPU) Read(reqs []*bitset.BitSet) ([]byte, error) {
 	if s.readVersion == 0 {
 		return s.read0(reqs)
 	} else if s.readVersion == 1 {
@@ -94,7 +94,7 @@ func (s *ShardCPU) Read(reqs []bitset.BitSet) ([]byte, error) {
 	}
 }
 
-func (s *ShardCPU) read0(reqs []bitset.BitSet) ([]byte, error) {
+func (s *ShardCPU) read0(reqs []*bitset.BitSet) ([]byte, error) {
 	responses := make([]byte, len(reqs)*s.bucketSize)
 
 	// calculate PIR
@@ -113,7 +113,7 @@ func (s *ShardCPU) read0(reqs []bitset.BitSet) ([]byte, error) {
 	return responses, nil
 }
 
-func (s *ShardCPU) read1(reqs []bitset.BitSet) ([]byte, error) {
+func (s *ShardCPU) read1(reqs []*bitset.BitSet) ([]byte, error) {
 	responses := make([]byte, len(reqs)*s.bucketSize)
 
 	// calculate PIR

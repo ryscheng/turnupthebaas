@@ -12,5 +12,5 @@ type Shard interface {
 	GetBucketSize() int
 	GetNumBuckets() int
 	GetData() []byte
-	Read(reqs []bitset.BitSet) ([]byte, error)
+	Read(reqs []*bitset.BitSet) ([]byte, error)
 }

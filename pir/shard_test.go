@@ -2,6 +2,7 @@ package pir
 
 import (
 	"fmt"
+	"math/rand"
 	"testing"
 
 	"github.com/willf/bitset"
@@ -16,9 +17,14 @@ func generateData(size int) []byte {
 }
 
 func HelperTestShardRead(t *testing.T, shard Shard) {
-	fmt.Printf("TestShardCPURead: %s ...\n", shard.GetName())
+	fmt.Printf("TestShardRead: %s ...\n", shard.GetName())
 
-	reqs := make([]bitset.BitSet, 3)
+	// Populate batch read request
+	numReq := 3
+	reqs := make([]*bitset.BitSet, numReq)
+	for i := 0; i < numReq; i++ {
+		reqs[i] = bitset.New(3)
+	}
 	reqs[0].SetTo(1, true)
 	reqs[1].SetTo(0, true)
 	reqs[2].SetTo(0, true)
@@ -29,8 +35,10 @@ func HelperTestShardRead(t *testing.T, shard Shard) {
 		t.Fatalf("test misconfigured. shard has %d buckets, needs %d\n", shard.GetNumBuckets(), 3)
 	}
 
+	// Batch Read
 	response, err := shard.Read(reqs)
 
+	// Check fail
 	if err != nil {
 		t.Fatalf("error calling shard.Read: %v\n", err)
 	}
@@ -64,6 +72,7 @@ func HelperTestShardRead(t *testing.T, shard Shard) {
 		}
 	}
 
+	// Free
 	err = shard.Free()
 	if err != nil {
 		t.Fatalf("error freeing shard: %v\n", err)
@@ -73,7 +82,7 @@ func HelperTestShardRead(t *testing.T, shard Shard) {
 
 }
 
-func TestShardCPURead(t *testing.T) {
+func TestShardCPUReadv0(t *testing.T) {
 	numMessages := 32
 	messageSize := 2
 	depth := 2 // 16 buckets
@@ -82,81 +91,67 @@ func TestShardCPURead(t *testing.T) {
 		t.Fatalf("cannot create new ShardCPU v0: error=%v\n", err)
 	}
 	HelperTestShardRead(t, shard)
-	shard, err = NewShardCPU("shardcpuv1", depth*messageSize, generateData(numMessages*messageSize), 1)
+}
+
+func TestShardCPUReadv1(t *testing.T) {
+	numMessages := 32
+	messageSize := 2
+	depth := 2 // 16 buckets
+	shard, err := NewShardCPU("shardcpuv1", depth*messageSize, generateData(numMessages*messageSize), 1)
 	if err != nil {
 		t.Fatalf("cannot create new ShardCPU v1: error=%v\n", err)
 	}
 	HelperTestShardRead(t, shard)
 }
 
-/**
-func BenchmarkPir(b *testing.B) {
-	cellLength := 1024
-	cellCount := 2048
-	batchSize := 8
-	if os.Getenv("PIR_CELL_LENGTH") != "" {
-		cellLength, _ = strconv.Atoi(os.Getenv("PIR_CELL_LENGTH"))
-	}
-	if os.Getenv("PIR_CELL_COUNT") != "" {
-		cellCount, _ = strconv.Atoi(os.Getenv("PIR_CELL_COUNT"))
-	}
-	if os.Getenv("PIR_BATCH_SIZE") != "" {
-		batchSize, _ = strconv.Atoi(os.Getenv("PIR_BATCH_SIZE"))
-	}
-
-	sockName := getSocket()
-	status := make(chan int)
-	go CreateMockServer(status, sockName)
-	<-status
-
-	pirServer, err := Connect(sockName)
-	if err != nil {
-		b.Error(err)
-		return
-	}
-
-	pirServer.Configure(cellLength, cellCount, batchSize)
-	db, err := pirServer.GetDB()
-	if err != nil {
-		b.Error(err)
-		return
-	}
-	for x := range db.DB {
-		db.DB[x] = byte(x)
-	}
-
-	pirServer.SetDB(db)
-
-	responseChan := make(chan []byte)
-	masks := make([]byte, cellCount*batchSize/8)
-	for i := 0; i < len(masks); i++ {
-		masks[i] = byte(rand.Int())
-	}
-
-	b.ResetTimer()
-
-	signalChan := make(chan int)
-	go func() {
-		for j := 0; j < b.N; j++ {
-			response := <-responseChan
-			b.SetBytes(int64(len(response)))
+func HelperBenchmarkShardRead(b *testing.B, shard Shard, batchSize int) {
+	reqs := make([]*bitset.BitSet, 3)
+	// Generate random batch of read requests
+	for i := 0; i < len(reqs); i++ {
+		numRand := (shard.GetNumBuckets()/64 + 1)
+		randNum := make([]uint64, numRand)
+		for j := 0; j < numRand; j++ {
+			randNum[j] = rand.Uint64()
 		}
-		signalChan <- 1
-	}()
+		reqs[i] = bitset.From(randNum)
+	}
 
+	// Start test
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		err := pirServer.Read(masks, responseChan)
+		_, err := shard.Read(reqs)
 
 		if err != nil {
-			b.Error(err)
+			b.Fatalf("Read error: %v\n", err)
 		}
 	}
+	b.StopTimer()
+	// Free
+	err := shard.Free()
+	if err != nil {
+		b.Fatalf("error freeing shard: %v\n", err)
+	}
 
-	<-signalChan
-
-	pirServer.Disconnect()
-
-	status <- 1
-	<-status
 }
-**/
+
+func BenchmarkShardCPUReadv0(b *testing.B) {
+	numMessages := 1000000
+	messageSize := 1024
+	depth := 4 // 250000 buckets
+	shard, err := NewShardCPU("shardcpuv0", depth*messageSize, generateData(numMessages*messageSize), 0)
+	if err != nil {
+		b.Fatalf("cannot create new ShardCPU v0: error=%v\n", err)
+	}
+	HelperBenchmarkShardRead(b, shard, 8)
+}
+
+func BenchmarkShardCPUReadv1(b *testing.B) {
+	numMessages := 1000000
+	messageSize := 1024
+	depth := 4 // 250000 buckets
+	shard, err := NewShardCPU("shardcpuv1", depth*messageSize, generateData(numMessages*messageSize), 1)
+	if err != nil {
+		b.Fatalf("cannot create new ShardCPU v1: error=%v\n", err)
+	}
+	HelperBenchmarkShardRead(b, shard, 8)
+}
