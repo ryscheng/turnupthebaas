@@ -94,9 +94,9 @@ func (s *ShardCPU) Read(reqs []byte, reqLength int) ([]byte, error) {
 		return s.read0(reqs, reqLength)
 	} else if s.readVersion == 1 {
 		return s.read1(reqs, reqLength)
-	} else {
-		return nil, fmt.Errorf("ShardCPU.Read: invalid readVersion=%d", s.readVersion)
 	}
+
+	return nil, fmt.Errorf("ShardCPU.Read: invalid readVersion=%d", s.readVersion)
 }
 
 func (s *ShardCPU) read0(reqs []byte, reqLength int) ([]byte, error) {

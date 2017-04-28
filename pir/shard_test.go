@@ -21,12 +21,11 @@ func HelperTestShardRead(t *testing.T, shard Shard) {
 	batchSize := 3
 	reqLength := shard.GetNumBuckets() / 8
 	if shard.GetNumBuckets()%8 != 0 {
-		reqLength += 1
+		reqLength++
 	}
 	reqs := make([]byte, reqLength*batchSize)
 	setBit := func(reqs []byte, reqIndex int, bucketIndex int) {
-		reqByte := reqs[reqIndex*reqLength+(bucketIndex/8)]
-		reqByte |= byte(1) << uint(bucketIndex%8)
+		reqs[reqIndex*reqLength+(bucketIndex/8)] |= byte(1) << uint(bucketIndex%8)
 	}
 	setBit(reqs, 0, 1)
 	setBit(reqs, 1, 0)
@@ -110,7 +109,7 @@ func TestShardCPUReadv1(t *testing.T) {
 func HelperBenchmarkShardRead(b *testing.B, shard Shard, batchSize int) {
 	reqLength := shard.GetNumBuckets() / 8
 	if shard.GetNumBuckets()%8 != 0 {
-		reqLength += 1
+		reqLength++
 	}
 	reqs := make([]byte, reqLength*batchSize)
 	for i := 0; i < len(reqs); i++ {
