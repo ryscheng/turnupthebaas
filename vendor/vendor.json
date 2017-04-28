@@ -51,6 +51,12 @@
 			"revisionTime": "2016-08-31T15:17:26Z"
 		},
 		{
+			"checksumSHA1": "tRoYXEtC282IUw8jB3aHbxK0Tpw=",
+			"path": "github.com/go-gl/cl/v1.2/cl",
+			"revision": "283e73a0ca2a3a2bcd6a087e852404eb0ca0b1bf",
+			"revisionTime": "2016-04-02T05:07:51Z"
+		},
+		{
 			"checksumSHA1": "0Qi2QAv9T10RCUs9vhbIAAnyEZU=",
 			"path": "github.com/spf13/pflag",
 			"revision": "e453343e6260b4a3a89f1f0e10a2fbb07f8d9750",
