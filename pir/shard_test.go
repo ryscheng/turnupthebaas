@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"math/rand"
 	"testing"
-
-	"github.com/willf/bitset"
 )
 
 func generateData(size int) []byte {
@@ -20,23 +18,28 @@ func HelperTestShardRead(t *testing.T, shard Shard) {
 	fmt.Printf("TestShardRead: %s ...\n", shard.GetName())
 
 	// Populate batch read request
-	numReq := 3
-	reqs := make([]*bitset.BitSet, numReq)
-	for i := 0; i < numReq; i++ {
-		reqs[i] = bitset.New(3)
+	batchSize := 3
+	reqLength := shard.GetNumBuckets() / 8
+	if shard.GetNumBuckets()%8 != 0 {
+		reqLength += 1
 	}
-	reqs[0].SetTo(1, true)
-	reqs[1].SetTo(0, true)
-	reqs[2].SetTo(0, true)
-	reqs[2].SetTo(1, true)
-	reqs[2].SetTo(2, true)
+	reqs := make([]byte, reqLength*batchSize)
+	setBit := func(reqs []byte, reqIndex int, bucketIndex int) {
+		reqByte := reqs[reqIndex*reqLength+(bucketIndex/8)]
+		reqByte |= byte(1) << uint(bucketIndex%8)
+	}
+	setBit(reqs, 0, 1)
+	setBit(reqs, 1, 0)
+	setBit(reqs, 2, 0)
+	setBit(reqs, 2, 1)
+	setBit(reqs, 2, 2)
 
 	if shard.GetNumBuckets() < 3 {
 		t.Fatalf("test misconfigured. shard has %d buckets, needs %d\n", shard.GetNumBuckets(), 3)
 	}
 
 	// Batch Read
-	response, err := shard.Read(reqs)
+	response, err := shard.Read(reqs, reqLength)
 
 	// Check fail
 	if err != nil {
@@ -105,21 +108,19 @@ func TestShardCPUReadv1(t *testing.T) {
 }
 
 func HelperBenchmarkShardRead(b *testing.B, shard Shard, batchSize int) {
-	reqs := make([]*bitset.BitSet, 3)
-	// Generate random batch of read requests
+	reqLength := shard.GetNumBuckets() / 8
+	if shard.GetNumBuckets()%8 != 0 {
+		reqLength += 1
+	}
+	reqs := make([]byte, reqLength*batchSize)
 	for i := 0; i < len(reqs); i++ {
-		numRand := (shard.GetNumBuckets()/64 + 1)
-		randNum := make([]uint64, numRand)
-		for j := 0; j < numRand; j++ {
-			randNum[j] = rand.Uint64()
-		}
-		reqs[i] = bitset.From(randNum)
+		reqs[i] = byte(rand.Int())
 	}
 
 	// Start test
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := shard.Read(reqs)
+		_, err := shard.Read(reqs, reqLength)
 
 		if err != nil {
 			b.Fatalf("Read error: %v\n", err)

@@ -3,7 +3,6 @@ package pir
 import (
 	"fmt"
 	"github.com/privacylab/talek/common"
-	"github.com/willf/bitset"
 )
 
 // ShardCPU represents a read-only shard of the database
@@ -22,6 +21,7 @@ type ShardCPU struct {
 }
 
 // NewShardCPU creates a new CPU-backed shard
+// The data is represented as a flat byte array = append(bucket_1, bucket_2 ... bucket_n)
 // Pre-conditions:
 // - len(data) must be a multiple of bucketSize
 // Returns: the shard, or an error if mismatched size
@@ -82,25 +82,32 @@ func (s *ShardCPU) Insert(bucket int, offset int, toCopy []byte) int {
 }
 **/
 
-// Read handles a batch read, where each request is represented by a BitSet
+// Read handles a batch read, where each request is concatentated into `reqs`
+//   each request consists of `reqLength` bytes
+//	 Note: every request starts on a byte boundary
 // Returns: a single byte array where responses are concatenated by the order in `reqs`
-func (s *ShardCPU) Read(reqs []*bitset.BitSet) ([]byte, error) {
-	if s.readVersion == 0 {
-		return s.read0(reqs)
+//	 each response consists of `s.bucketSize` bytes
+func (s *ShardCPU) Read(reqs []byte, reqLength int) ([]byte, error) {
+	if len(reqs)%reqLength != 0 {
+		return nil, fmt.Errorf("ShardCPU.Read expects len(reqs)=%d to be a multiple of reqLength=%d", len(reqs), reqLength)
+	} else if s.readVersion == 0 {
+		return s.read0(reqs, reqLength)
 	} else if s.readVersion == 1 {
-		return s.read1(reqs)
+		return s.read1(reqs, reqLength)
 	} else {
 		return nil, fmt.Errorf("ShardCPU.Read: invalid readVersion=%d", s.readVersion)
 	}
 }
 
-func (s *ShardCPU) read0(reqs []*bitset.BitSet) ([]byte, error) {
-	responses := make([]byte, len(reqs)*s.bucketSize)
+func (s *ShardCPU) read0(reqs []byte, reqLength int) ([]byte, error) {
+	numReqs := len(reqs) / reqLength
+	responses := make([]byte, numReqs*s.bucketSize)
 
 	// calculate PIR
-	for reqIndex := 0; reqIndex < len(reqs); reqIndex++ {
+	for reqIndex := 0; reqIndex < numReqs; reqIndex++ {
 		for bucketIndex := 0; bucketIndex < s.numBuckets; bucketIndex++ {
-			if reqs[reqIndex].Test(uint(bucketIndex)) {
+			reqByte := reqs[reqIndex*reqLength+(bucketIndex/8)]
+			if reqByte&(byte(1)<<uint(bucketIndex%8)) != 0 {
 				bucket := s.data[(bucketIndex * s.bucketSize):]
 				response := responses[(reqIndex * s.bucketSize):]
 				for offset := 0; offset < s.bucketSize; offset++ {
@@ -113,13 +120,15 @@ func (s *ShardCPU) read0(reqs []*bitset.BitSet) ([]byte, error) {
 	return responses, nil
 }
 
-func (s *ShardCPU) read1(reqs []*bitset.BitSet) ([]byte, error) {
-	responses := make([]byte, len(reqs)*s.bucketSize)
+func (s *ShardCPU) read1(reqs []byte, reqLength int) ([]byte, error) {
+	numReqs := len(reqs) / reqLength
+	responses := make([]byte, numReqs*s.bucketSize)
 
 	// calculate PIR
 	for bucketIndex := 0; bucketIndex < s.numBuckets; bucketIndex++ {
-		for reqIndex := 0; reqIndex < len(reqs); reqIndex++ {
-			if reqs[reqIndex].Test(uint(bucketIndex)) {
+		for reqIndex := 0; reqIndex < numReqs; reqIndex++ {
+			reqByte := reqs[reqIndex*reqLength+(bucketIndex/8)]
+			if reqByte&(byte(1)<<uint(bucketIndex%8)) != 0 {
 				bucket := s.data[(bucketIndex * s.bucketSize):]
 				response := responses[(reqIndex * s.bucketSize):]
 				for offset := 0; offset < s.bucketSize; offset++ {
