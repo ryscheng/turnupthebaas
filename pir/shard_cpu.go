@@ -6,10 +6,7 @@ import (
 )
 
 // ShardCPU represents a read-only shard of the database
-// Databases are range partitioned by bucket.
-// Thus, a shard represents a range of `numBuckets` buckets,
-// where each bucket is []byte of length `bucketSize`.
-// Note: len(data) must equal (numBuckets * bucketSize)
+// backed by a CPU implementation of PIR
 type ShardCPU struct {
 	// Private State
 	log         *common.Logger
