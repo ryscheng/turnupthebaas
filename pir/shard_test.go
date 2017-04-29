@@ -106,6 +106,17 @@ func TestShardCPUReadv1(t *testing.T) {
 	HelperTestShardRead(t, shard)
 }
 
+func TestShardCLRead(t *testing.T) {
+	numMessages := 32
+	messageSize := 2
+	depth := 2 // 16 buckets
+	shard, err := NewShardCL("shardcl", depth*messageSize, generateData(numMessages*messageSize), 0)
+	if err != nil {
+		t.Fatalf("cannot create new ShardCL: error=%v\n", err)
+	}
+	HelperTestShardRead(t, shard)
+}
+
 func HelperBenchmarkShardRead(b *testing.B, shard Shard, batchSize int) {
 	reqLength := shard.GetNumBuckets() / 8
 	if shard.GetNumBuckets()%8 != 0 {
@@ -152,6 +163,17 @@ func BenchmarkShardCPUReadv1(b *testing.B) {
 	shard, err := NewShardCPU("shardcpuv1", depth*messageSize, generateData(numMessages*messageSize), 1)
 	if err != nil {
 		b.Fatalf("cannot create new ShardCPU v1: error=%v\n", err)
+	}
+	HelperBenchmarkShardRead(b, shard, 8)
+}
+
+func BenchmarkShardCLRead(b *testing.B) {
+	numMessages := 1000000
+	messageSize := 1024
+	depth := 4 // 250000 buckets
+	shard, err := NewShardCL("shardcl", depth*messageSize, generateData(numMessages*messageSize), 0)
+	if err != nil {
+		b.Fatalf("cannot create new ShardCL: error=%v\n", err)
 	}
 	HelperBenchmarkShardRead(b, shard, 8)
 }
