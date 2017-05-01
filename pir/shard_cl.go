@@ -29,7 +29,7 @@ const (
 
 // KernelSource is the source code of the program we're going to run.
 var KernelSource = `
-__kernel void square(
+__kernel void pir(
    __global float* input,
    __global float* output,
    const unsigned int count)
@@ -59,6 +59,7 @@ func NewShardCL(name string, bucketSize int, data []byte, readVersion int) (*Sha
 	s.bucketSize = bucketSize
 	s.numBuckets = (len(data) / bucketSize)
 	s.data = data
+
 	return s, nil
 }
 
@@ -114,13 +115,13 @@ func (s *ShardCL) read0(reqs []byte, reqLength int) ([]byte, error) {
 
 	//Get Device
 	var device cl.DeviceId
-	var errptr *cl.ErrorCode
 	err := cl.GetDeviceIDs(nil, cl.DEVICE_TYPE_GPU, 1, &device, nil)
 	if err != cl.SUCCESS {
-		s.log.Error.Fatal("Failed to create device group")
+		s.log.Error.Fatal("NewShardCl: failed to create device group\n")
 	}
 
 	//Create Computer Context
+	var errptr *cl.ErrorCode
 	context := cl.CreateContext(nil, 1, &device, nil, nil, errptr)
 	if errptr != nil && cl.ErrorCode(*errptr) != cl.SUCCESS {
 		s.log.Error.Fatal("couldnt create context")
@@ -152,8 +153,8 @@ func (s *ShardCL) read0(reqs []byte, reqLength int) ([]byte, error) {
 		s.log.Error.Fatal(string(buffer[0:length]))
 	}
 
-	//Get Kernel
-	kernel := cl.CreateKernel(program, cl.Str("square"+"\x00"), errptr)
+	//Get Kernel (~CUDA Grid)
+	kernel := cl.CreateKernel(program, cl.Str("pir"+"\x00"), errptr)
 	if errptr != nil && cl.ErrorCode(*errptr) != cl.SUCCESS {
 		s.log.Error.Fatal("couldnt create compute kernel")
 	}
@@ -193,13 +194,16 @@ func (s *ShardCL) read0(reqs []byte, reqLength int) ([]byte, error) {
 		s.log.Error.Fatal("Failed to write kernel arg 2")
 	}
 
+	// OpenCL work-group = CUDA block
 	local := uint64(0)
 	err = cl.GetKernelWorkGroupInfo(kernel, device, cl.KERNEL_WORK_GROUP_SIZE, 8, unsafe.Pointer(&local), nil)
 	if err != cl.SUCCESS {
 		s.log.Error.Fatal("Failed to get kernel work group info")
 	}
 
-	global := local
+	//global := local
+	global := uint64(DataSize)
+	s.log.Info.Printf("local=%v, global=%v\n", local, global)
 	err = cl.EnqueueNDRangeKernel(cq, kernel, 1, nil, &global, &local, 0, nil, nil)
 	if err != cl.SUCCESS {
 		s.log.Error.Fatal("Failed to execute kernel!")

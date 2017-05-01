@@ -106,7 +106,7 @@ func TestShardCPUReadv1(t *testing.T) {
 	HelperTestShardRead(t, shard)
 }
 
-func TestShardCLRead(t *testing.T) {
+func XTestShardCLRead(t *testing.T) {
 	numMessages := 32
 	messageSize := 2
 	depth := 2 // 16 buckets
@@ -167,7 +167,7 @@ func BenchmarkShardCPUReadv1(b *testing.B) {
 	HelperBenchmarkShardRead(b, shard, 8)
 }
 
-func BenchmarkShardCLRead(b *testing.B) {
+func XBenchmarkShardCLRead(b *testing.B) {
 	numMessages := 1000000
 	messageSize := 1024
 	depth := 4 // 250000 buckets

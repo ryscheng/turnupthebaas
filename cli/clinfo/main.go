@@ -12,14 +12,14 @@ const (
 	DataSize = 1024
 )
 
-var PlatformProperties = map[string]cl.PlatformInfo{
+var platformProperties = map[string]cl.PlatformInfo{
 	"PLATFORM_NAME":       cl.PLATFORM_NAME,
 	"PLATFORM_VENDOR":     cl.PLATFORM_VENDOR,
 	"PLATFORM_VERSION":    cl.PLATFORM_VERSION,
 	"PLATFORM_PROFILE":    cl.PLATFORM_PROFILE,
 	"PLATFORM_EXTENSIONS": cl.PLATFORM_EXTENSIONS,
 }
-var DeviceProperties = map[string]cl.DeviceInfo{
+var deviceProperties = map[string]cl.DeviceInfo{
 	"DEVICE_NAME":                        cl.DEVICE_NAME,
 	"DEVICE_VENDOR":                      cl.DEVICE_VENDOR,
 	"DEVICE_VERSION":                     cl.DEVICE_VERSION,
@@ -41,7 +41,7 @@ func StatInfo() {
 		data := make([]byte, DataSize)
 		size := uint64(0)
 		// Platform Info
-		for propName, propVal := range PlatformProperties {
+		for propName, propVal := range platformProperties {
 			cl.GetPlatformInfo(ids[i], propVal, DataSize, unsafe.Pointer(&data[0]), &size)
 			str := string(data[0:size])
 			log.Printf("%v:\t\t %v\n", propName, str)
@@ -54,7 +54,7 @@ func StatInfo() {
 		log.Println("Devices: ")
 		for y := 0; y < int(numDevices); y++ {
 			log.Printf("DeviceIdAddr:%v\n", &devices[y])
-			for propName, propVal := range DeviceProperties {
+			for propName, propVal := range deviceProperties {
 				cl.GetDeviceInfo(devices[y], propVal, DataSize, unsafe.Pointer(&data[0]), &size)
 				str := string(data[0:size])
 				log.Printf("\t %v: %v", propName, str)
