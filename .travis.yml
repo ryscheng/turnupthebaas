@@ -1,9 +1,9 @@
 language: go
-sudo: false
+sudo: true
 before_install:
   - if [ $TRAVIS_OS_NAME = "linux" ]; then
       sudo apt-get -qq update;
-      sudo apt-get install pocl;
+      sudo apt-get install -y pocl;
     fi;
   - make get-tools
 install: true
