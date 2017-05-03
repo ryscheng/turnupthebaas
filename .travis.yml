@@ -1,5 +1,5 @@
 language: go
-sudo: true
+sudo: false
 before_install:
   - make get-tools
 install: true
