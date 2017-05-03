@@ -30,16 +30,17 @@ Pull requests are welcome! Please run all tests (see below) before submitting a 
 Depending on which PIR implementation you use, you may need to install OpenCL / CUDA.
 Make sure you have the latest graphics drivers for your video card.
 
+NVIDIA CUDA:
+- [Drivers](http://www.nvidia.com/Download/index.aspx?lang=en-us)
+- [CUDA](https://developer.nvidia.com/cuda-downloads)
+
 OpenCL on Ubuntu:
 
-    sudo apt-get install -y ocl-icd-libopencl1 ocl-icd-opencl-dev opencl-headers
+    sudo apt-get install -y ocl-icd-libopencl1 ocl-icd-opencl-dev opencl-headers clinfo
 
 OpenCL on macOS:
 - OpenCL is included in the developer tools. See [here](https://developer.apple.com/opencl/)
 
-NVIDIA CUDA:
-- [Drivers](http://www.nvidia.com/Download/index.aspx?lang=en-us)
-- [CUDA](https://developer.nvidia.com/cuda-downloads)
 
 ### Tools
 - [govendor](https://github.com/kardianos/govendor) for vendoring
