@@ -723,7 +723,8 @@ func (imde ImageDesc) toC() *C.cl_image_desc {
 		image_slice_pitch: C.size_t(imde.ImageSlicePitch),
 		num_mip_levels:    C.cl_uint(imde.NumMipLevels),
 		num_samples:       C.cl_uint(imde.NumSamples),
-		buffer:            C.cl_mem(imde.Buffer)}
+		//buffer:            C.cl_mem(imde.Buffer)}
+	}
 }
 
 type Mem C.cl_mem

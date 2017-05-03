@@ -37,9 +37,11 @@ NVIDIA CUDA:
 OpenCL on Ubuntu:
 
     sudo apt-get install -y ocl-icd-libopencl1 ocl-icd-opencl-dev opencl-headers clinfo
+    sudo ln -s /usr/lib/x86_64-linux-gnu/libOpenCL.so /usr/lib/x86_64-linux-gnu/libCL.so
 
 OpenCL on macOS:
 - OpenCL is included in the developer tools. See [here](https://developer.apple.com/opencl/)
+
 
 
 ### Tools
