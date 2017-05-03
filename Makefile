@@ -27,7 +27,7 @@ unit:
 	govendor test +local
 
 coverage:
-	overalls -project=github.com/privacylab/talek -covermode=count -debug
+	overalls -project=github.com/privacylab/talek -covermode=count -debug -- -tags travis
 	goveralls -coverprofile=overalls.coverprofile -service=travis-ci
 
 docker-build:

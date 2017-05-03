@@ -1,3 +1,5 @@
+//+build !travis
+
 package pir
 
 import (
