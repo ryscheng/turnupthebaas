@@ -37,6 +37,7 @@ func NewShardCPU(name string, bucketSize int, data []byte, readVersion int) (*Sh
 	s.bucketSize = bucketSize
 	s.numBuckets = (len(data) / bucketSize)
 	s.data = data
+	s.readVersion = readVersion
 	return s, nil
 }
 

@@ -142,7 +142,7 @@ func BenchmarkShardCPUReadv0(b *testing.B) {
 	if err != nil {
 		b.Fatalf("cannot create new ShardCPU v0: error=%v\n", err)
 	}
-	HelperBenchmarkShardRead(b, shard, 8)
+	HelperBenchmarkShardRead(b, shard, 32)
 }
 
 func BenchmarkShardCPUReadv1(b *testing.B) {
@@ -153,5 +153,5 @@ func BenchmarkShardCPUReadv1(b *testing.B) {
 	if err != nil {
 		b.Fatalf("cannot create new ShardCPU v1: error=%v\n", err)
 	}
-	HelperBenchmarkShardRead(b, shard, 8)
+	HelperBenchmarkShardRead(b, shard, 32)
 }
