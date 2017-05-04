@@ -3,6 +3,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"log"
 	"unsafe"
 
@@ -27,6 +28,7 @@ var deviceProperties = map[string]cl.DeviceInfo{
 	"DEVICE_VERSION":                     cl.DEVICE_VERSION,
 	"DEVICE_PROFILE":                     cl.DEVICE_PROFILE,
 	"DEVICE_MAX_COMPUTE_UNITS":           cl.DEVICE_MAX_COMPUTE_UNITS,
+	"DEVICE_MAX_WORK_GROUP_SIZE":         cl.DEVICE_MAX_WORK_GROUP_SIZE,
 	"DEVICE_GLOBAL_MEM_SIZE":             cl.DEVICE_GLOBAL_MEM_SIZE,
 	"DEVICE_LOCAL_MEM_SIZE":              cl.DEVICE_LOCAL_MEM_SIZE,
 	"DEVICE_PREFERRED_VECTOR_WIDTH_CHAR": cl.DEVICE_PREFERRED_VECTOR_WIDTH_CHAR,
@@ -58,8 +60,13 @@ func StatInfo() {
 			log.Printf("DeviceIdAddr:%v\n", &devices[y])
 			for propName, propVal := range deviceProperties {
 				cl.GetDeviceInfo(devices[y], propVal, DataSize, unsafe.Pointer(&data[0]), &size)
-				str := string(data[0:size])
-				log.Printf("\t %v: %v", propName, str)
+				if size == 4 {
+					log.Printf("\t %v: %v", propName, binary.LittleEndian.Uint32(data[0:size]))
+				} else if size == 8 {
+					log.Printf("\t %v: %v", propName, binary.LittleEndian.Uint64(data[0:size]))
+				} else {
+					log.Printf("\t %v: %v", propName, string(data[0:size]))
+				}
 			}
 			log.Printf("---\n")
 		}

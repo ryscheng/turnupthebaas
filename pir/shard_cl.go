@@ -4,7 +4,6 @@ package pir
 
 import (
 	"fmt"
-	//"math"
 	"strings"
 	"unsafe"
 
@@ -54,6 +53,11 @@ func NewShardCL(name string, context *ContextCL, bucketSize int, data []byte, re
 	s.clData = cl.CreateBuffer(s.context.Context, cl.MEM_READ_ONLY, uint64(len(data)), nil, errptr)
 	if errptr != nil && cl.ErrorCode(*errptr) != cl.SUCCESS {
 		return nil, fmt.Errorf("NewShardCL(%v) failed: couldnt create OpenCL buffer", name)
+	}
+	//Write shard data to GPU
+	err := cl.EnqueueWriteBuffer(s.context.CommandQueue, s.clData, cl.TRUE, 0, uint64(len(data)), unsafe.Pointer(&data[0]), 0, nil, nil)
+	if err != cl.SUCCESS {
+		return nil, fmt.Errorf("NewShardCL(%v) failed: cannot write shard to GPU (OpenCL buffer)", name)
 	}
 
 	return s, nil
@@ -143,30 +147,42 @@ func (s *ShardCL) read0(reqs []byte, reqLength int) ([]byte, error) {
 		return nil, fmt.Errorf("Failed to write to input requests (OpenCL buffer)")
 	}
 
+	// Note: SetKernelArgs->EnqueueNDRangeKernel is not thread-safe
+	//   @todo - create multiple kernels to support parallel PIR in a single context
+	//   https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clSetKernelArg.html
+	/** START LOCK REGION **/
+	s.context.KernelMutex.Lock()
+	//count := uint32(DataSize)
 	//Set kernel args
-	count := uint32(DataSize)
-	err = cl.SetKernelArg(s.context.Kernel, 0, 8, unsafe.Pointer(&input))
+	data := s.clData
+	err = cl.SetKernelArg(s.context.Kernel, 0, 8, unsafe.Pointer(&data))
 	if err != cl.SUCCESS {
 		return nil, fmt.Errorf("Failed to write kernel arg 0")
 	}
-	err = cl.SetKernelArg(s.context.Kernel, 1, 8, unsafe.Pointer(&output))
+	err = cl.SetKernelArg(s.context.Kernel, 1, 8, unsafe.Pointer(&input))
 	if err != cl.SUCCESS {
 		return nil, fmt.Errorf("Failed to write kernel arg 1")
 	}
-	err = cl.SetKernelArg(s.context.Kernel, 2, 4, unsafe.Pointer(&count))
+	err = cl.SetKernelArg(s.context.Kernel, 2, 8, unsafe.Pointer(&output))
 	if err != cl.SUCCESS {
 		return nil, fmt.Errorf("Failed to write kernel arg 2")
 	}
+	//err = cl.SetKernelArg(s.context.Kernel, 3, 4, unsafe.Pointer(&count))
+	//if err != cl.SUCCESS {
+	//	return nil, fmt.Errorf("Failed to write kernel arg 3")
+	//}
 
 	//global := local
 	local := uint64(s.context.GetGroupSize())
-	global := uint64(DataSize)
+	global := uint64(100024)
 	s.log.Info.Printf("local=%v, global=%v\n", local, global)
 	err = cl.EnqueueNDRangeKernel(s.context.CommandQueue, s.context.Kernel, 1, nil, &global, &local, 0, nil, nil)
 	if err != cl.SUCCESS {
 		return nil, fmt.Errorf("Failed to execute kernel!")
 	}
 	cl.Finish(s.context.CommandQueue)
+	s.context.KernelMutex.Unlock()
+	/** END LOCK REGION **/
 
 	err = cl.EnqueueReadBuffer(s.context.CommandQueue, output, cl.TRUE, 0, uint64(outputSize), unsafe.Pointer(&responses[0]), 0, nil, nil)
 	if err != cl.SUCCESS {

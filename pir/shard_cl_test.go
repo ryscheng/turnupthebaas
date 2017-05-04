@@ -20,7 +20,7 @@ func afterEachShardCL(f FatalInterface, shard Shard, context *ContextCL) {
 
 func TestShardCLReadv0(t *testing.T) {
 	fmt.Printf("TestShardCLReadv0: ...\n")
-	context, err := NewContextCL("contextcl")
+	context, err := NewContextCL("contextcl", KernelSource)
 	if err != nil {
 		t.Fatalf("cannot create new ContextCL: error=%v\n", err)
 	}
@@ -34,7 +34,7 @@ func TestShardCLReadv0(t *testing.T) {
 }
 
 func BenchmarkShardCLReadv0(b *testing.B) {
-	context, err := NewContextCL("contextcl")
+	context, err := NewContextCL("contextcl", KernelSource)
 	if err != nil {
 		b.Fatalf("cannot create new ShardCL: error=%v\n", err)
 	}
