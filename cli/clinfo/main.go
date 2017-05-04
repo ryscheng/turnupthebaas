@@ -1,6 +1,6 @@
 //+build !travis
 
-package clinfo
+package main
 
 import (
 	"log"

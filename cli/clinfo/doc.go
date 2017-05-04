@@ -1,1 +1,1 @@
-package clinfo
+package main
