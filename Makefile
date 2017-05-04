@@ -28,7 +28,10 @@ unit:
 
 coverage:
 	overalls -project=github.com/privacylab/talek -covermode=count -debug -- -tags travis
-	goveralls -coverprofile=overalls.coverprofile -service=travis-ci
+	@if [[ "$TRAVIS_JOB_NUMBER" =~ ".1" ]]; then\
+		echo "Uploading coverage to Coveralls.io"; \
+		goveralls -coverprofile=overalls.coverprofile -service=travis-ci; \
+	fi
 
 docker-build:
 	docker build -t talek-base:latest ./

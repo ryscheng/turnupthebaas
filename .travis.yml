@@ -6,7 +6,6 @@ install: true
 script:
   - make ci
 go:
-  - 1.7
   - 1.8
   - master
 notifications:
