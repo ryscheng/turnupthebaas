@@ -6,6 +6,27 @@ import (
 	"testing"
 )
 
+type FatalInterface interface {
+	Fatal(args ...interface{})
+	Fatalf(format string, args ...interface{})
+}
+
+const (
+	TestNumMessages  = 32
+	TestMessageSize  = 2
+	TestDepth        = 2 // 16 buckets
+	BenchNumMessages = 1000000
+	BenchMessageSize = 1024
+	BenchDepth       = 4 // 250000 buckets
+)
+
+func afterEachShardCPU(f FatalInterface, shard Shard) {
+	err := shard.Free()
+	if err != nil {
+		f.Fatalf("error freeing shard: %v\n", err)
+	}
+}
+
 func generateData(size int) []byte {
 	data := make([]byte, size)
 	for i := 0; i < size; i++ {
@@ -15,7 +36,6 @@ func generateData(size int) []byte {
 }
 
 func HelperTestShardRead(t *testing.T, shard Shard) {
-	fmt.Printf("TestShardRead: %s ...\n", shard.GetName())
 
 	// Populate batch read request
 	batchSize := 3
@@ -74,36 +94,28 @@ func HelperTestShardRead(t *testing.T, shard Shard) {
 		}
 	}
 
-	// Free
-	err = shard.Free()
-	if err != nil {
-		t.Fatalf("error freeing shard: %v\n", err)
-	}
-
-	fmt.Printf("... done \n")
-
 }
 
 func TestShardCPUReadv0(t *testing.T) {
-	numMessages := 32
-	messageSize := 2
-	depth := 2 // 16 buckets
-	shard, err := NewShardCPU("shardcpuv0", depth*messageSize, generateData(numMessages*messageSize), 0)
+	fmt.Printf("TestShardCPUReadv0: ...\n")
+	shard, err := NewShardCPU("shardcpuv0", TestDepth*TestMessageSize, generateData(TestNumMessages*TestMessageSize), 0)
 	if err != nil {
 		t.Fatalf("cannot create new ShardCPU v0: error=%v\n", err)
 	}
 	HelperTestShardRead(t, shard)
+	afterEachShardCPU(t, shard)
+	fmt.Printf("... done \n")
 }
 
 func TestShardCPUReadv1(t *testing.T) {
-	numMessages := 32
-	messageSize := 2
-	depth := 2 // 16 buckets
-	shard, err := NewShardCPU("shardcpuv1", depth*messageSize, generateData(numMessages*messageSize), 1)
+	fmt.Printf("TestShardCPUReadv1: ...\n")
+	shard, err := NewShardCPU("shardcpuv1", TestDepth*TestMessageSize, generateData(TestNumMessages*TestMessageSize), 1)
 	if err != nil {
 		t.Fatalf("cannot create new ShardCPU v1: error=%v\n", err)
 	}
 	HelperTestShardRead(t, shard)
+	afterEachShardCPU(t, shard)
+	fmt.Printf("... done \n")
 }
 
 func HelperBenchmarkShardRead(b *testing.B, shard Shard, batchSize int) {
@@ -126,32 +138,23 @@ func HelperBenchmarkShardRead(b *testing.B, shard Shard, batchSize int) {
 		}
 	}
 	b.StopTimer()
-	// Free
-	err := shard.Free()
-	if err != nil {
-		b.Fatalf("error freeing shard: %v\n", err)
-	}
 
 }
 
 func BenchmarkShardCPUReadv0(b *testing.B) {
-	numMessages := 1000000
-	messageSize := 1024
-	depth := 4 // 250000 buckets
-	shard, err := NewShardCPU("shardcpuv0", depth*messageSize, generateData(numMessages*messageSize), 0)
+	shard, err := NewShardCPU("shardcpuv0", BenchDepth*BenchMessageSize, generateData(BenchNumMessages*BenchMessageSize), 0)
 	if err != nil {
 		b.Fatalf("cannot create new ShardCPU v0: error=%v\n", err)
 	}
 	HelperBenchmarkShardRead(b, shard, 32)
+	afterEachShardCPU(b, shard)
 }
 
 func BenchmarkShardCPUReadv1(b *testing.B) {
-	numMessages := 1000000
-	messageSize := 1024
-	depth := 4 // 250000 buckets
-	shard, err := NewShardCPU("shardcpuv1", depth*messageSize, generateData(numMessages*messageSize), 1)
+	shard, err := NewShardCPU("shardcpuv1", BenchDepth*BenchMessageSize, generateData(BenchNumMessages*BenchMessageSize), 1)
 	if err != nil {
 		b.Fatalf("cannot create new ShardCPU v1: error=%v\n", err)
 	}
 	HelperBenchmarkShardRead(b, shard, 32)
+	afterEachShardCPU(b, shard)
 }

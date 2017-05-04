@@ -29,15 +29,28 @@ const (
 	DataSize = 1024
 )
 
+// KernelSource is the source code of the program we're going to run.
+var KernelSource = `
+__kernel void pir(
+   __global float* input,
+   __global float* output,
+   const unsigned int count)
+{
+   int i = get_global_id(0);
+   if(i < count)
+     output[i] = input[i] * input[i];
+}` + "\x00"
+
 // NewShardCL creates a new OpenCL-backed shard
 // The data is represented as a flat byte array = append(bucket_1, bucket_2 ... bucket_n)
 // Pre-conditions:
 // - len(data) must be a multiple of bucketSize
 // Returns: the shard, or an error if mismatched size
-func NewShardCL(name string, bucketSize int, data []byte, readVersion int, context *ContextCL) (*ShardCL, error) {
+func NewShardCL(name string, context *ContextCL, bucketSize int, data []byte, readVersion int) (*ShardCL, error) {
 	s := &ShardCL{}
 	s.log = common.NewLogger(name)
 	s.name = name
+	s.context = context
 
 	// GetNumBuckets will compute the number of buckets stored in the Shard
 	// If len(s.data) is not cleanly divisible by s.bucketSize,
@@ -50,7 +63,6 @@ func NewShardCL(name string, bucketSize int, data []byte, readVersion int, conte
 	s.numBuckets = (len(data) / bucketSize)
 	s.data = data
 	s.readVersion = readVersion
-	s.context = context
 
 	return s, nil
 }
@@ -99,6 +111,10 @@ func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 	return nil, fmt.Errorf("ShardCL.Read: invalid readVersion=%d", s.readVersion)
 }
 
+/*********************************************
+ * PRIVATE METHODS
+ *********************************************/
+
 func (s *ShardCL) read0(reqs []byte, reqLength int) ([]byte, error) {
 	numReqs := len(reqs) / reqLength
 	responses := make([]byte, numReqs*s.bucketSize)
@@ -110,46 +126,6 @@ func (s *ShardCL) read0(reqs []byte, reqLength int) ([]byte, error) {
 		for x := 0; x < len(data); x++ {
 			data[x] = rand.Float32()*99 + 1
 		}
-
-		//Create Computer Context
-		var errptr *cl.ErrorCode
-		context := cl.CreateContext(nil, 1, &device, nil, nil, errptr)
-		if errptr != nil && cl.ErrorCode(*errptr) != cl.SUCCESS {
-			s.log.Error.Fatal("couldnt create context")
-		}
-		defer cl.ReleaseContext(context)
-
-		//Create Command Queue
-		cq := cl.CreateCommandQueue(context, device, 0, errptr)
-		if errptr != nil && cl.ErrorCode(*errptr) != cl.SUCCESS {
-			s.log.Error.Fatal("couldnt create command queue")
-		}
-		defer cl.ReleaseCommandQueue(cq)
-
-		//Create program
-		srcptr := cl.Str(KernelSource)
-		program := cl.CreateProgramWithSource(context, 1, &srcptr, nil, errptr)
-		if errptr != nil && cl.ErrorCode(*errptr) != cl.SUCCESS {
-			s.log.Error.Fatal("couldnt create program")
-		}
-		defer cl.ReleaseProgram(program)
-
-		err := cl.BuildProgram(program, 1, &device, nil, nil, nil)
-		if err != cl.SUCCESS {
-			var length uint64
-			buffer := make([]byte, DataSize)
-
-			s.log.Error.Println("Error: Failed to build program executable!")
-			cl.GetProgramBuildInfo(program, device, cl.PROGRAM_BUILD_LOG, uint64(len(buffer)), unsafe.Pointer(&buffer[0]), &length)
-			s.log.Error.Fatal(string(buffer[0:length]))
-		}
-
-		//Get Kernel (~CUDA Grid)
-		kernel := cl.CreateKernel(program, cl.Str("pir"+"\x00"), errptr)
-		if errptr != nil && cl.ErrorCode(*errptr) != cl.SUCCESS {
-			s.log.Error.Fatal("couldnt create compute kernel")
-		}
-		defer cl.ReleaseKernel(kernel)
 
 		//Create buffers
 		input := cl.CreateBuffer(context, cl.MEM_READ_ONLY, 4*DataSize, nil, errptr)
