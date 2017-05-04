@@ -4,6 +4,8 @@ package pir
 
 import (
 	"fmt"
+	"io/ioutil"
+	"strings"
 	"unsafe"
 
 	"github.com/go-gl/cl/v1.2/cl"
@@ -16,18 +18,27 @@ import (
 type ContextCL struct {
 	log          *common.Logger
 	name         string
+	kernelSource string
 	platformID   cl.PlatformID
 	deviceID     cl.DeviceId
-	context      cl.Context
-	commandQueue cl.CommandQueue
+	Context      cl.Context
+	CommandQueue cl.CommandQueue
 	program      cl.Program
-	kernel       cl.Kernel
+	Kernel       cl.Kernel
+	groupSize    uint64
 }
 
-func NewContextCL(name string) (*ContextCL, error) {
+func NewContextCL(name string, kernelFile string) (*ContextCL, error) {
 	c := &ContextCL{}
 	c.log = common.NewLogger(name)
 	c.name = name
+
+	// Read Kernel Source
+	kernelBytes, fErr := ioutil.ReadFile(kernelFile)
+	if fErr != nil {
+		return nil, fmt.Errorf("NewContextCl: failed to read kernel source")
+	}
+	c.kernelSource = string(kernelBytes) + "\x00"
 
 	// Get Platform
 	ids := make([]cl.PlatformID, 100)
@@ -39,47 +50,55 @@ func NewContextCL(name string) (*ContextCL, error) {
 	c.platformID = ids[0]
 
 	// Get Device
-	devices := make([]cl.DeviceId, 100)
-	err = cl.GetDeviceIDs(c.platformID, cl.DEVICE_TYPE_GPU, 1, &devices[0], &count)
+	var device cl.DeviceId
+	err = cl.GetDeviceIDs(c.platformID, cl.DEVICE_TYPE_GPU, 1, &device, &count)
 	if err != cl.SUCCESS || count < 1 {
 		return nil, fmt.Errorf("NewContextCl: failed to create OpenCL device group\n")
 	}
-	c.deviceID = devices[0]
+	c.deviceID = device
 
 	//Create Computer Context
 	var errptr *cl.ErrorCode
-	c.context = cl.CreateContext(nil, 1, &c.deviceID, nil, nil, errptr)
+	c.Context = cl.CreateContext(nil, 1, &device, nil, nil, errptr)
 	if errptr != nil && cl.ErrorCode(*errptr) != cl.SUCCESS {
 		c.log.Error.Fatal("couldnt create context")
 	}
 
 	//Create Command Queue
-	c.commandQueue = cl.CreateCommandQueue(c.context, c.deviceID, 0, errptr)
+	c.CommandQueue = cl.CreateCommandQueue(c.Context, device, 0, errptr)
 	if errptr != nil && cl.ErrorCode(*errptr) != cl.SUCCESS {
 		c.log.Error.Fatal("couldnt create command queue")
 	}
 
 	//Create program
-	srcptr := cl.Str(KernelSource)
-	c.program = cl.CreateProgramWithSource(c.context, 1, &srcptr, nil, errptr)
+	srcptr := cl.Str(c.kernelSource)
+	c.program = cl.CreateProgramWithSource(c.Context, 1, &srcptr, nil, errptr)
 	if errptr != nil && cl.ErrorCode(*errptr) != cl.SUCCESS {
 		c.log.Error.Fatal("couldnt create program")
 	}
 
-	err = cl.BuildProgram(c.program, 1, &c.deviceID, nil, nil, nil)
+	err = cl.BuildProgram(c.program, 1, &device, nil, nil, nil)
 	if err != cl.SUCCESS {
 		var length uint64
-		buffer := make([]byte, DataSize)
+		buffer := make([]byte, 1024)
 		c.log.Error.Println("Error: Failed to build program executable!")
-		cl.GetProgramBuildInfo(c.program, c.deviceID, cl.PROGRAM_BUILD_LOG, uint64(len(buffer)), unsafe.Pointer(&buffer[0]), &length)
+		cl.GetProgramBuildInfo(c.program, device, cl.PROGRAM_BUILD_LOG, uint64(len(buffer)), unsafe.Pointer(&buffer[0]), &length)
 		c.log.Error.Fatal(string(buffer[0:length]))
 	}
 
 	//Get Kernel (~CUDA Grid)
-	c.kernel = cl.CreateKernel(c.program, cl.Str("pir"+"\x00"), errptr)
+	c.Kernel = cl.CreateKernel(c.program, cl.Str("pir"+"\x00"), errptr)
 	if errptr != nil && cl.ErrorCode(*errptr) != cl.SUCCESS {
 		c.log.Error.Fatal("couldnt create compute kernel")
 	}
+
+	// OpenCL work-group = CUDA block
+	groupSize := uint64(0)
+	err = cl.GetKernelWorkGroupInfo(c.Kernel, device, cl.KERNEL_WORK_GROUP_SIZE, 8, unsafe.Pointer(&groupSize), nil)
+	if err != cl.SUCCESS {
+		c.log.Error.Fatal("Failed to get kernel work group info")
+	}
+	c.groupSize = groupSize
 
 	return c, nil
 
@@ -91,11 +110,29 @@ func NewContextCL(name string) (*ContextCL, error) {
 
 // Free currently does nothing. ShardCL waits for the go garbage collector
 func (c *ContextCL) Free() error {
-	cl.ReleaseKernel(c.kernel)
-	cl.ReleaseProgram(c.program)
-	cl.ReleaseCommandQueue(c.commandQueue)
-	cl.ReleaseContext(c.context)
+	errStr := ""
+	err := cl.ReleaseKernel(c.Kernel)
+	if err != cl.SUCCESS {
+		errStr += cl.ErrToStr(err) + "\n"
+	}
+	err = cl.ReleaseProgram(c.program)
+	if err != cl.SUCCESS {
+		errStr += cl.ErrToStr(err) + "\n"
+	}
+	cl.ReleaseCommandQueue(c.CommandQueue)
+	err = cl.ReleaseContext(c.Context)
+	if err != cl.SUCCESS {
+		errStr += cl.ErrToStr(err) + "\n"
+	}
+	if strings.Compare(errStr, "") != 0 {
+		return fmt.Errorf("ContextCL.Free errors: " + errStr)
+	}
 	return nil
+}
+
+// Returns the working group size of this context
+func (c *ContextCL) GetGroupSize() uint64 {
+	return c.groupSize
 }
 
 /*********************************************
