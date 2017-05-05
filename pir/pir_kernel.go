@@ -124,39 +124,43 @@ void pir(__global DATA_TYPE* db,
 // Workgroup == 1 request
 // Workgroup items split up the scan over the database
 const KernelSourceX = `
+#define DATA_TYPE unsigned int
 __kernel
-void pir(__global unsigned long* db,
+void pir(__global DATA_TYPE* db,
          __global char* reqs,
-         __global unsigned long* output,
-         __local unsigned long* scratch,
-         __const int length,                 // total number of longs in db.
-         __const int cell_length) { // number of longs in 1 'cell'
+         __global DATA_TYPE* output,
+         __local DATA_TYPE* scratch,
+         __const unsigned int batchSize,
+				 __const unsigned int reqLength,
+			   __const unsigned int bucketSize,
+			   __const unsigned int globalSize,
+			   __const unsigned int scratchSize) {
 
   int workgroup_size = get_local_size(0);
   int workgroup_index = get_local_id(0);
   int workgroup_num = get_group_id(0);
-  int mask_offset = workgroup_num * (length / cell_length) / 8;
+  int mask_offset = workgroup_num * (globalSize / bucketSize) / 8;
   long current_mask;
   short bitshift;
 
   // zero scratch
-  for (int offset = workgroup_index; offset < cell_length; offset += workgroup_size) {
+  for (int offset = workgroup_index; offset < bucketSize; offset += workgroup_size) {
       scratch[offset] = 0;
   }
   barrier(CLK_LOCAL_MEM_FENCE);
 
   // Accumulate in parallel.
-  for (int offset = workgroup_index; offset < length; offset += workgroup_size) {
-    bitshift = offset / cell_length % 8;
-    current_mask = reqs[mask_offset + offset / cell_length / 8] & (1 << bitshift);
+  for (int offset = workgroup_index; offset < globalSize; offset += workgroup_size) {
+    bitshift = offset / bucketSize % 8;
+    current_mask = reqs[mask_offset + offset / bucketSize / 8] & (1 << bitshift);
     current_mask = (current_mask >> bitshift) * -1;
-    scratch[offset % cell_length] ^= current_mask & db[offset];
+    scratch[offset % bucketSize] ^= current_mask & db[offset];
   }
 
   // send to output.
   barrier(CLK_LOCAL_MEM_FENCE);
-  for (int offset = workgroup_index; offset < cell_length; offset += workgroup_size) {
-    output[workgroup_num * cell_length + offset] = scratch[offset];
+  for (int offset = workgroup_index; offset < bucketSize; offset += workgroup_size) {
+    output[workgroup_num * bucketSize + offset] = scratch[offset];
   }
 }
 ` + "\x00"

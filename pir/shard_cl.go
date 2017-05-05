@@ -113,7 +113,7 @@ func (s *ShardCL) GetData() []byte {
 func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 	if len(reqs)%reqLength != 0 {
 		return nil, fmt.Errorf("ShardCL.Read expects len(reqs)=%d to be a multiple of reqLength=%d", len(reqs), reqLength)
-	} else if s.readVersion < 0 || s.readVersion > 1 {
+	} else if s.readVersion < 0 || s.readVersion > 2 {
 		return nil, fmt.Errorf("ShardCL.Read: invalid readVersion=%d", s.readVersion)
 	}
 
@@ -189,6 +189,8 @@ func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 		global = uint64(len(s.data) / KERNEL_DATATYPE_SIZE)
 	} else if s.readVersion == 1 {
 		global = uint64(outputSize / KERNEL_DATATYPE_SIZE)
+	} else if s.readVersion == 2 {
+		global = local * uint64(batchSize)
 	} else {
 		return nil, fmt.Errorf("Invalid readVersion")
 	}
