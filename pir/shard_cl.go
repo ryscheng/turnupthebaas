@@ -203,7 +203,7 @@ func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 	if err != cl.SUCCESS {
 		return nil, fmt.Errorf("Failed to execute kernel!")
 	}
-	cl.Finish(s.context.CommandQueue)
+	cl.Finish(s.context.CommandQueue) //@todo inside or outside lock region?
 	s.context.KernelMutex.Unlock()
 	/** END LOCK REGION **/
 

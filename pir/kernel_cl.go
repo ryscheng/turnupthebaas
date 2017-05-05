@@ -20,7 +20,9 @@ const (
 
 // Workgroup == 1 request
 // Workgroup items split up the scan over the database
+// Cache the working result
 const KernelCL0 = `
+#pragma OPENCL EXTENSION cl_khr_int64_extended_atomics : enable
 #define DATA_TYPE unsigned long
 __kernel
 void pir(__global DATA_TYPE* db,
@@ -36,29 +38,37 @@ void pir(__global DATA_TYPE* db,
 
   int workgroup_size = get_local_size(0);
   int workgroup_index = get_local_id(0);
-  int workgroup_num = get_group_id(0);
-  int mask_offset = workgroup_num * (globalSize / bucketSize) / 8;
-  long current_mask;
-  short bitshift;
+  int workgroup_num = get_group_id(0);	  // request index
 
   // zero scratch
   for (int offset = workgroup_index; offset < bucketSize; offset += workgroup_size) {
-    scratch[offset] = 0;
+      scratch[offset] = 0;
   }
   barrier(CLK_LOCAL_MEM_FENCE);
 
   // Accumulate in parallel.
-  for (int offset = workgroup_index; offset < globalSize; offset += workgroup_size) {
-    bitshift = offset / bucketSize % 8;
-    current_mask = reqs[mask_offset + offset / bucketSize / 8] & (1 << bitshift);
-    current_mask = (current_mask >> bitshift) * -1;
-    scratch[offset % bucketSize] ^= current_mask & db[offset];
+  int dbSize = numBuckets * bucketSize;
+  int reqIndex = workgroup_num * reqLength;
+  int bucketId;
+  int depthOffset;
+  unsigned char reqBit;
+  for (int offset = workgroup_index; offset < dbSize; offset += workgroup_size) {
+    bucketId = offset / bucketSize;
+    depthOffset = offset % bucketSize;
+    reqBit = reqs[reqIndex + (bucketId/8)] & (1 << (bucketId%8));
+    //current_mask = (current_mask >> bitshift) * -1;
+    //scratch[depthOffset] ^= current_mask & db[offset];
+    if (reqBit != 0) {
+      //scratch[depthOffset] ^= db[offset];
+      atom_xor(&scratch[depthOffset], db[offset]);
+    }
   }
 
   // send to output.
   barrier(CLK_LOCAL_MEM_FENCE);
+  int respIndex = workgroup_num * bucketSize;
   for (int offset = workgroup_index; offset < bucketSize; offset += workgroup_size) {
-    output[workgroup_num * bucketSize + offset] = scratch[offset];
+    output[respIndex + offset] = scratch[offset];
   }
 }
 ` + "\x00"
@@ -90,6 +100,7 @@ void pir(__global DATA_TYPE* db,
 
   //barrier(CLK_LOCAL_MEM_FENCE);
   
+  // Iterate over all buckets, xor data into my result
   DATA_TYPE result = 0;
   int reqIndex = (globalIndex / bucketSize) * reqLength;
   int offset = globalIndex % bucketSize;
@@ -132,6 +143,7 @@ void pir(__global DATA_TYPE* db,
 
   //barrier(CLK_LOCAL_MEM_FENCE);
   
+  // Iterate over all buckets, xor data into my result
   DATA_TYPE result = 0;
   int reqIndex = (globalIndex / bucketSize) * reqLength;
   int offset = globalIndex % bucketSize;
@@ -175,7 +187,7 @@ void pir(__global DATA_TYPE* db,
 
   int outputSize = batchSize * bucketSize;
 
-  // Zero output
+  // Zero output first
   if (globalSize >= outputSize && globalIndex < outputSize) {
     output[globalIndex] = 0;
   } else if (globalSize < outputSize) {
@@ -188,7 +200,7 @@ void pir(__global DATA_TYPE* db,
   }
   barrier(CLK_GLOBAL_MEM_FENCE);
 
-  // Iterate over a batch
+  // Iterate over requests in a batch, atomic_xor my data into output
   DATA_TYPE data = db[globalIndex];
   int bucketId = globalIndex / bucketSize;
   int depthOffset = globalIndex % bucketSize;
