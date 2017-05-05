@@ -18,39 +18,9 @@ func afterEachShardCL(f FatalInterface, shard Shard, context *ContextCL) {
 	}
 }
 
-func XTestShardCLReadv0(t *testing.T) {
+func TestShardCLReadv0(t *testing.T) {
 	fmt.Printf("TestShardCLReadv0: ...\n")
-	context, err := NewContextCL("contextcl", KernelSource0)
-	if err != nil {
-		t.Fatalf("cannot create new ContextCL: error=%v\n", err)
-	}
-	shard, err := NewShardCL("shardcl", context, TestDepth*TestMessageSize, generateData(TestNumMessages*TestMessageSize), TestNumMessages*TestMessageSize/KERNEL_DATATYPE_SIZE)
-	if err != nil {
-		t.Fatalf("cannot create new ShardCL: error=%v\n", err)
-	}
-	HelperTestShardRead(t, shard)
-	afterEachShardCL(t, shard, context)
-	fmt.Printf("... done \n")
-}
-
-func XTestShardCLReadv1(t *testing.T) {
-	fmt.Printf("TestShardCLReadv1: ...\n")
-	context, err := NewContextCL("contextcl", KernelSource1)
-	if err != nil {
-		t.Fatalf("cannot create new ContextCL: error=%v\n", err)
-	}
-	shard, err := NewShardCL("shardcl", context, TestDepth*TestMessageSize, generateData(TestNumMessages*TestMessageSize), TestBatchSize*TestDepth*TestMessageSize/KERNEL_DATATYPE_SIZE)
-	if err != nil {
-		t.Fatalf("cannot create new ShardCL: error=%v\n", err)
-	}
-	HelperTestShardRead(t, shard)
-	afterEachShardCL(t, shard, context)
-	fmt.Printf("... done \n")
-}
-
-func TestShardCLReadv2(t *testing.T) {
-	fmt.Printf("TestShardCLReadv1: ...\n")
-	context, err := NewContextCL("contextcl", KernelSourceX)
+	context, err := NewContextCL("contextcl", KernelCL0)
 	if err != nil {
 		t.Fatalf("cannot create new ContextCL: error=%v\n", err)
 	}
@@ -63,9 +33,54 @@ func TestShardCLReadv2(t *testing.T) {
 	fmt.Printf("... done \n")
 }
 
-func BenchmarkShardCLReadv2(b *testing.B) {
+func TestShardCLReadv1(t *testing.T) {
+	fmt.Printf("TestShardCLReadv1: ...\n")
+	context, err := NewContextCL("contextcl", KernelCL1)
+	if err != nil {
+		t.Fatalf("cannot create new ContextCL: error=%v\n", err)
+	}
+	shard, err := NewShardCL("shardcl", context, TestDepth*TestMessageSize, generateData(TestNumMessages*TestMessageSize), TestBatchSize*TestDepth*TestMessageSize/KernelDataSize)
+	if err != nil {
+		t.Fatalf("cannot create new ShardCL: error=%v\n", err)
+	}
+	HelperTestShardRead(t, shard)
+	afterEachShardCL(t, shard, context)
+	fmt.Printf("... done \n")
+}
+
+func TestShardCLReadv2(t *testing.T) {
+	fmt.Printf("TestShardCLReadv2: ...\n")
+	context, err := NewContextCL("contextcl", KernelCL2)
+	if err != nil {
+		t.Fatalf("cannot create new ContextCL: error=%v\n", err)
+	}
+	shard, err := NewShardCL("shardcl", context, TestDepth*TestMessageSize, generateData(TestNumMessages*TestMessageSize), TestBatchSize*TestDepth*TestMessageSize/KernelDataSize)
+	if err != nil {
+		t.Fatalf("cannot create new ShardCL: error=%v\n", err)
+	}
+	HelperTestShardRead(t, shard)
+	afterEachShardCL(t, shard, context)
+	fmt.Printf("... done \n")
+}
+
+func TestShardCLReadv3(t *testing.T) {
+	fmt.Printf("TestShardCLReadv3: ...\n")
+	context, err := NewContextCL("contextcl", KernelCL3)
+	if err != nil {
+		t.Fatalf("cannot create new ContextCL: error=%v\n", err)
+	}
+	shard, err := NewShardCL("shardcl", context, TestDepth*TestMessageSize, generateData(TestNumMessages*TestMessageSize), TestNumMessages*TestMessageSize/KernelDataSize)
+	if err != nil {
+		t.Fatalf("cannot create new ShardCL: error=%v\n", err)
+	}
+	HelperTestShardRead(t, shard)
+	afterEachShardCL(t, shard, context)
+	fmt.Printf("... done \n")
+}
+
+func BenchmarkShardCLReadv0(b *testing.B) {
 	batchSize := 1
-	context, err := NewContextCL("contextcl", KernelSourceX)
+	context, err := NewContextCL("contextcl", KernelCL0)
 	if err != nil {
 		b.Fatalf("cannot create new ShardCL: error=%v\n", err)
 	}

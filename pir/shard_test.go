@@ -59,6 +59,7 @@ func HelperTestShardRead(t *testing.T, shard Shard) {
 
 	// Batch Read
 	response, err := shard.Read(reqs, reqLength)
+	//fmt.Printf("%v\n", response)
 
 	// Check fail
 	if err != nil {
@@ -90,7 +91,7 @@ func HelperTestShardRead(t *testing.T, shard Shard) {
 	for i := 0; i < bucketSize; i++ {
 		expected := data[i] ^ data[bucketSize+i] ^ data[2*bucketSize+i]
 		if res[i] != expected {
-			t.Fatalf("response is incorrect. byte %d was %d, not '%d'\n", i, res[i], expected)
+			t.Fatalf("response2 is incorrect. byte %d was %d, not '%d'\n", i, res[i], expected)
 		}
 	}
 
