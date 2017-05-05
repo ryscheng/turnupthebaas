@@ -18,7 +18,7 @@ func afterEachShardCL(f FatalInterface, shard Shard, context *ContextCL) {
 	}
 }
 
-func XTestShardCLReadv0(t *testing.T) {
+func TestShardCLReadv0(t *testing.T) {
 	fmt.Printf("TestShardCLReadv0: ...\n")
 	context, err := NewContextCL("contextcl", KernelCL0)
 	if err != nil {
@@ -63,7 +63,7 @@ func TestShardCLReadv2(t *testing.T) {
 	fmt.Printf("... done \n")
 }
 
-func XTestShardCLReadv3(t *testing.T) {
+func TestShardCLReadv3(t *testing.T) {
 	fmt.Printf("TestShardCLReadv3: ...\n")
 	context, err := NewContextCL("contextcl", KernelCL3)
 	if err != nil {

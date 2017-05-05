@@ -150,6 +150,7 @@ void pir(__global DATA_TYPE* db,
 // index => db
 // Cache portion of the database
 const KernelCL3 = `
+#pragma OPENCL EXTENSION cl_khr_int64_extended_atomics : enable
 #define DATA_TYPE unsigned long
 __kernel
 void pir(__global DATA_TYPE* db,
@@ -163,32 +164,41 @@ void pir(__global DATA_TYPE* db,
 	__const unsigned int globalSize,
 	__const unsigned int scratchSize) {
   //int globalSize = get_global_size(0);
-  //int groupIndex = get_group_id(0);
-  //int localSize = get_local_size(0);
-  int globalIndex = get_global_id(0);
+  int localSize = get_local_size(0);
   int localIndex = get_local_id(0);
+  int groupIndex = get_group_id(0);
+  int globalIndex = get_global_id(0);
 
-  if (globalIndex < globalSize) {
-    // Zero output
-    int outputSize = batchSize * bucketSize;
-    if (globalSize >= outputSize && globalIndex < outputSize) {
-      output[globalIndex] = 0;
-    } else if (globalSize < outputSize) {
-      int multiplier = outputSize / globalSize + 1;
-      int start = globalIndex * multiplier;
-      int end = start + multiplier;
-      for (int i = start; i < end && i < outputSize; i++) {
-	output[i] = 0;
-      }
-    }
-    barrier(CLK_GLOBAL_MEM_FENCE);
-
-    // Iterate over a batch
-    for (int i = 0; i < batchSize; i++) {
-      if () {
-      }
-    }
-
+  if (globalIndex >= globalSize) {
+    return;
   }
+
+  int outputSize = batchSize * bucketSize;
+
+  // Zero output
+  if (globalSize >= outputSize && globalIndex < outputSize) {
+    output[globalIndex] = 0;
+  } else if (globalSize < outputSize) {
+    int multiplier = outputSize / globalSize + 1;
+    int start = globalIndex * multiplier;
+    int end = start + multiplier;
+    for (int i = start; i < end && i < outputSize; i++) {
+      output[i] = 0;
+    }
+  }
+  barrier(CLK_GLOBAL_MEM_FENCE);
+
+  // Iterate over a batch
+  DATA_TYPE data = db[globalIndex];
+  int bucketId = globalIndex / bucketSize;
+  int depthOffset = globalIndex % bucketSize;
+  unsigned char reqBit;
+  for (int i = 0; i < batchSize; i++) {
+    reqBit = reqs[(i*reqLength) + (bucketId/8)] & (1 << (bucketId%8));
+    if (reqBit > 0) {
+      atom_xor(&output[(i*bucketSize)+depthOffset], data);
+    }
+  }
+
 }
 ` + "\x00"
