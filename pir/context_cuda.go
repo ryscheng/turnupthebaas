@@ -11,6 +11,7 @@ import (
 )
 
 const (
+	// CudaDeviceID is the hardcoded GPU device we'll use
 	CudaDeviceID = 0
 )
 
@@ -29,8 +30,9 @@ type ContextCUDA struct {
 	groupSize    uint64
 }
 
-func NewContextCL(name string, kernelSource string) (*ContextCL, error) {
-	c := &ContextCL{}
+// NewContextCUDA creates a new CUDA context, shared among ShardCUDA instances
+func NewContextCUDA(name string, kernelSource string) (*ContextCL, error) {
+	c := &ContextCUDA{}
 	c.log = common.NewLogger(name)
 	c.name = name
 	c.KernelMutex = &sync.Mutex{}
@@ -58,13 +60,13 @@ func NewContextCL(name string, kernelSource string) (*ContextCL, error) {
  *********************************************/
 
 // Free currently does nothing. ShardCL waits for the go garbage collector
-func (c *ContextCL) Free() error {
+func (c *ContextCUDA) Free() error {
 	c.ctx.Destroy()
 	return nil
 }
 
-// Returns the working group size of this context
-func (c *ContextCL) GetGroupSize() uint64 {
+// GetGroupSize returns the working group size of this context
+func (c *ContextCUDA) GetGroupSize() uint64 {
 	return c.groupSize
 }
 
