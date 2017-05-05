@@ -1,10 +1,10 @@
 package pir
 
 import (
-	"fmt"
-	"strings"
+	//"fmt"
+	//"strings"
 	"sync"
-	"unsafe"
+	//"unsafe"
 
 	"github.com/barnex/cuda5/cu"
 	"github.com/privacylab/talek/common"
@@ -27,11 +27,11 @@ type ContextCUDA struct {
 	ctx          cu.Context
 	module       cu.Module
 	fn           cu.Function
-	groupSize    uint64
+	groupSize    int
 }
 
 // NewContextCUDA creates a new CUDA context, shared among ShardCUDA instances
-func NewContextCUDA(name string, kernelSource string) (*ContextCL, error) {
+func NewContextCUDA(name string, kernelSource string) (*ContextCUDA, error) {
 	c := &ContextCUDA{}
 	c.log = common.NewLogger(name)
 	c.name = name
@@ -66,7 +66,7 @@ func (c *ContextCUDA) Free() error {
 }
 
 // GetGroupSize returns the working group size of this context
-func (c *ContextCUDA) GetGroupSize() uint64 {
+func (c *ContextCUDA) GetGroupSize() int {
 	return c.groupSize
 }
 
