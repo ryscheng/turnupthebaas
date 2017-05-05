@@ -13,7 +13,7 @@ import (
 
 const (
 	GPU_SCRATCH_SIZE     = 2048 // Size of GPU scratch/L1 cache in bytes
-	KERNEL_DATATYPE_SIZE = 4    // See DATA_TYPE in the kernel
+	KERNEL_DATATYPE_SIZE = 8    // See DATA_TYPE in the kernel
 )
 
 // ShardCL represents a read-only shard of the database,
@@ -208,7 +208,7 @@ func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 
 	err = cl.EnqueueReadBuffer(s.context.CommandQueue, output, cl.TRUE, 0, uint64(outputSize), unsafe.Pointer(&responses[0]), 0, nil, nil)
 	if err != cl.SUCCESS {
-		return nil, fmt.Errorf("Failed to read output response (OpenCL buffer)!")
+		return nil, fmt.Errorf("Failed to read output response (OpenCL buffer), err=%v", cl.ErrToStr(err))
 	}
 
 	return responses, nil

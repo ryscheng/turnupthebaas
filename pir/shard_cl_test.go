@@ -64,7 +64,7 @@ func TestShardCLReadv2(t *testing.T) {
 }
 
 func BenchmarkShardCLReadv2(b *testing.B) {
-	batchSize := 32
+	batchSize := 1
 	context, err := NewContextCL("contextcl", KernelSourceX)
 	if err != nil {
 		b.Fatalf("cannot create new ShardCL: error=%v\n", err)
