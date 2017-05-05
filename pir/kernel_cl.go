@@ -14,7 +14,7 @@ package pir
 
 // index => output
 // Cache the request
-const KernelSource0 = `
+const KernelCL0 = `
 #define DATA_TYPE unsigned int
 __kernel
 void pir(__global DATA_TYPE* db,
@@ -45,7 +45,7 @@ void pir(__global DATA_TYPE* db,
 
 // index => output
 // Cache a portion of the database
-const KernelSource1 = `
+const KernelCL1 = `
 #define DATA_TYPE unsigned int
 __kernel
 void pir(__global DATA_TYPE* db,
@@ -75,7 +75,7 @@ void pir(__global DATA_TYPE* db,
 
 // index => db
 // Cache portion of the database
-const KernelSource2 = `
+const KernelCL2 = `
 #define DATA_TYPE unsigned int
 __kernel
 void pir(__global DATA_TYPE* db,
@@ -120,7 +120,7 @@ void pir(__global DATA_TYPE* db,
 
 // Workgroup == 1 request
 // Workgroup items split up the scan over the database
-const KernelSourceX = `
+const KernelCLX = `
 #define DATA_TYPE unsigned long
 __kernel
 void pir(__global DATA_TYPE* db,
