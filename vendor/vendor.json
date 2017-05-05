@@ -21,6 +21,12 @@
 			"revisionTime": "2017-01-16T20:05:12Z"
 		},
 		{
+			"checksumSHA1": "To9cnJYk84Fr39FpMC7Qe+aGD2k=",
+			"path": "github.com/barnex/cuda5/cu",
+			"revision": "57cec7ab46da74b8ca2aa1d41e898c0646081b56",
+			"revisionTime": "2017-01-31T21:30:30Z"
+		},
+		{
 			"checksumSHA1": "+Hv/2IqEKGRWhSFZCVKABRVUmAs=",
 			"path": "github.com/coreos/etcd/pkg/flags",
 			"revision": "e2d0db95ebbc1b13a86c69e06bf4c9c840008e76",
