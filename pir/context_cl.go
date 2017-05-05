@@ -30,6 +30,8 @@ type ContextCL struct {
 	groupSize    int
 }
 
+// NewContextCL creates a new OpenCL context with a given kernel source.
+// New ShardCL instances will share the same kernel
 func NewContextCL(name string, kernelSource string) (*ContextCL, error) {
 	c := &ContextCL{}
 	c.log = common.NewLogger(name)
@@ -55,7 +57,7 @@ func NewContextCL(name string, kernelSource string) (*ContextCL, error) {
 	err := cl.GetPlatformIDs(uint32(len(ids)), &ids[0], &count)
 	if err != cl.SUCCESS || count < 1 {
 		c.Free()
-		return nil, fmt.Errorf("NewContextCl: failed to retrieve OpenCL platform ID\n")
+		return nil, fmt.Errorf("NewContextCl: failed to retrieve OpenCL platform ID")
 	}
 	c.platformID = ids[0]
 
@@ -64,7 +66,7 @@ func NewContextCL(name string, kernelSource string) (*ContextCL, error) {
 	err = cl.GetDeviceIDs(c.platformID, cl.DEVICE_TYPE_GPU, 1, &device, &count)
 	if err != cl.SUCCESS || count < 1 {
 		c.Free()
-		return nil, fmt.Errorf("NewContextCl: failed to create OpenCL device group\n")
+		return nil, fmt.Errorf("NewContextCl: failed to create OpenCL device group")
 	}
 	c.deviceID = device
 
@@ -148,7 +150,7 @@ func (c *ContextCL) Free() error {
 	return nil
 }
 
-// Returns the working group size of this context
+// GetGroupSize returns the working group size of this context
 func (c *ContextCL) GetGroupSize() int {
 	return c.groupSize
 }

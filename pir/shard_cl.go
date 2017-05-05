@@ -157,7 +157,7 @@ func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 	if err != cl.SUCCESS {
 		return nil, fmt.Errorf("Failed to write kernel arg 2")
 	}
-	err = cl.SetKernelArg(s.context.Kernel, 3, GPU_SCRATCH_SIZE, nil)
+	err = cl.SetKernelArg(s.context.Kernel, 3, GPUScratchSize, nil)
 	if err != cl.SUCCESS {
 		return nil, fmt.Errorf("Failed to write kernel arg 3")
 	}
@@ -176,7 +176,7 @@ func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 	if err != cl.SUCCESS {
 		return nil, fmt.Errorf("Failed to write kernel arg 6")
 	}
-	bucketSize32 := uint32(s.bucketSize / KERNEL_DATATYPE_SIZE)
+	bucketSize32 := uint32(s.bucketSize / KernelDataSize)
 	err = cl.SetKernelArg(s.context.Kernel, 7, 4, unsafe.Pointer(&bucketSize32))
 	if err != cl.SUCCESS {
 		return nil, fmt.Errorf("Failed to write kernel arg 7")
@@ -192,7 +192,7 @@ func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 	if err != cl.SUCCESS {
 		return nil, fmt.Errorf("Failed to write kernel arg 8")
 	}
-	scratchSize32 := uint32(GPU_SCRATCH_SIZE / KERNEL_DATATYPE_SIZE)
+	scratchSize32 := uint32(GPUScratchSize / KernelDataSize)
 	err = cl.SetKernelArg(s.context.Kernel, 9, 4, unsafe.Pointer(&scratchSize32))
 	if err != cl.SUCCESS {
 		return nil, fmt.Errorf("Failed to write kernel arg 9")
@@ -201,7 +201,7 @@ func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 	//s.log.Info.Printf("local=%v, global=%v\n", local, global)
 	err = cl.EnqueueNDRangeKernel(s.context.CommandQueue, s.context.Kernel, 1, nil, &global, &local, 0, nil, nil)
 	if err != cl.SUCCESS {
-		return nil, fmt.Errorf("Failed to execute kernel!")
+		return nil, fmt.Errorf("Failed to execute kernel")
 	}
 	cl.Finish(s.context.CommandQueue) //@todo inside or outside lock region?
 	s.context.KernelMutex.Unlock()

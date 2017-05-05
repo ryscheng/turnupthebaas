@@ -5,7 +5,7 @@ package pir
 // db: shard ([bucket0, bucket1, ...]) where each bucket is bucketSize bytes
 // reqs: batch of request vectors ([req0, req1, ...]) where each req is reqLength bytes
 // output: batch of responses ([resp0, resp1, ...]) where each resp is bucketSize bytes
-// scratch: L2 scratchpad of GPU_SCRATCH_SIZE bytes
+// scratch: L2 scratchpad of GPUScratchSize bytes
 // batchSize: number of requests per batch
 // reqLength: length of a request in bytes (numBuckets/8)
 // numBuckets: number of buckets in the shard
@@ -14,11 +14,13 @@ package pir
 // scratchSize: length of scratch in units of DATA_TYPE
 
 const (
-	GPU_SCRATCH_SIZE     = 2048 // Size of GPU scratch/L1 cache in bytes
-	KERNEL_DATATYPE_SIZE = 8    // See DATA_TYPE in the kernel
+	// GPUScratchSize is the size of GPU scratch/L1 cache in bytes
+	GPUScratchSize = 2048
+	// KernelDataSize must correspond to DATA_TYPE in the kernel
+	KernelDataSize = 8
 )
 
-// Workgroup == 1 request
+// KernelCL0 : 1 workgroup == 1 PIR request
 // Workgroup items split up the scan over the database
 // Cache the working result
 const KernelCL0 = `
@@ -73,7 +75,7 @@ void pir(__global DATA_TYPE* db,
 }
 ` + "\x00"
 
-// index => output
+// KernelCL1 : index => output
 // Cache the request
 const KernelCL1 = `
 #define DATA_TYPE unsigned long
@@ -116,7 +118,7 @@ void pir(__global DATA_TYPE* db,
 }
 ` + "\x00"
 
-// index => output
+// KernelCL2 : index => output
 // Cache a portion of the database
 const KernelCL2 = `
 #define DATA_TYPE unsigned long
@@ -159,7 +161,7 @@ void pir(__global DATA_TYPE* db,
 }
 ` + "\x00"
 
-// index => db
+// KernelCL3 : index => db
 // Cache portion of the database
 const KernelCL3 = `
 #pragma OPENCL EXTENSION cl_khr_int64_extended_atomics : enable
