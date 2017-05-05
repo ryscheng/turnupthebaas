@@ -117,7 +117,6 @@ func NewContextCL(name string, kernelSource string) (*ContextCL, error) {
 		return nil, fmt.Errorf("NewContextCl: Failed to get kernel work group info")
 	}
 	c.groupSize = groupSize
-	c.log.Error.Printf("!!! %v\n", groupSize)
 
 	return c, nil
 

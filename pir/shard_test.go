@@ -13,11 +13,11 @@ type FatalInterface interface {
 
 const (
 	TestNumMessages  = 32
-	TestMessageSize  = 2
-	TestDepth        = 2 // 16 buckets
-	BenchNumMessages = 1000000
+	TestMessageSize  = 8
+	TestDepth        = 2       // 16 buckets
+	BenchNumMessages = 1048576 // 2^20
 	BenchMessageSize = 1024
-	BenchDepth       = 4 // 250000 buckets
+	BenchDepth       = 4 // 262144=2^18 buckets
 )
 
 func afterEachShardCPU(f FatalInterface, shard Shard) {

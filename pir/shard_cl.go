@@ -11,6 +11,11 @@ import (
 	"github.com/privacylab/talek/common"
 )
 
+const (
+	GPU_SCRATCH_SIZE     = 2048 // Size of GPU scratch/L1 cache in bytes
+	KERNEL_DATATYPE_SIZE = 4    // See DATA_TYPE in the kernel
+)
+
 // ShardCL represents a read-only shard of the database,
 // backed by an OpenCL implementation of PIR
 type ShardCL struct {
@@ -108,21 +113,13 @@ func (s *ShardCL) GetData() []byte {
 func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 	if len(reqs)%reqLength != 0 {
 		return nil, fmt.Errorf("ShardCL.Read expects len(reqs)=%d to be a multiple of reqLength=%d", len(reqs), reqLength)
-	} else if s.readVersion == 0 {
-		return s.read0(reqs, reqLength)
+	} else if s.readVersion < 0 || s.readVersion > 1 {
+		return nil, fmt.Errorf("ShardCL.Read: invalid readVersion=%d", s.readVersion)
 	}
 
-	return nil, fmt.Errorf("ShardCL.Read: invalid readVersion=%d", s.readVersion)
-}
-
-/*********************************************
- * PRIVATE METHODS
- *********************************************/
-
-func (s *ShardCL) read0(reqs []byte, reqLength int) ([]byte, error) {
 	inputSize := len(reqs)
-	numReqs := inputSize / reqLength
-	outputSize := numReqs * s.bucketSize
+	batchSize := inputSize / reqLength
+	outputSize := batchSize * s.bucketSize
 	responses := make([]byte, outputSize)
 	context := s.context.Context
 	var err cl.ErrorCode
@@ -152,7 +149,6 @@ func (s *ShardCL) read0(reqs []byte, reqLength int) ([]byte, error) {
 	//   https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clSetKernelArg.html
 	/** START LOCK REGION **/
 	s.context.KernelMutex.Lock()
-	//count := uint32(DataSize)
 	//Set kernel args
 	data := s.clData
 	err = cl.SetKernelArg(s.context.Kernel, 0, 8, unsafe.Pointer(&data))
@@ -167,14 +163,49 @@ func (s *ShardCL) read0(reqs []byte, reqLength int) ([]byte, error) {
 	if err != cl.SUCCESS {
 		return nil, fmt.Errorf("Failed to write kernel arg 2")
 	}
-	//err = cl.SetKernelArg(s.context.Kernel, 3, 4, unsafe.Pointer(&count))
-	//if err != cl.SUCCESS {
-	//	return nil, fmt.Errorf("Failed to write kernel arg 3")
-	//}
-
+	err = cl.SetKernelArg(s.context.Kernel, 3, GPU_SCRATCH_SIZE, nil)
+	if err != cl.SUCCESS {
+		return nil, fmt.Errorf("Failed to write kernel arg 3")
+	}
+	batchSize32 := uint32(batchSize)
+	err = cl.SetKernelArg(s.context.Kernel, 4, 4, unsafe.Pointer(&batchSize32))
+	if err != cl.SUCCESS {
+		return nil, fmt.Errorf("Failed to write kernel arg 4")
+	}
+	reqLength32 := uint32(reqLength)
+	err = cl.SetKernelArg(s.context.Kernel, 5, 4, unsafe.Pointer(&reqLength32))
+	if err != cl.SUCCESS {
+		return nil, fmt.Errorf("Failed to write kernel arg 5")
+	}
+	bucketSize32 := uint32(s.bucketSize / KERNEL_DATATYPE_SIZE)
+	err = cl.SetKernelArg(s.context.Kernel, 6, 4, unsafe.Pointer(&bucketSize32))
+	if err != cl.SUCCESS {
+		return nil, fmt.Errorf("Failed to write kernel arg 6")
+	}
 	//global := local
 	local := uint64(s.context.GetGroupSize())
-	global := uint64(100024)
+	var global uint64
+	if s.readVersion == 0 {
+		global = uint64(len(s.data) / KERNEL_DATATYPE_SIZE)
+	} else if s.readVersion == 1 {
+		global = uint64(outputSize / KERNEL_DATATYPE_SIZE)
+	} else {
+		return nil, fmt.Errorf("Invalid readVersion")
+	}
+	if global < local {
+		local = global
+	}
+	global32 := uint32(global)
+	err = cl.SetKernelArg(s.context.Kernel, 7, 4, unsafe.Pointer(&global32))
+	if err != cl.SUCCESS {
+		return nil, fmt.Errorf("Failed to write kernel arg 7")
+	}
+	scratchSize32 := uint32(GPU_SCRATCH_SIZE / KERNEL_DATATYPE_SIZE)
+	err = cl.SetKernelArg(s.context.Kernel, 8, 4, unsafe.Pointer(&scratchSize32))
+	if err != cl.SUCCESS {
+		return nil, fmt.Errorf("Failed to write kernel arg 8")
+	}
+
 	s.log.Info.Printf("local=%v, global=%v\n", local, global)
 	err = cl.EnqueueNDRangeKernel(s.context.CommandQueue, s.context.Kernel, 1, nil, &global, &local, 0, nil, nil)
 	if err != cl.SUCCESS {
@@ -191,3 +222,7 @@ func (s *ShardCL) read0(reqs []byte, reqLength int) ([]byte, error) {
 
 	return responses, nil
 }
+
+/*********************************************
+ * PRIVATE METHODS
+ *********************************************/
