@@ -11,11 +11,6 @@ import (
 	"github.com/privacylab/talek/common"
 )
 
-const (
-	GPU_SCRATCH_SIZE     = 2048 // Size of GPU scratch/L1 cache in bytes
-	KERNEL_DATATYPE_SIZE = 8    // See DATA_TYPE in the kernel
-)
-
 // ShardCL represents a read-only shard of the database,
 // backed by an OpenCL implementation of PIR
 type ShardCL struct {
@@ -142,11 +137,12 @@ func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 		return nil, fmt.Errorf("Failed to write to input requests (OpenCL buffer)")
 	}
 
+	/** START LOCK REGION **/
+	s.context.KernelMutex.Lock()
+
 	// Note: SetKernelArgs->EnqueueNDRangeKernel is not thread-safe
 	//   @todo - create multiple kernels to support parallel PIR in a single context
 	//   https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clSetKernelArg.html
-	/** START LOCK REGION **/
-	s.context.KernelMutex.Lock()
 	//Set kernel args
 	data := s.clData
 	err = cl.SetKernelArg(s.context.Kernel, 0, 8, unsafe.Pointer(&data))
@@ -175,10 +171,15 @@ func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 	if err != cl.SUCCESS {
 		return nil, fmt.Errorf("Failed to write kernel arg 5")
 	}
-	bucketSize32 := uint32(s.bucketSize / KERNEL_DATATYPE_SIZE)
-	err = cl.SetKernelArg(s.context.Kernel, 6, 4, unsafe.Pointer(&bucketSize32))
+	numBuckets32 := uint32(s.numBuckets)
+	err = cl.SetKernelArg(s.context.Kernel, 6, 4, unsafe.Pointer(&numBuckets32))
 	if err != cl.SUCCESS {
 		return nil, fmt.Errorf("Failed to write kernel arg 6")
+	}
+	bucketSize32 := uint32(s.bucketSize / KERNEL_DATATYPE_SIZE)
+	err = cl.SetKernelArg(s.context.Kernel, 7, 4, unsafe.Pointer(&bucketSize32))
+	if err != cl.SUCCESS {
+		return nil, fmt.Errorf("Failed to write kernel arg 7")
 	}
 	//global := local
 	local := uint64(s.context.GetGroupSize())
@@ -187,17 +188,17 @@ func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 		local = global
 	}
 	global32 := uint32(global)
-	err = cl.SetKernelArg(s.context.Kernel, 7, 4, unsafe.Pointer(&global32))
-	if err != cl.SUCCESS {
-		return nil, fmt.Errorf("Failed to write kernel arg 7")
-	}
-	scratchSize32 := uint32(GPU_SCRATCH_SIZE / KERNEL_DATATYPE_SIZE)
-	err = cl.SetKernelArg(s.context.Kernel, 8, 4, unsafe.Pointer(&scratchSize32))
+	err = cl.SetKernelArg(s.context.Kernel, 8, 4, unsafe.Pointer(&global32))
 	if err != cl.SUCCESS {
 		return nil, fmt.Errorf("Failed to write kernel arg 8")
 	}
+	scratchSize32 := uint32(GPU_SCRATCH_SIZE / KERNEL_DATATYPE_SIZE)
+	err = cl.SetKernelArg(s.context.Kernel, 9, 4, unsafe.Pointer(&scratchSize32))
+	if err != cl.SUCCESS {
+		return nil, fmt.Errorf("Failed to write kernel arg 9")
+	}
 
-	s.log.Info.Printf("local=%v, global=%v\n", local, global)
+	//s.log.Info.Printf("local=%v, global=%v\n", local, global)
 	err = cl.EnqueueNDRangeKernel(s.context.CommandQueue, s.context.Kernel, 1, nil, &global, &local, 0, nil, nil)
 	if err != cl.SUCCESS {
 		return nil, fmt.Errorf("Failed to execute kernel!")
