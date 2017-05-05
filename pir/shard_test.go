@@ -12,6 +12,7 @@ type FatalInterface interface {
 }
 
 const (
+	TestBatchSize    = 3
 	TestNumMessages  = 32
 	TestMessageSize  = 8
 	TestDepth        = 2       // 16 buckets
@@ -38,12 +39,11 @@ func generateData(size int) []byte {
 func HelperTestShardRead(t *testing.T, shard Shard) {
 
 	// Populate batch read request
-	batchSize := 3
 	reqLength := shard.GetNumBuckets() / 8
 	if shard.GetNumBuckets()%8 != 0 {
 		reqLength++
 	}
-	reqs := make([]byte, reqLength*batchSize)
+	reqs := make([]byte, reqLength*TestBatchSize)
 	setBit := func(reqs []byte, reqIndex int, bucketIndex int) {
 		reqs[reqIndex*reqLength+(bucketIndex/8)] |= byte(1) << uint(bucketIndex%8)
 	}

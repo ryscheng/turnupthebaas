@@ -27,7 +27,7 @@ type ContextCL struct {
 	CommandQueue cl.CommandQueue
 	program      cl.Program
 	Kernel       cl.Kernel
-	groupSize    uint64
+	groupSize    int
 }
 
 func NewContextCL(name string, kernelSource string) (*ContextCL, error) {
@@ -116,7 +116,7 @@ func NewContextCL(name string, kernelSource string) (*ContextCL, error) {
 		c.Free()
 		return nil, fmt.Errorf("NewContextCl: Failed to get kernel work group info")
 	}
-	c.groupSize = groupSize
+	c.groupSize = int(groupSize)
 
 	return c, nil
 
@@ -149,7 +149,7 @@ func (c *ContextCL) Free() error {
 }
 
 // Returns the working group size of this context
-func (c *ContextCL) GetGroupSize() uint64 {
+func (c *ContextCL) GetGroupSize() int {
 	return c.groupSize
 }
 

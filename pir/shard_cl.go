@@ -19,14 +19,14 @@ const (
 // ShardCL represents a read-only shard of the database,
 // backed by an OpenCL implementation of PIR
 type ShardCL struct {
-	log         *common.Logger
-	name        string
-	context     *ContextCL
-	bucketSize  int
-	numBuckets  int
-	data        []byte
-	readVersion int
-	clData      cl.Mem
+	log        *common.Logger
+	name       string
+	context    *ContextCL
+	bucketSize int
+	numBuckets int
+	data       []byte
+	numThreads int
+	clData     cl.Mem
 }
 
 // NewShardCL creates a new OpenCL-backed shard
@@ -34,7 +34,7 @@ type ShardCL struct {
 // Pre-conditions:
 // - len(data) must be a multiple of bucketSize
 // Returns: the shard, or an error if mismatched size
-func NewShardCL(name string, context *ContextCL, bucketSize int, data []byte, readVersion int) (*ShardCL, error) {
+func NewShardCL(name string, context *ContextCL, bucketSize int, data []byte, numThreads int) (*ShardCL, error) {
 	s := &ShardCL{}
 	s.log = common.NewLogger(name)
 	s.name = name
@@ -50,7 +50,7 @@ func NewShardCL(name string, context *ContextCL, bucketSize int, data []byte, re
 	s.bucketSize = bucketSize
 	s.numBuckets = (len(data) / bucketSize)
 	s.data = data
-	s.readVersion = readVersion
+	s.numThreads = numThreads
 
 	/** OpenCL **/
 	//  Create buffers
@@ -113,8 +113,6 @@ func (s *ShardCL) GetData() []byte {
 func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 	if len(reqs)%reqLength != 0 {
 		return nil, fmt.Errorf("ShardCL.Read expects len(reqs)=%d to be a multiple of reqLength=%d", len(reqs), reqLength)
-	} else if s.readVersion < 0 || s.readVersion > 2 {
-		return nil, fmt.Errorf("ShardCL.Read: invalid readVersion=%d", s.readVersion)
 	}
 
 	inputSize := len(reqs)
@@ -184,16 +182,7 @@ func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 	}
 	//global := local
 	local := uint64(s.context.GetGroupSize())
-	var global uint64
-	if s.readVersion == 0 {
-		global = uint64(len(s.data) / KERNEL_DATATYPE_SIZE)
-	} else if s.readVersion == 1 {
-		global = uint64(outputSize / KERNEL_DATATYPE_SIZE)
-	} else if s.readVersion == 2 {
-		global = local * uint64(batchSize)
-	} else {
-		return nil, fmt.Errorf("Invalid readVersion")
-	}
+	global := uint64(s.numThreads)
 	if global < local {
 		local = global
 	}
