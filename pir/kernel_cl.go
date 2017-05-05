@@ -15,7 +15,7 @@ package pir
 
 const (
 	GPU_SCRATCH_SIZE     = 2048 // Size of GPU scratch/L1 cache in bytes
-	KERNEL_DATATYPE_SIZE = 1    // See DATA_TYPE in the kernel
+	KERNEL_DATATYPE_SIZE = 8    // See DATA_TYPE in the kernel
 )
 
 // Workgroup == 1 request
@@ -66,7 +66,7 @@ void pir(__global DATA_TYPE* db,
 // index => output
 // Cache the request
 const KernelCL1 = `
-#define DATA_TYPE unsigned char
+#define DATA_TYPE unsigned long
 __kernel
 void pir(__global DATA_TYPE* db,
         __global char* reqs,
@@ -87,6 +87,8 @@ void pir(__global DATA_TYPE* db,
   if (globalIndex >= globalSize) {
     return;
   }
+
+  //barrier(CLK_LOCAL_MEM_FENCE);
   
   DATA_TYPE result = 0;
   int reqIndex = (globalIndex / bucketSize) * reqLength;
@@ -100,14 +102,13 @@ void pir(__global DATA_TYPE* db,
   }
   output[globalIndex] = result;
 
-  //barrier(CLK_LOCAL_MEM_FENCE);
 }
 ` + "\x00"
 
 // index => output
 // Cache a portion of the database
 const KernelCL2 = `
-#define DATA_TYPE unsigned int
+#define DATA_TYPE unsigned long
 __kernel
 void pir(__global DATA_TYPE* db,
 	__global char* reqs,
@@ -120,25 +121,36 @@ void pir(__global DATA_TYPE* db,
 	__const unsigned int globalSize,
 	__const unsigned int scratchSize) {
   //int globalSize = get_global_size(0);
-  int globalIndex = get_global_id(0);
-  const int localSize = get_local_size(0);
+  int localSize = get_local_size(0);
   int localIndex = get_local_id(0);
   int groupIndex = get_group_id(0);
-  //__local char reqCache[reqLength];
+  int globalIndex = get_global_id(0);
 
   if (globalIndex >= globalSize) {
     return;
   }
 
-  //reqCache[localIndex] = reqs[];
   //barrier(CLK_LOCAL_MEM_FENCE);
+  
+  DATA_TYPE result = 0;
+  int reqIndex = (globalIndex / bucketSize) * reqLength;
+  int offset = globalIndex % bucketSize;
+  unsigned char reqBit;
+  for (int i = 0; i < numBuckets; i++) {
+    reqBit = reqs[reqIndex + (i/8)] & (1 << (i%8));
+    if (reqBit > 0) {
+      result ^= db[i*bucketSize+offset];
+    }
+  }
+  output[globalIndex] = result;
+
 }
 ` + "\x00"
 
 // index => db
 // Cache portion of the database
 const KernelCL3 = `
-#define DATA_TYPE unsigned int
+#define DATA_TYPE unsigned long
 __kernel
 void pir(__global DATA_TYPE* db,
 	__global char* reqs,
