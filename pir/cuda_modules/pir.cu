@@ -3,6 +3,9 @@
 *
 * To be compiled with nvcc -ptx pir.cu
 * Debug: nvcc -arch=sm_20 -ptx pir.cu
+* Note: CUDA may not support all versions of gcc;
+* See
+* https://groups.google.com/forum/#!topic/torch7/WaNmWZqMnzw
 **************************************************/
 
 //#include <stdio.h>
@@ -11,10 +14,10 @@
 extern "C" {
 #endif
 
-typedef long int int32_cu
-typedef unsigned long int uint32_cu
-typedef long long int int64_cu
-typedef unsigned long long int uint64_cu
+typedef long int int32_cu;
+typedef unsigned long int uint32_cu;
+typedef long long int int64_cu;
+typedef unsigned long long int uint64_cu;
 #define DATA_TYPE uint64_cu
 
 // CUDA Kernel
@@ -29,8 +32,8 @@ void pir(DATA_TYPE* db,
         uint32_cu bucketSize,
         uint32_cu globalSize,
         uint32_cu scratchSize) {
-  int localIndex = threadIdx.x;
-  int groupIndex = blockIdx.x;
+  //int localIndex = threadIdx.x;
+  //int groupIndex = blockIdx.x;
   int globalIndex = threadIdx.x + (blockIdx.x * blockDim.x);
 
   if (globalIndex >= globalSize) {
