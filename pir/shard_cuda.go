@@ -2,6 +2,14 @@
 
 package pir
 
+import (
+	"fmt"
+	"unsafe"
+
+	"github.com/barnex/cuda5/cu"
+	"github.com/privacylab/talek/common"
+)
+
 // ShardCUDA represents a read-only shard of the database,
 // backed by a CUDA implementation of PIR
 type ShardCUDA struct {
@@ -12,7 +20,7 @@ type ShardCUDA struct {
 	numBuckets int
 	data       []byte
 	numThreads int
-	cudaData   cuda.DevicePtr
+	cudaData   cu.DevicePtr
 }
 
 // NewShardCUDA creates a new CUDA-backed shard
@@ -40,8 +48,8 @@ func NewShardCUDA(name string, context *ContextCUDA, bucketSize int, data []byte
 
 	/** CUDA **/
 	//  Create buffers
-	s.cudaData = cu.MemAlloc(len(data))
-	cu.MemcpyHtoD(s.cudaData, unsafe.Pointer(&data[0]), len(data))
+	s.cudaData = cu.MemAlloc(int64(len(data)))
+	cu.MemcpyHtoD(s.cudaData, unsafe.Pointer(&data[0]), int64(len(data)))
 
 	return s, nil
 }
@@ -86,9 +94,9 @@ func (s *ShardCUDA) Read(reqs []byte, reqLength int) ([]byte, error) {
 		return nil, fmt.Errorf("ShardCUDA.Read expects len(reqs)=%d to be a multiple of reqLength=%d", len(reqs), reqLength)
 	}
 
-	inputSize := len(reqs)
-	batchSize := inputSize / reqLength
-	outputSize := batchSize * s.bucketSize
+	inputSize := int64(len(reqs))
+	batchSize := inputSize / int64(reqLength)
+	outputSize := batchSize * int64(s.bucketSize)
 	responses := make([]byte, outputSize)
 
 	// Create buffers
