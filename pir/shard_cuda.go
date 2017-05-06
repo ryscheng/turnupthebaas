@@ -101,16 +101,37 @@ func (s *ShardCUDA) Read(reqs []byte, reqLength int) ([]byte, error) {
 	cu.MemcpyHtoD(input, unsafe.Pointer(&reqs[0]), inputSize)
 
 	//Set kernel args
-	data := s.clData
-
+	data := s.cudaData
+	batchSize32 := uint32(batchSize)
+	reqLength32 := uint32(reqLength)
+	numBuckets32 := uint32(s.numBuckets)
+	bucketSize32 := uint32(s.bucketSize / KernelDataSize)
+	//global := local
+	local := s.context.GetGroupSize()
+	global := s.numThreads
+	if global < local {
+		local = global
+	}
+	global32 := uint32(global)
+	scratchSize32 := uint32(GPUScratchSize / KernelDataSize)
+	argSizes := []uint64{8, 8, 8, GPUScratchSize, 4, 4, 4, 4, 4, 4}
 	args := []unsafe.Pointer{
 		unsafe.Pointer(&data),
+		unsafe.Pointer(&input),
+		unsafe.Pointer(&output),
+		nil,
+		unsafe.Pointer(&batchSize32),
+		unsafe.Pointer(&reqLength32),
+		unsafe.Pointer(&numBuckets32),
+		unsafe.Pointer(&bucketSize32),
+		unsafe.Pointer(&global32),
+		unsafe.Pointer(&scratchSize32),
 	}
 
 	/** START LOCK REGION **/
 	s.context.KernelMutex.Lock()
 
-	cu.LaunchKernel(args)
+	cu.LaunchKernel(s.context.Fn, global, 1, 1, local, 1, 1, 0, 0, args)
 	cu.CtxSynchronize()
 
 	s.context.KernelMutex.Unlock()

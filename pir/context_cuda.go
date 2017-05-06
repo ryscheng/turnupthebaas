@@ -28,7 +28,7 @@ type ContextCUDA struct {
 	device       cu.Device
 	ctx          cu.Context
 	module       cu.Module
-	fn           cu.Function
+	Fn           cu.Function
 	groupSize    int
 }
 
@@ -47,7 +47,7 @@ func NewContextCUDA(name string, kernelSource string) (*ContextCUDA, error) {
 	c.ctx.SetCurrent()
 
 	c.module = cu.ModuleLoadData(kernelSource)
-	c.fn = c.module.GetFunction("pir")
+	c.Fn = c.module.GetFunction("pir")
 
 	// Weird hack in context handling
 	if cu.CtxGetCurrent() == 0 && c.ctx != 0 {
