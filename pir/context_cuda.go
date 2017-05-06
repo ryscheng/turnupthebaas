@@ -46,7 +46,8 @@ func NewContextCUDA(name string, kernelSource string) (*ContextCUDA, error) {
 	c.ctx = cu.CtxCreate(cu.CTX_SCHED_AUTO, c.device)
 	c.ctx.SetCurrent()
 
-	c.module = cu.ModuleLoadData(kernelSource)
+	//c.module = cu.ModuleLoadData(kernelSource)
+	c.module = cu.ModuleLoad(kernelSource)
 	c.Fn = c.module.GetFunction("pir")
 
 	// Weird hack in context handling
