@@ -145,42 +145,10 @@ func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 	//   https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clSetKernelArg.html
 	//Set kernel args
 	data := s.clData
-	err = cl.SetKernelArg(s.context.Kernel, 0, 8, unsafe.Pointer(&data))
-	if err != cl.SUCCESS {
-		return nil, fmt.Errorf("Failed to write kernel arg 0")
-	}
-	err = cl.SetKernelArg(s.context.Kernel, 1, 8, unsafe.Pointer(&input))
-	if err != cl.SUCCESS {
-		return nil, fmt.Errorf("Failed to write kernel arg 1")
-	}
-	err = cl.SetKernelArg(s.context.Kernel, 2, 8, unsafe.Pointer(&output))
-	if err != cl.SUCCESS {
-		return nil, fmt.Errorf("Failed to write kernel arg 2")
-	}
-	err = cl.SetKernelArg(s.context.Kernel, 3, GPUScratchSize, nil)
-	if err != cl.SUCCESS {
-		return nil, fmt.Errorf("Failed to write kernel arg 3")
-	}
 	batchSize32 := uint32(batchSize)
-	err = cl.SetKernelArg(s.context.Kernel, 4, 4, unsafe.Pointer(&batchSize32))
-	if err != cl.SUCCESS {
-		return nil, fmt.Errorf("Failed to write kernel arg 4")
-	}
 	reqLength32 := uint32(reqLength)
-	err = cl.SetKernelArg(s.context.Kernel, 5, 4, unsafe.Pointer(&reqLength32))
-	if err != cl.SUCCESS {
-		return nil, fmt.Errorf("Failed to write kernel arg 5")
-	}
 	numBuckets32 := uint32(s.numBuckets)
-	err = cl.SetKernelArg(s.context.Kernel, 6, 4, unsafe.Pointer(&numBuckets32))
-	if err != cl.SUCCESS {
-		return nil, fmt.Errorf("Failed to write kernel arg 6")
-	}
 	bucketSize32 := uint32(s.bucketSize / KernelDataSize)
-	err = cl.SetKernelArg(s.context.Kernel, 7, 4, unsafe.Pointer(&bucketSize32))
-	if err != cl.SUCCESS {
-		return nil, fmt.Errorf("Failed to write kernel arg 7")
-	}
 	//global := local
 	local := uint64(s.context.GetGroupSize())
 	global := uint64(s.numThreads)
@@ -188,14 +156,26 @@ func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 		local = global
 	}
 	global32 := uint32(global)
-	err = cl.SetKernelArg(s.context.Kernel, 8, 4, unsafe.Pointer(&global32))
-	if err != cl.SUCCESS {
-		return nil, fmt.Errorf("Failed to write kernel arg 8")
-	}
 	scratchSize32 := uint32(GPUScratchSize / KernelDataSize)
-	err = cl.SetKernelArg(s.context.Kernel, 9, 4, unsafe.Pointer(&scratchSize32))
-	if err != cl.SUCCESS {
-		return nil, fmt.Errorf("Failed to write kernel arg 9")
+	argSizes := []uint64{8, 8, 8, GPUScratchSize, 4, 4, 4, 4, 4, 4}
+	args := []unsafe.Pointer{
+		unsafe.Pointer(&data),
+		unsafe.Pointer(&input),
+		unsafe.Pointer(&output),
+		nil,
+		unsafe.Pointer(&batchSize32),
+		unsafe.Pointer(&reqLength32),
+		unsafe.Pointer(&numBuckets32),
+		unsafe.Pointer(&bucketSize32),
+		unsafe.Pointer(&global32),
+		unsafe.Pointer(&scratchSize32),
+	}
+
+	for i := 0; i < len(args); i++ {
+		err = cl.SetKernelArg(s.context.Kernel, uint32(i), argSizes[i], args[i])
+		if err != cl.SUCCESS {
+			return nil, fmt.Errorf("Failed to write kernel arg %v", i)
+		}
 	}
 
 	//s.log.Info.Printf("local=%v, global=%v\n", local, global)
