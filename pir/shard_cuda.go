@@ -114,7 +114,7 @@ func (s *ShardCUDA) Read(reqs []byte, reqLength int) ([]byte, error) {
 	}
 	global32 := uint32(global)
 	scratchSize32 := uint32(GPUScratchSize / KernelDataSize)
-	argSizes := []uint64{8, 8, 8, GPUScratchSize, 4, 4, 4, 4, 4, 4}
+	//argSizes := []uint64{8, 8, 8, GPUScratchSize, 4, 4, 4, 4, 4, 4}
 	args := []unsafe.Pointer{
 		unsafe.Pointer(&data),
 		unsafe.Pointer(&input),
