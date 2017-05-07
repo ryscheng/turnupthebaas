@@ -17,8 +17,7 @@
 	.param .u64 pir_param_4,
 	.param .u64 pir_param_5,
 	.param .u64 pir_param_6,
-	.param .u64 pir_param_7,
-	.param .u64 pir_param_8
+	.param .u64 pir_param_7
 )
 {
 	.reg .pred 	%p<5>;

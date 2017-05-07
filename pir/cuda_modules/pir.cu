@@ -32,8 +32,8 @@ void pir(DATA_TYPE* db,
         uint32_cu reqLength,
         uint32_cu numBuckets,
         uint32_cu bucketSize,
-        uint32_cu globalSize,
-        uint32_cu scratchSize) {
+        uint32_cu globalSize){
+        //uint32_cu scratchSize) {
   //int localIndex = threadIdx.x;
   //int groupIndex = blockIdx.x;
   uint32_cu globalIndex = threadIdx.x + (blockIdx.x * blockDim.x);

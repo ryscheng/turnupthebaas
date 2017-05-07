@@ -121,7 +121,7 @@ func (s *ShardCUDA) Read(reqs []byte, reqLength int) ([]byte, error) {
 		local = global
 	}
 	global32 := uint32(global)
-	scratchSize32 := uint32(GPUScratchSize / KernelDataSize)
+	//scratchSize32 := uint32(GPUScratchSize / KernelDataSize)
 	//argSizes := []uint64{8, 8, 8, GPUScratchSize, 4, 4, 4, 4, 4, 4}
 	args := []unsafe.Pointer{
 		unsafe.Pointer(&data),
@@ -133,7 +133,7 @@ func (s *ShardCUDA) Read(reqs []byte, reqLength int) ([]byte, error) {
 		unsafe.Pointer(&numBuckets32),
 		unsafe.Pointer(&bucketSize32),
 		unsafe.Pointer(&global32),
-		unsafe.Pointer(&scratchSize32),
+		//unsafe.Pointer(&scratchSize32),
 	}
 
 	/** START LOCK REGION **/
