@@ -12,12 +12,13 @@ type FatalInterface interface {
 }
 
 const (
-	TestBatchSize   = 3
-	TestNumMessages = 32
-	TestMessageSize = 8
-	TestDepth       = 2 // 16 buckets
-	//BenchNumMessages = 1048576 // 2^20
-	BenchNumMessages = 524288 // 2^19
+	TestBatchSize    = 3
+	TestNumMessages  = 32
+	TestMessageSize  = 8
+	TestDepth        = 2 // 16 buckets
+	BenchBatchSize   = 32
+	BenchNumMessages = 1048576 // 2^20
+	//BenchNumMessages = 524288 // 2^19; Note: AMD devices have a smaller max memory allocation size
 	BenchMessageSize = 1024
 	BenchDepth       = 4 // 262144=2^18 buckets
 )

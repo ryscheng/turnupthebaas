@@ -79,49 +79,45 @@ func TestShardCLReadv3(t *testing.T) {
 }
 
 func BenchmarkShardCLReadv0(b *testing.B) {
-	batchSize := 8
 	context, err := NewContextCL("contextcl", KernelCL0)
 	if err != nil {
 		b.Fatalf("cannot create new ContextCL: error=%v\n", err)
 	}
-	shard, err := NewShardCL("shardcl", context, BenchDepth*BenchMessageSize, generateData(BenchNumMessages*BenchMessageSize), batchSize*context.GetGroupSize())
+	shard, err := NewShardCL("shardcl", context, BenchDepth*BenchMessageSize, generateData(BenchNumMessages*BenchMessageSize), BenchBatchSize*context.GetGroupSize())
 	if err != nil {
 		b.Fatalf("cannot create new ShardCL: error=%v\n", err)
 	}
-	HelperBenchmarkShardRead(b, shard, batchSize)
+	HelperBenchmarkShardRead(b, shard, BenchBatchSize)
 	afterEachShardCL(b, shard, context)
 }
 
 func BenchmarkShardCLReadv1(b *testing.B) {
-	batchSize := 8
 	context, err := NewContextCL("contextcl", KernelCL1)
 	if err != nil {
 		b.Fatalf("cannot create new ContextCL: error=%v\n", err)
 	}
-	shard, err := NewShardCL("shardcl", context, BenchDepth*BenchMessageSize, generateData(BenchNumMessages*BenchMessageSize), batchSize*BenchDepth*BenchMessageSize/KernelDataSize)
+	shard, err := NewShardCL("shardcl", context, BenchDepth*BenchMessageSize, generateData(BenchNumMessages*BenchMessageSize), BenchBatchSize*BenchDepth*BenchMessageSize/KernelDataSize)
 	if err != nil {
 		b.Fatalf("cannot create new ShardCL: error=%v\n", err)
 	}
-	HelperBenchmarkShardRead(b, shard, batchSize)
+	HelperBenchmarkShardRead(b, shard, BenchBatchSize)
 	afterEachShardCL(b, shard, context)
 }
 
 func BenchmarkShardCLReadv2(b *testing.B) {
-	batchSize := 8
 	context, err := NewContextCL("contextcl", KernelCL2)
 	if err != nil {
 		b.Fatalf("cannot create new ContextCL: error=%v\n", err)
 	}
-	shard, err := NewShardCL("shardcl", context, BenchDepth*BenchMessageSize, generateData(BenchNumMessages*BenchMessageSize), batchSize*BenchDepth*BenchMessageSize/KernelDataSize)
+	shard, err := NewShardCL("shardcl", context, BenchDepth*BenchMessageSize, generateData(BenchNumMessages*BenchMessageSize), BenchBatchSize*BenchDepth*BenchMessageSize/KernelDataSize)
 	if err != nil {
 		b.Fatalf("cannot create new ShardCL: error=%v\n", err)
 	}
-	HelperBenchmarkShardRead(b, shard, batchSize)
+	HelperBenchmarkShardRead(b, shard, BenchBatchSize)
 	afterEachShardCL(b, shard, context)
 }
 
 func BenchmarkShardCLReadv3(b *testing.B) {
-	batchSize := 8
 	context, err := NewContextCL("contextcl", KernelCL3)
 	if err != nil {
 		b.Fatalf("cannot create new ContextCL: error=%v\n", err)
@@ -131,6 +127,6 @@ func BenchmarkShardCLReadv3(b *testing.B) {
 	if err != nil {
 		b.Fatalf("cannot create new ShardCL: error=%v\n", err)
 	}
-	HelperBenchmarkShardRead(b, shard, batchSize)
+	HelperBenchmarkShardRead(b, shard, BenchBatchSize)
 	afterEachShardCL(b, shard, context)
 }

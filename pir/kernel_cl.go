@@ -15,7 +15,7 @@ package pir
 
 const (
 	// GPUScratchSize is the size of GPU scratch/L1 cache in bytes
-	GPUScratchSize = 2048
+	GPUScratchSize = 4096
 	// KernelDataSize must correspond to DATA_TYPE in the kernel
 	KernelDataSize = 8
 )
