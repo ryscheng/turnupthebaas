@@ -94,9 +94,6 @@ const KernelCL0 = kernelCLPrefix + `
 // KernelCL1 : index => output
 // Cache the request
 const KernelCL1 = kernelCLPrefix + `
-  uint32_cl localSize = get_local_size(0);
-  uint32_cl localIndex = get_local_id(0);
-  uint32_cl groupIndex = get_group_id(0);
   uint32_cl globalIndex = get_global_id(0);
 
   if (globalIndex >= globalSize) {
@@ -122,9 +119,6 @@ const KernelCL1 = kernelCLPrefix + `
 // KernelCL2 : index => output
 // Cache a portion of the database
 const KernelCL2 = kernelCLPrefix + `
-  uint32_cl localSize = get_local_size(0);
-  uint32_cl localIndex = get_local_id(0);
-  uint32_cl groupIndex = get_group_id(0);
   uint32_cl globalIndex = get_global_id(0);
 
   if (globalIndex >= globalSize) {
