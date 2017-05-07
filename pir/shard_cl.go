@@ -150,8 +150,8 @@ func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 		local = global
 	}
 	global32 := uint32(global)
-	scratchSize32 := uint32(GPUScratchSize / KernelDataSize)
-	argSizes := []uint64{8, 8, 8, GPUScratchSize, 4, 4, 4, 4, 4, 4}
+	scratchSize32 := uint32(s.context.GetGPUScratchSize() / KernelDataSize)
+	argSizes := []uint64{8, 8, 8, uint64(s.context.GetGPUScratchSize()), 4, 4, 4, 4, 4, 4}
 	args := []unsafe.Pointer{
 		unsafe.Pointer(&data),
 		unsafe.Pointer(&input),

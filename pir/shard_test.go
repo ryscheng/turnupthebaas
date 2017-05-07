@@ -15,8 +15,8 @@ const (
 	TestBatchSize    = 3
 	TestNumMessages  = 32
 	TestMessageSize  = 8
-	TestDepth        = 2 // 16 buckets
-	BenchBatchSize   = 32
+	TestDepth        = 2       // 16 buckets
+	BenchBatchSize   = 128     // This seems to provide the best GPU perf
 	BenchNumMessages = 1048576 // 2^20
 	//BenchNumMessages = 524288 // 2^19; Note: AMD devices have a smaller max memory allocation size
 	BenchMessageSize = 1024
