@@ -19,26 +19,26 @@ import (
 // Currently, we only support 1 live ShardCL per ContextCL
 // Before creating a new ShardCL, the old one must be Free()
 type ContextCL struct {
-	log          *common.Logger
-	name         string
-	kernelSource string
-	KernelMutex  *sync.Mutex
-	platformID   cl.PlatformID
-	deviceID     cl.DeviceId
-	Context      cl.Context
-	CommandQueue cl.CommandQueue
-	program      cl.Program
-	Kernel       cl.Kernel
-	groupSize    int
+	log            *common.Logger
+	name           string
+	kernelSource   string
+	gpuScratchSize int
+	KernelMutex    *sync.Mutex
+	platformID     cl.PlatformID
+	deviceID       cl.DeviceId
+	Context        cl.Context
+	CommandQueue   cl.CommandQueue
+	program        cl.Program
+	Kernel         cl.Kernel
+	groupSize      int
 }
 
 // NewContextCL creates a new OpenCL context with a given kernel source.
 // New ShardCL instances will share the same kernel
-func NewContextCL(name string, kernelSource string) (*ContextCL, error) {
+func NewContextCL(name string, kernelSource string, gpuScratchSize int) (*ContextCL, error) {
 	c := &ContextCL{}
 	c.log = common.NewLogger(name)
 	c.name = name
-	c.KernelMutex = &sync.Mutex{}
 
 	// Read Kernel Source
 	/**
@@ -52,6 +52,8 @@ func NewContextCL(name string, kernelSource string) (*ContextCL, error) {
 	c.kernelSource = bytes.NewBuffer(kernelBytes).String() + "\x00"
 	**/
 	c.kernelSource = kernelSource
+	c.gpuScratchSize = gpuScratchSize
+	c.KernelMutex = &sync.Mutex{}
 
 	// Get Platform
 	ids := make([]cl.PlatformID, 100)
@@ -74,7 +76,10 @@ func NewContextCL(name string, kernelSource string) (*ContextCL, error) {
 
 	//Create Computer Context
 	var errptr *cl.ErrorCode
-	c.Context = cl.CreateContext(nil, 1, &device, nil, nil, errptr)
+	notify := func(arg1 string, arg2 unsafe.Pointer, arg3 uint64, arg4 interface{}) {
+		fmt.Printf("OpenCL Context Error: %v %v %v %v \n", arg1, arg2, arg3, arg4)
+	}
+	c.Context = cl.CreateContext(nil, 1, &device, notify, nil, errptr)
 	if errptr != nil && cl.ErrorCode(*errptr) != cl.SUCCESS {
 		c.Free()
 		return nil, fmt.Errorf("NewContextCl: couldnt create context")
@@ -99,11 +104,14 @@ func NewContextCL(name string, kernelSource string) (*ContextCL, error) {
 	err = cl.BuildProgram(c.program, 1, &device, nil, nil, nil)
 	if err != cl.SUCCESS {
 		var length uint64
-		buffer := make([]byte, 1024)
+		buffer := make([]byte, 2048)
 		c.log.Error.Println("NewContextCl Error: Failed to build program executable!")
 		cl.GetProgramBuildInfo(c.program, device, cl.PROGRAM_BUILD_LOG, uint64(len(buffer)), unsafe.Pointer(&buffer[0]), &length)
 		c.Free()
-		return nil, fmt.Errorf(string(buffer[0:length]))
+		if length < uint64(len(buffer)) {
+			return nil, fmt.Errorf(string(buffer[0:length]))
+		}
+		return nil, fmt.Errorf(string(buffer[0:]))
 	}
 
 	//Get Kernel (~CUDA Grid)
@@ -160,6 +168,11 @@ func (c *ContextCL) Free() error {
 		return fmt.Errorf("ContextCL.Free errors: " + errStr)
 	}
 	return nil
+}
+
+// GetGPUScratchSize returns the size of the scratch used by the kernel
+func (c *ContextCL) GetGPUScratchSize() int {
+	return c.gpuScratchSize
 }
 
 /*********************************************

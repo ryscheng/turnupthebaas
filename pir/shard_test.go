@@ -16,7 +16,9 @@ const (
 	TestNumMessages  = 32
 	TestMessageSize  = 8
 	TestDepth        = 2       // 16 buckets
+	BenchBatchSize   = 128     // This seems to provide the best GPU perf
 	BenchNumMessages = 1048576 // 2^20
+	//BenchNumMessages = 524288 // 2^19; Note: AMD devices have a smaller max memory allocation size
 	BenchMessageSize = 1024
 	BenchDepth       = 4 // 262144=2^18 buckets
 )
@@ -156,7 +158,7 @@ func BenchmarkShardCPUReadv0(b *testing.B) {
 	if err != nil {
 		b.Fatalf("cannot create new ShardCPU v0: error=%v\n", err)
 	}
-	HelperBenchmarkShardRead(b, shard, 8)
+	HelperBenchmarkShardRead(b, shard, BenchBatchSize)
 	afterEach(b, shard, nil)
 }
 
@@ -165,6 +167,6 @@ func BenchmarkShardCPUReadv1(b *testing.B) {
 	if err != nil {
 		b.Fatalf("cannot create new ShardCPU v1: error=%v\n", err)
 	}
-	HelperBenchmarkShardRead(b, shard, 8)
+	HelperBenchmarkShardRead(b, shard, BenchBatchSize)
 	afterEach(b, shard, nil)
 }

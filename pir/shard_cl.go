@@ -137,12 +137,6 @@ func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 		return nil, fmt.Errorf("Failed to write to input requests (OpenCL buffer)")
 	}
 
-	/** START LOCK REGION **/
-	s.context.KernelMutex.Lock()
-
-	// Note: SetKernelArgs->EnqueueNDRangeKernel is not thread-safe
-	//   @todo - create multiple kernels to support parallel PIR in a single context
-	//   https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clSetKernelArg.html
 	//Set kernel args
 	data := s.clData
 	batchSize32 := uint32(batchSize)
@@ -156,8 +150,8 @@ func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 		local = global
 	}
 	global32 := uint32(global)
-	scratchSize32 := uint32(GPUScratchSize / KernelDataSize)
-	argSizes := []uint64{8, 8, 8, GPUScratchSize, 4, 4, 4, 4, 4, 4}
+	scratchSize32 := uint32(s.context.GetGPUScratchSize() / KernelDataSize)
+	argSizes := []uint64{8, 8, 8, uint64(s.context.GetGPUScratchSize()), 4, 4, 4, 4, 4, 4}
 	args := []unsafe.Pointer{
 		unsafe.Pointer(&data),
 		unsafe.Pointer(&input),
@@ -170,6 +164,12 @@ func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 		unsafe.Pointer(&global32),
 		unsafe.Pointer(&scratchSize32),
 	}
+
+	/** START LOCK REGION **/
+	s.context.KernelMutex.Lock()
+	// Note: SetKernelArgs->EnqueueNDRangeKernel is not thread-safe
+	//   @todo - create multiple kernels to support parallel PIR in a single context
+	//   https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clSetKernelArg.html
 
 	for i := 0; i < len(args); i++ {
 		err = cl.SetKernelArg(s.context.Kernel, uint32(i), argSizes[i], args[i])
