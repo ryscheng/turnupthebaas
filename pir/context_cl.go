@@ -130,6 +130,16 @@ func NewContextCL(name string, kernelSource string) (*ContextCL, error) {
  * PUBLIC METHODS
  *********************************************/
 
+// GetName returns the name of the context
+func (c *ContextCL) GetName() string {
+	return c.name
+}
+
+// GetGroupSize returns the working group size of this context
+func (c *ContextCL) GetGroupSize() int {
+	return c.groupSize
+}
+
 // Free currently does nothing. ShardCL waits for the go garbage collector
 func (c *ContextCL) Free() error {
 	errStr := ""
@@ -150,11 +160,6 @@ func (c *ContextCL) Free() error {
 		return fmt.Errorf("ContextCL.Free errors: " + errStr)
 	}
 	return nil
-}
-
-// GetGroupSize returns the working group size of this context
-func (c *ContextCL) GetGroupSize() int {
-	return c.groupSize
 }
 
 /*********************************************

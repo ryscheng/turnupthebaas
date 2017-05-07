@@ -21,10 +21,19 @@ const (
 	BenchDepth       = 4 // 262144=2^18 buckets
 )
 
-func afterEachShardCPU(f FatalInterface, shard Shard) {
-	err := shard.Free()
-	if err != nil {
-		f.Fatalf("error freeing shard: %v\n", err)
+func afterEach(f FatalInterface, shard Shard, context Context) {
+	var err error
+	if shard != nil {
+		err = shard.Free()
+		if err != nil {
+			f.Fatalf("error freeing shard: %v\n", err)
+		}
+	}
+	if context != nil {
+		err = context.Free()
+		if err != nil {
+			f.Fatalf("error freeing context: %v\n", err)
+		}
 	}
 }
 
@@ -104,7 +113,7 @@ func TestShardCPUReadv0(t *testing.T) {
 		t.Fatalf("cannot create new ShardCPU v0: error=%v\n", err)
 	}
 	HelperTestShardRead(t, shard)
-	afterEachShardCPU(t, shard)
+	afterEach(t, shard, nil)
 	fmt.Printf("... done \n")
 }
 
@@ -115,7 +124,7 @@ func TestShardCPUReadv1(t *testing.T) {
 		t.Fatalf("cannot create new ShardCPU v1: error=%v\n", err)
 	}
 	HelperTestShardRead(t, shard)
-	afterEachShardCPU(t, shard)
+	afterEach(t, shard, nil)
 	fmt.Printf("... done \n")
 }
 
@@ -148,7 +157,7 @@ func BenchmarkShardCPUReadv0(b *testing.B) {
 		b.Fatalf("cannot create new ShardCPU v0: error=%v\n", err)
 	}
 	HelperBenchmarkShardRead(b, shard, 8)
-	afterEachShardCPU(b, shard)
+	afterEach(b, shard, nil)
 }
 
 func BenchmarkShardCPUReadv1(b *testing.B) {
@@ -157,5 +166,5 @@ func BenchmarkShardCPUReadv1(b *testing.B) {
 		b.Fatalf("cannot create new ShardCPU v1: error=%v\n", err)
 	}
 	HelperBenchmarkShardRead(b, shard, 8)
-	afterEachShardCPU(b, shard)
+	afterEach(b, shard, nil)
 }
