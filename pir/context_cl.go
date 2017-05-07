@@ -99,7 +99,7 @@ func NewContextCL(name string, kernelSource string) (*ContextCL, error) {
 	err = cl.BuildProgram(c.program, 1, &device, nil, nil, nil)
 	if err != cl.SUCCESS {
 		var length uint64
-		buffer := make([]byte, 1024)
+		buffer := make([]byte, 2048)
 		c.log.Error.Println("NewContextCl Error: Failed to build program executable!")
 		cl.GetProgramBuildInfo(c.program, device, cl.PROGRAM_BUILD_LOG, uint64(len(buffer)), unsafe.Pointer(&buffer[0]), &length)
 		c.Free()
