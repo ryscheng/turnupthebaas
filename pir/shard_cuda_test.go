@@ -9,7 +9,7 @@ import (
 
 func TestShardCUDAReadv0(t *testing.T) {
 	fmt.Printf("TestShardCUDAReadv0: ...\n")
-	context, err := NewContextCUDA("contextcuda", "/pir/cuda_modules/pir.ptx")
+	context, err := NewContextCUDA("contextcuda", "/cuda_modules/pir.ptx")
 	if err != nil {
 		t.Fatalf("cannot create new ContextCUDA: error=%v\n", err)
 	}
@@ -24,7 +24,7 @@ func TestShardCUDAReadv0(t *testing.T) {
 
 func BenchmarkShardCUDAReadv0(b *testing.B) {
 	batchSize := 1
-	context, err := NewContextCUDA("contextcuda", "/pir/cuda_modules/pir.ptx")
+	context, err := NewContextCUDA("contextcuda", "/cuda_modules/pir.ptx")
 	if err != nil {
 		b.Fatalf("cannot create new ShardCUDA: error=%v\n", err)
 	}

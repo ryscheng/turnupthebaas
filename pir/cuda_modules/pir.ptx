@@ -18,8 +18,7 @@
 	.param .u64 pir_param_5,
 	.param .u64 pir_param_6,
 	.param .u64 pir_param_7,
-	.param .u64 pir_param_8,
-	.param .u64 pir_param_9
+	.param .u64 pir_param_8
 )
 {
 	.reg .pred 	%p<5>;
@@ -30,10 +29,10 @@
 	ld.param.u64 	%rd13, [pir_param_0];
 	ld.param.u64 	%rd14, [pir_param_1];
 	ld.param.u64 	%rd15, [pir_param_2];
-	ld.param.u64 	%rd16, [pir_param_5];
-	ld.param.u64 	%rd17, [pir_param_6];
-	ld.param.u64 	%rd18, [pir_param_7];
-	ld.param.u64 	%rd19, [pir_param_8];
+	ld.param.u64 	%rd16, [pir_param_4];
+	ld.param.u64 	%rd17, [pir_param_5];
+	ld.param.u64 	%rd18, [pir_param_6];
+	ld.param.u64 	%rd19, [pir_param_7];
 	mov.u32 	%r4, %ntid.x;
 	mov.u32 	%r5, %ctaid.x;
 	mov.u32 	%r6, %tid.x;

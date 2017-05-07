@@ -127,7 +127,7 @@ func (s *ShardCUDA) Read(reqs []byte, reqLength int) ([]byte, error) {
 		unsafe.Pointer(&data),
 		unsafe.Pointer(&input),
 		unsafe.Pointer(&output),
-		nil,
+		//nil,
 		unsafe.Pointer(&batchSize32),
 		unsafe.Pointer(&reqLength32),
 		unsafe.Pointer(&numBuckets32),
