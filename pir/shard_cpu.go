@@ -102,6 +102,7 @@ func (s *ShardCPU) read0(reqs []byte, reqLength int) ([]byte, error) {
 	responses := make([]byte, numReqs*s.bucketSize)
 
 	// calculate PIR
+	// Note: Much better for outer loop to be reqIndex, not bucketIndex
 	for reqIndex := 0; reqIndex < numReqs; reqIndex++ {
 		for bucketIndex := 0; bucketIndex < s.numBuckets; bucketIndex++ {
 			reqByte := reqs[reqIndex*reqLength+(bucketIndex/8)]
@@ -123,15 +124,15 @@ func (s *ShardCPU) read1(reqs []byte, reqLength int) ([]byte, error) {
 	responses := make([]byte, numReqs*s.bucketSize)
 
 	// calculate PIR
-	for bucketIndex := 0; bucketIndex < s.numBuckets; bucketIndex++ {
-		for reqIndex := 0; reqIndex < numReqs; reqIndex++ {
+	for reqIndex := 0; reqIndex < numReqs; reqIndex++ {
+		for bucketIndex := 0; bucketIndex < s.numBuckets; bucketIndex++ {
 			reqByte := reqs[reqIndex*reqLength+(bucketIndex/8)]
 			if reqByte&(byte(1)<<uint(bucketIndex%8)) != 0 {
-				bucket := s.data[(bucketIndex * s.bucketSize):]
-				response := responses[(reqIndex * s.bucketSize):]
-				for offset := 0; offset < s.bucketSize; offset++ {
-					response[offset] ^= bucket[offset]
-				}
+				bucketOffset := bucketIndex * s.bucketSize
+				respOffset := reqIndex * s.bucketSize
+				bucket := s.data[bucketOffset:(bucketOffset + s.bucketSize)]
+				response := responses[respOffset:(respOffset + s.bucketSize)]
+				xorWords(response, response, bucket)
 			}
 		}
 	}
