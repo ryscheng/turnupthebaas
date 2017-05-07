@@ -125,11 +125,12 @@ func (s *ShardCPU) read1(reqs []byte, reqLength int) ([]byte, error) {
 
 	// calculate PIR
 	for reqIndex := 0; reqIndex < numReqs; reqIndex++ {
+		reqOffset := reqIndex * reqLength
+		respOffset := reqIndex * s.bucketSize
 		for bucketIndex := 0; bucketIndex < s.numBuckets; bucketIndex++ {
-			reqByte := reqs[reqIndex*reqLength+(bucketIndex/8)]
+			reqByte := reqs[reqOffset+(bucketIndex/8)]
 			if reqByte&(byte(1)<<uint(bucketIndex%8)) != 0 {
 				bucketOffset := bucketIndex * s.bucketSize
-				respOffset := reqIndex * s.bucketSize
 				bucket := s.data[bucketOffset:(bucketOffset + s.bucketSize)]
 				response := responses[respOffset:(respOffset + s.bucketSize)]
 				xorWords(response, response, bucket)
