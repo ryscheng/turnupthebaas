@@ -74,7 +74,10 @@ func NewContextCL(name string, kernelSource string) (*ContextCL, error) {
 
 	//Create Computer Context
 	var errptr *cl.ErrorCode
-	c.Context = cl.CreateContext(nil, 1, &device, nil, nil, errptr)
+	notify := func(arg1 string, arg2 unsafe.Pointer, arg3 uint64, arg4 interface{}) {
+		fmt.Printf("OpenCL Context Error: %v %v %v %v \n", arg1, arg2, arg3, arg4)
+	}
+	c.Context = cl.CreateContext(nil, 1, &device, notify, nil, errptr)
 	if errptr != nil && cl.ErrorCode(*errptr) != cl.SUCCESS {
 		c.Free()
 		return nil, fmt.Errorf("NewContextCl: couldnt create context")
@@ -103,7 +106,10 @@ func NewContextCL(name string, kernelSource string) (*ContextCL, error) {
 		c.log.Error.Println("NewContextCl Error: Failed to build program executable!")
 		cl.GetProgramBuildInfo(c.program, device, cl.PROGRAM_BUILD_LOG, uint64(len(buffer)), unsafe.Pointer(&buffer[0]), &length)
 		c.Free()
-		return nil, fmt.Errorf(string(buffer[0:length]))
+		if length < uint64(len(buffer)) {
+			return nil, fmt.Errorf(string(buffer[0:length]))
+		}
+		return nil, fmt.Errorf(string(buffer[0:]))
 	}
 
 	//Get Kernel (~CUDA Grid)
