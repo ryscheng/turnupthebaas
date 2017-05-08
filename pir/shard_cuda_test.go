@@ -13,7 +13,7 @@ func TestShardCUDAReadv0(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot create new ContextCUDA: error=%v\n", err)
 	}
-	shard, err := NewShardCUDA("shardcuda", context, TestDepth*TestMessageSize, generateData(TestNumMessages*TestMessageSize), TestBatchSize*context.GetGroupSize())
+	shard, err := NewShardCUDA("shardcuda", context, TestDepth*TestMessageSize, generateData(TestNumMessages*TestMessageSize), TestNumMessages*TestMessageSize/KernelDataSize)
 	if err != nil {
 		t.Fatalf("cannot create new ShardCUDA: error=%v\n", err)
 	}
@@ -23,15 +23,14 @@ func TestShardCUDAReadv0(t *testing.T) {
 }
 
 func BenchmarkShardCUDAReadv0(b *testing.B) {
-	batchSize := 1
 	context, err := NewContextCUDA("contextcuda", "/cuda_modules/pir.ptx")
 	if err != nil {
 		b.Fatalf("cannot create new ShardCUDA: error=%v\n", err)
 	}
-	shard, err := NewShardCUDA("shardcuda", context, BenchDepth*BenchMessageSize, generateData(BenchNumMessages*BenchMessageSize), batchSize*context.GetGroupSize())
+	shard, err := NewShardCUDA("shardcuda", context, BenchDepth*BenchMessageSize, generateData(BenchNumMessages*BenchMessageSize), BenchNumMessages*BenchMessageSize/KernelDataSize)
 	if err != nil {
 		b.Fatalf("cannot create new ShardCUDA: error=%v\n", err)
 	}
-	HelperBenchmarkShardRead(b, shard, batchSize)
+	HelperBenchmarkShardRead(b, shard, BenchBatchSize)
 	afterEach(b, shard, context)
 }

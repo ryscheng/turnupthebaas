@@ -27,32 +27,33 @@ __global__
 void pir(DATA_TYPE* db,
         uint8_cu* reqs,
         DATA_TYPE* output,
-        //DATA_TYPE* scratch,
-        uint32_cu batchSize,
-        uint32_cu reqLength,
-        uint32_cu numBuckets,
-        uint32_cu bucketSize,
-        uint32_cu globalSize){
-        //uint32_cu scratchSize) {
+        int batchSize,
+        int reqLength,
+        int numBuckets,
+        int bucketSize,
+        int globalSize){
   //int localIndex = threadIdx.x;
   //int groupIndex = blockIdx.x;
-  uint32_cu globalIndex = threadIdx.x + (blockIdx.x * blockDim.x);
+  int globalIndex = threadIdx.x + (blockIdx.x * blockDim.x);
 
   if (globalIndex >= globalSize) {
     return;
   }
-  // Iterate over all buckets, xor data into my result
-  DATA_TYPE result = 0;
-  uint32_cu reqIndex = (globalIndex / bucketSize) * reqLength;
-  uint32_cu offset = globalIndex % bucketSize;
+  __syncthreads();
+
+  // Iterate over requests in a batch, atomic_xor my data into output
+  int bucketId = globalIndex / bucketSize;
+  int depthOffset = globalIndex % bucketSize;
+  DATA_TYPE data = db[globalIndex];
+  DATA_TYPE* addr;
   uint8_cu reqBit;
-  for (uint32_cu i = 0; i < numBuckets; i++) {
-    reqBit = reqs[reqIndex + (i/8)] & (1 << (i%8));
+  for (int i = 0; i < batchSize; i++) {
+    reqBit = reqs[(i*reqLength) + (bucketId/8)] & (1 << (bucketId%8));
     if (reqBit > 0) {
-      result ^= db[i*bucketSize+offset];
+      addr = &output[(i*bucketSize)+depthOffset];
+      atomicXor(addr, data);
     }
   }
-  output[globalIndex] = result;
 }
 
 #ifdef __cplusplus

@@ -1,4 +1,4 @@
 CC=nvcc
 
 all:
-	$(CC) -ptx pir.cu
+	$(CC) -ptx --gpu-architecture=compute_35 pir.cu

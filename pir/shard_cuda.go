@@ -105,44 +105,49 @@ func (s *ShardCUDA) Read(reqs []byte, reqLength int) ([]byte, error) {
 	output := cu.MemAlloc(outputSize)
 	defer cu.MemFree(output)
 
+	//free, total := cu.MemGetInfo()
+	//s.log.Info.Printf("MemGetInfo: %v / %v bytes free\n", free, total)
+	//size, base := cu.MemGetAddressRange(output)
+	//s.log.Info.Printf("size=%v, base=%v\n", size, base)
+	//s.log.Info.Printf("input=%v, output=%v\n", input.MemoryType().String(), output.MemoryType().String())
+
 	// Copy input to device
 	cu.MemcpyHtoD(input, unsafe.Pointer(&reqs[0]), inputSize)
+	// Zero output
+	//cu.MemcpyHtoD(output, unsafe.Pointer(&responses[0]), outputSize)
+	cu.MemsetD8(output, 0, outputSize)
 
 	//Set kernel args
 	data := s.cudaData
-	batchSize32 := uint32(batchSize)
-	reqLength32 := uint32(reqLength)
-	numBuckets32 := uint32(s.numBuckets)
-	bucketSize32 := uint32(s.bucketSize / KernelDataSize)
-	//global := local
+	batchSize32 := int32(batchSize)
+	reqLength32 := int32(reqLength)
+	numBuckets32 := int32(s.numBuckets)
+	bucketSize32 := int32(s.bucketSize / KernelDataSize)
 	local := s.context.GetGroupSize()
 	global := s.numThreads
 	if global < local {
 		local = global
 	}
-	global32 := uint32(global)
-	//scratchSize32 := uint32(GPUScratchSize / KernelDataSize)
-	//argSizes := []uint64{8, 8, 8, GPUScratchSize, 4, 4, 4, 4, 4, 4}
+	global32 := int32(global)
 	args := []unsafe.Pointer{
 		unsafe.Pointer(&data),
 		unsafe.Pointer(&input),
 		unsafe.Pointer(&output),
-		//nil,
 		unsafe.Pointer(&batchSize32),
 		unsafe.Pointer(&reqLength32),
 		unsafe.Pointer(&numBuckets32),
 		unsafe.Pointer(&bucketSize32),
 		unsafe.Pointer(&global32),
-		//unsafe.Pointer(&scratchSize32),
 	}
 
 	/** START LOCK REGION **/
-	s.context.KernelMutex.Lock()
+	//s.context.KernelMutex.Lock()
 
-	cu.LaunchKernel(s.context.Fn, global, 1, 1, local, 1, 1, 0, 0, args)
+	//cu.LaunchKernel(s.context.ZeroFn, (global-1)/local+1, 1, 1, local, 1, 1, 0, 0, args)
+	cu.LaunchKernel(s.context.PIRFn, (global-1)/local+1, 1, 1, local, 1, 1, 0, 0, args)
 	cu.CtxSynchronize()
 
-	s.context.KernelMutex.Unlock()
+	//s.context.KernelMutex.Unlock()
 	/** END LOCK REGION **/
 
 	// Read responses
