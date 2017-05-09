@@ -1,12 +1,9 @@
-//+build !travis
+//+build !nocuda,!travis
 
 package pir
 
 import (
-	//"fmt"
-	//"strings"
 	"sync"
-	//"unsafe"
 
 	"github.com/barnex/cuda5/cu"
 	"github.com/privacylab/talek/common"

@@ -1,4 +1,4 @@
-//+build !travis
+//+build !nocuda,!travis
 
 package pir
 

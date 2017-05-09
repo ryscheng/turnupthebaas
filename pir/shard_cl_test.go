@@ -1,4 +1,5 @@
 //+build !travis
+//+build !noopencl,!travis
 
 package pir
 
@@ -24,7 +25,7 @@ func TestShardCLReadv0(t *testing.T) {
 
 func TestShardCLReadv1(t *testing.T) {
 	fmt.Printf("TestShardCLReadv1: ...\n")
-	context, err := NewContextCL("contextcl", KernelCL1, 0)
+	context, err := NewContextCL("contextcl", KernelCL1, 1)
 	if err != nil {
 		t.Fatalf("cannot create new ContextCL: error=%v\n", err)
 	}
@@ -39,7 +40,7 @@ func TestShardCLReadv1(t *testing.T) {
 
 func TestShardCLReadv2(t *testing.T) {
 	fmt.Printf("TestShardCLReadv2: ...\n")
-	context, err := NewContextCL("contextcl", KernelCL2, 0)
+	context, err := NewContextCL("contextcl", KernelCL2, 1)
 	if err != nil {
 		t.Fatalf("cannot create new ContextCL: error=%v\n", err)
 	}
@@ -54,7 +55,7 @@ func TestShardCLReadv2(t *testing.T) {
 
 func TestShardCLReadv3(t *testing.T) {
 	fmt.Printf("TestShardCLReadv3: ...\n")
-	context, err := NewContextCL("contextcl", KernelCL3, 0)
+	context, err := NewContextCL("contextcl", KernelCL3, 1)
 	if err != nil {
 		t.Fatalf("cannot create new ContextCL: error=%v\n", err)
 	}
@@ -81,7 +82,7 @@ func BenchmarkShardCLReadv0(b *testing.B) {
 }
 
 func BenchmarkShardCLReadv1(b *testing.B) {
-	context, err := NewContextCL("contextcl", KernelCL1, 0)
+	context, err := NewContextCL("contextcl", KernelCL1, 1)
 	if err != nil {
 		b.Fatalf("cannot create new ContextCL: error=%v\n", err)
 	}
@@ -94,7 +95,7 @@ func BenchmarkShardCLReadv1(b *testing.B) {
 }
 
 func BenchmarkShardCLReadv2(b *testing.B) {
-	context, err := NewContextCL("contextcl", KernelCL2, 0)
+	context, err := NewContextCL("contextcl", KernelCL2, 1)
 	if err != nil {
 		b.Fatalf("cannot create new ContextCL: error=%v\n", err)
 	}
@@ -107,7 +108,7 @@ func BenchmarkShardCLReadv2(b *testing.B) {
 }
 
 func BenchmarkShardCLReadv3(b *testing.B) {
-	context, err := NewContextCL("contextcl", KernelCL3, 0)
+	context, err := NewContextCL("contextcl", KernelCL3, 1)
 	if err != nil {
 		b.Fatalf("cannot create new ContextCL: error=%v\n", err)
 	}
