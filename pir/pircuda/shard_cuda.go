@@ -99,6 +99,11 @@ func (s *ShardCUDA) Read(reqs []byte, reqLength int) ([]byte, error) {
 	outputSize := batchSize * int64(s.bucketSize)
 	responses := make([]byte, outputSize)
 
+	// Weird context hack
+	if cu.CtxGetCurrent() == 0 {
+		s.context.Ctx.SetCurrent()
+	}
+
 	// Create buffers
 	input := cu.MemAlloc(inputSize)
 	defer cu.MemFree(input)

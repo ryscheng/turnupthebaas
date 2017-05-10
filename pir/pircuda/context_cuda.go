@@ -24,7 +24,7 @@ type ContextCUDA struct {
 	kernelSource   string
 	kernelDataSize int
 	device         cu.Device
-	ctx            cu.Context
+	Ctx            cu.Context
 	module         cu.Module
 	PIRFn          cu.Function
 	groupSize      int
@@ -42,8 +42,8 @@ func NewContextCUDA(name string, kernelSource string, kernelDataSize int) (*Cont
 	cu.Init(0)
 	c.device = cu.DeviceGet(CudaDeviceID)
 	c.groupSize = c.device.Attribute(cu.MAX_THREADS_PER_BLOCK)
-	c.ctx = cu.CtxCreate(cu.CTX_SCHED_AUTO, c.device)
-	c.ctx.SetCurrent()
+	c.Ctx = cu.CtxCreate(cu.CTX_SCHED_AUTO, c.device)
+	c.Ctx.SetCurrent()
 
 	//major, minor := c.device.ComputeCapability()
 	//c.log.Info.Printf("!!! %v.%v\n", major, minor)
@@ -53,8 +53,8 @@ func NewContextCUDA(name string, kernelSource string, kernelDataSize int) (*Cont
 	c.PIRFn = c.module.GetFunction("pir")
 
 	// Weird hack in context handling
-	if cu.CtxGetCurrent() == 0 && c.ctx != 0 {
-		c.ctx.SetCurrent()
+	if cu.CtxGetCurrent() == 0 && c.Ctx != 0 {
+		c.Ctx.SetCurrent()
 	}
 
 	return c, nil
@@ -81,7 +81,7 @@ func (c *ContextCUDA) GetKernelDataSize() int {
 
 // Free currently does nothing. ShardCL waits for the go garbage collector
 func (c *ContextCUDA) Free() error {
-	c.ctx.Destroy()
+	c.Ctx.Destroy()
 	return nil
 }
 
