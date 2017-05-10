@@ -1,8 +1,10 @@
-package pir
+package pirtest
 
 import (
 	"math/rand"
 	"testing"
+
+	"github.com/privacylab/talek/pir"
 )
 
 type FatalInterface interface {
@@ -22,7 +24,7 @@ const (
 	BenchDepth       = 4 // 262144=2^18 buckets
 )
 
-func afterEach(f FatalInterface, shard Shard, context Context) {
+func AfterEach(f FatalInterface, shard pir.Shard, context pir.Context) {
 	var err error
 	if shard != nil {
 		err = shard.Free()
@@ -38,7 +40,7 @@ func afterEach(f FatalInterface, shard Shard, context Context) {
 	}
 }
 
-func generateData(size int) []byte {
+func GenerateData(size int) []byte {
 	data := make([]byte, size)
 	for i := 0; i < size; i++ {
 		data[i] = byte(i)
@@ -46,7 +48,7 @@ func generateData(size int) []byte {
 	return data
 }
 
-func HelperTestShardRead(t *testing.T, shard Shard) {
+func HelperTestShardRead(t *testing.T, shard pir.Shard) {
 
 	// Populate batch read request
 	reqLength := shard.GetNumBuckets() / 8
@@ -106,7 +108,7 @@ func HelperTestShardRead(t *testing.T, shard Shard) {
 	}
 }
 
-func HelperBenchmarkShardRead(b *testing.B, shard Shard, batchSize int) {
+func HelperBenchmarkShardRead(b *testing.B, shard pir.Shard, batchSize int) {
 	reqLength := shard.GetNumBuckets() / 8
 	if shard.GetNumBuckets()%8 != 0 {
 		reqLength++

@@ -1,6 +1,6 @@
 //+build !noopencl,!travis
 
-package pir
+package pircl
 
 import (
 	"fmt"
@@ -22,6 +22,7 @@ type ContextCL struct {
 	log            *common.Logger
 	name           string
 	kernelSource   string
+	kernelDataSize int
 	gpuScratchSize int
 	KernelMutex    *sync.Mutex
 	platformID     cl.PlatformID
@@ -35,7 +36,7 @@ type ContextCL struct {
 
 // NewContextCL creates a new OpenCL context with a given kernel source.
 // New ShardCL instances will share the same kernel
-func NewContextCL(name string, kernelSource string, gpuScratchSize int) (*ContextCL, error) {
+func NewContextCL(name string, kernelSource string, kernelDataSize int, gpuScratchSize int) (*ContextCL, error) {
 	c := &ContextCL{}
 	c.log = common.NewLogger(name)
 	c.name = name
@@ -52,6 +53,7 @@ func NewContextCL(name string, kernelSource string, gpuScratchSize int) (*Contex
 	c.kernelSource = bytes.NewBuffer(kernelBytes).String() + "\x00"
 	**/
 	c.kernelSource = kernelSource
+	c.kernelDataSize = kernelDataSize
 	c.gpuScratchSize = gpuScratchSize
 	c.KernelMutex = &sync.Mutex{}
 
@@ -146,6 +148,11 @@ func (c *ContextCL) GetName() string {
 // GetGroupSize returns the working group size of this context
 func (c *ContextCL) GetGroupSize() int {
 	return c.groupSize
+}
+
+// GetKernelDataSize returns the size (in bytes) of a single data item in the kernel
+func (c *ContextCL) GetKernelDataSize() int {
+	return c.kernelDataSize
 }
 
 // Free currently does nothing. ShardCL waits for the go garbage collector

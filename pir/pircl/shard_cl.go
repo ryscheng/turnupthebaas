@@ -1,6 +1,6 @@
 //+build !noopencl,!travis
 
-package pir
+package pircl
 
 import (
 	"fmt"
@@ -142,7 +142,7 @@ func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 	batchSize32 := uint32(batchSize)
 	reqLength32 := uint32(reqLength)
 	numBuckets32 := uint32(s.numBuckets)
-	bucketSize32 := uint32(s.bucketSize / KernelDataSize)
+	bucketSize32 := uint32(s.bucketSize / s.context.GetKernelDataSize())
 	//global := local
 	local := uint64(s.context.GetGroupSize())
 	global := uint64(s.numThreads)
@@ -150,7 +150,7 @@ func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 		local = global
 	}
 	global32 := uint32(global)
-	scratchSize32 := uint32(s.context.GetGPUScratchSize() / KernelDataSize)
+	scratchSize32 := uint32(s.context.GetGPUScratchSize() / s.context.GetKernelDataSize())
 	argSizes := []uint64{8, 8, 8, uint64(s.context.GetGPUScratchSize()), 4, 4, 4, 4, 4, 4}
 	args := []unsafe.Pointer{
 		unsafe.Pointer(&data),

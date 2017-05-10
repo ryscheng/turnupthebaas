@@ -1,4 +1,4 @@
-package pir
+package pircl
 
 // https://www.khronos.org/files/opencl-quick-reference-card.pdf
 
@@ -12,11 +12,6 @@ package pir
 // bucketSize: length of a bucket in units of DATA_TYPE
 // globalSize: number of threads globally (size of db if Kernel0, size of output if Kernel1)
 // scratchSize: length of scratch in units of DATA_TYPE
-
-const (
-	// KernelDataSize must correspond to DATA_TYPE in the kernel
-	KernelDataSize = 8
-)
 
 const kernelCLPrefix = `
 typedef char int8_cl;

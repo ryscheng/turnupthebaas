@@ -4,5 +4,6 @@ package pir
 // A Context represents a specific computing context, a kernel, and set of devices.
 type Context interface {
 	GetGroupSize() int
+	GetKernelDataSize() int
 	Free() error
 }
