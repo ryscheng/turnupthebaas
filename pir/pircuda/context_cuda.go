@@ -18,24 +18,26 @@ const (
 // Currently, we only support 1 live ShardCUDA per ContextCUDA
 // Before creating a new ShardCUDA, the old one must be Free()
 type ContextCUDA struct {
-	log          *common.Logger
-	name         string
-	KernelMutex  *sync.Mutex
-	kernelSource string
-	device       cu.Device
-	ctx          cu.Context
-	module       cu.Module
-	PIRFn        cu.Function
-	groupSize    int
+	log            *common.Logger
+	name           string
+	KernelMutex    *sync.Mutex
+	kernelSource   string
+	kernelDataSize int
+	device         cu.Device
+	ctx            cu.Context
+	module         cu.Module
+	PIRFn          cu.Function
+	groupSize      int
 }
 
 // NewContextCUDA creates a new CUDA context, shared among ShardCUDA instances
-func NewContextCUDA(name string, kernelSource string) (*ContextCUDA, error) {
+func NewContextCUDA(name string, kernelSource string, kernelDataSize int) (*ContextCUDA, error) {
 	c := &ContextCUDA{}
 	c.log = common.NewLogger(name)
 	c.name = name
 	c.KernelMutex = &sync.Mutex{}
 	c.kernelSource = kernelSource
+	c.kernelDataSize = kernelDataSize
 
 	cu.Init(0)
 	c.device = cu.DeviceGet(CudaDeviceID)
@@ -70,6 +72,11 @@ func (c *ContextCUDA) GetName() string {
 // GetGroupSize returns the working group size of this context
 func (c *ContextCUDA) GetGroupSize() int {
 	return c.groupSize
+}
+
+// GetKernelDataSize returns the size (in bytes) of a single data item in the kernel
+func (c *ContextCUDA) GetKernelDataSize() int {
+	return c.kernelDataSize
 }
 
 // Free currently does nothing. ShardCL waits for the go garbage collector

@@ -122,7 +122,7 @@ func (s *ShardCUDA) Read(reqs []byte, reqLength int) ([]byte, error) {
 	batchSize32 := int32(batchSize)
 	reqLength32 := int32(reqLength)
 	numBuckets32 := int32(s.numBuckets)
-	bucketSize32 := int32(s.bucketSize / KernelDataSize)
+	bucketSize32 := int32(s.bucketSize / s.context.GetKernelDataSize())
 	local := s.context.GetGroupSize()
 	global := s.numThreads
 	if global < local {

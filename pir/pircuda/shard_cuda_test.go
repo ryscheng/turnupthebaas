@@ -5,32 +5,34 @@ package pircuda
 import (
 	"fmt"
 	"testing"
+
+	pt "github.com/privacylab/talek/pir/pirtest"
 )
 
 func TestShardCUDAReadv0(t *testing.T) {
 	fmt.Printf("TestShardCUDAReadv0: ...\n")
-	context, err := NewContextCUDA("contextcuda", "/cuda_modules/pir.ptx")
+	context, err := NewContextCUDA("contextcuda", "/pir.ptx", 8)
 	if err != nil {
 		t.Fatalf("cannot create new ContextCUDA: error=%v\n", err)
 	}
-	shard, err := NewShardCUDA("shardcuda", context, TestDepth*TestMessageSize, generateData(TestNumMessages*TestMessageSize), TestNumMessages*TestMessageSize/KernelDataSize)
+	shard, err := NewShardCUDA("shardcuda", context, pt.TestDepth*pt.TestMessageSize, pt.GenerateData(pt.TestNumMessages*pt.TestMessageSize), pt.TestNumMessages*pt.TestMessageSize/context.GetKernelDataSize())
 	if err != nil {
 		t.Fatalf("cannot create new ShardCUDA: error=%v\n", err)
 	}
-	HelperTestShardRead(t, shard)
-	afterEach(t, shard, context)
+	pt.HelperTestShardRead(t, shard)
+	pt.AfterEach(t, shard, context)
 	fmt.Printf("... done \n")
 }
 
 func BenchmarkShardCUDAReadv0(b *testing.B) {
-	context, err := NewContextCUDA("contextcuda", "/cuda_modules/pir.ptx")
+	context, err := NewContextCUDA("contextcuda", "/pir.ptx", 8)
 	if err != nil {
 		b.Fatalf("cannot create new ShardCUDA: error=%v\n", err)
 	}
-	shard, err := NewShardCUDA("shardcuda", context, BenchDepth*BenchMessageSize, generateData(BenchNumMessages*BenchMessageSize), BenchNumMessages*BenchMessageSize/KernelDataSize)
+	shard, err := NewShardCUDA("shardcuda", context, pt.BenchDepth*pt.BenchMessageSize, pt.GenerateData(pt.BenchNumMessages*pt.BenchMessageSize), pt.BenchNumMessages*pt.BenchMessageSize/context.GetKernelDataSize())
 	if err != nil {
 		b.Fatalf("cannot create new ShardCUDA: error=%v\n", err)
 	}
-	HelperBenchmarkShardRead(b, shard, BenchBatchSize)
-	afterEach(b, shard, context)
+	pt.HelperBenchmarkShardRead(b, shard, pt.BenchBatchSize)
+	pt.AfterEach(b, shard, context)
 }
