@@ -3,10 +3,11 @@
 package pircl
 
 import (
+	"bytes"
 	"fmt"
-	//"io/ioutil"
-	//"path/filepath"
-	//"runtime"
+	"io/ioutil"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"unsafe"
@@ -36,22 +37,17 @@ type ContextCL struct {
 
 // NewContextCL creates a new OpenCL context with a given kernel source.
 // New ShardCL instances will share the same kernel
-func NewContextCL(name string, kernelSource string, kernelDataSize int, gpuScratchSize int) (*ContextCL, error) {
+func NewContextCL(name string, kernelFile string, kernelDataSize int, gpuScratchSize int) (*ContextCL, error) {
 	c := &ContextCL{}
 	c.log = common.NewLogger(name)
 	c.name = name
 
 	// Read Kernel Source
-	/**
-	_, file, _, _ := runtime.Caller(0)
-	kernelFile = filepath.Join(filepath.Dir(file), kernelFile)
-	kernelBytes, fErr := ioutil.ReadFile(kernelFile)
+	kernelSource, fErr := c.readFile(kernelFile)
 	if fErr != nil {
-		c.Free()
-		return nil, fmt.Errorf("NewContextCl: failed to read kernel source %v", kernelFile)
+		return nil, fErr
 	}
-	c.kernelSource = bytes.NewBuffer(kernelBytes).String() + "\x00"
-	**/
+	c.log.Info.Printf("!!!%v\n", kernelSource)
 	c.kernelSource = kernelSource
 	c.kernelDataSize = kernelDataSize
 	c.gpuScratchSize = gpuScratchSize
@@ -180,4 +176,26 @@ func (c *ContextCL) Free() error {
 // GetGPUScratchSize returns the size of the scratch used by the kernel
 func (c *ContextCL) GetGPUScratchSize() int {
 	return c.gpuScratchSize
+}
+
+/*********************************************
+ * PRIVATE METHODS
+ *********************************************/
+
+func (c *ContextCL) readFile(relativePath string) (string, error) {
+	_, file, _, _ := runtime.Caller(0)
+	absolutePath := filepath.Join(filepath.Dir(file), relativePath)
+	dataBytes, fErr := ioutil.ReadFile(absolutePath)
+	if fErr != nil {
+		c.Free()
+		return "", fmt.Errorf("ContextCl readFile: failed to read %v", absolutePath)
+	}
+	dataBuffer := bytes.NewBuffer(dataBytes)
+	dataBuffer.WriteString("\x00")
+	var dataStr string
+	copy(dataStr, dataBuffer.String())
+	//dataStr := dataBuffer.String()
+	//dataStr := fmt.Sprintf("%s", dataBytes) + "\x00"
+	//dataStr := string(dataBytes) + "\x00"
+	return dataStr, nil
 }
