@@ -109,34 +109,9 @@ const KernelCL1 = kernelCLPrefix + `
   output[globalIndex] = result;
 ` + kernelCLPostfix
 
-// KernelCL2 : index => output
-// Cache a portion of the database
-const KernelCL2 = kernelCLPrefix + `
-  uint32_cl globalIndex = get_global_id(0);
-
-  if (globalIndex >= globalSize) {
-    return;
-  }
-
-  //barrier(CLK_LOCAL_MEM_FENCE);
-  
-  // Iterate over all buckets, xor data into my result
-  DATA_TYPE result = 0;
-  uint32_cl reqIndex = (globalIndex / bucketSize) * reqLength;
-  uint32_cl offset = globalIndex % bucketSize;
-  uint8_cl reqBit;
-  for (uint32_cl i = 0; i < numBuckets; i++) {
-    reqBit = reqs[reqIndex + (i/8)] & (1 << (i%8));
-    if (reqBit > 0) {
-      result ^= db[i*bucketSize+offset];
-    }
-  }
-  output[globalIndex] = result;
-` + kernelCLPostfix
-
-// KernelCL3 : index => db
+// KernelCL2 : index => db
 // Cache portion of the database
-const KernelCL3 = kernelCLPrefix + `
+const KernelCL2 = kernelCLPrefix + `
   uint32_cl globalIndex = get_global_id(0);
 
   if (globalIndex >= globalSize) {
