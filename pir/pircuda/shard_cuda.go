@@ -160,7 +160,3 @@ func (s *ShardCUDA) Read(reqs []byte, reqLength int) ([]byte, error) {
 
 	return responses, nil
 }
-
-/*********************************************
- * PRIVATE METHODS
- *********************************************/

@@ -181,7 +181,3 @@ func (c *ContextCL) Free() error {
 func (c *ContextCL) GetGPUScratchSize() int {
 	return c.gpuScratchSize
 }
-
-/*********************************************
- * PRIVATE METHODS
- *********************************************/

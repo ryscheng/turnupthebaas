@@ -84,7 +84,3 @@ func (c *ContextCUDA) Free() error {
 	c.Ctx.Destroy()
 	return nil
 }
-
-/*********************************************
- * PRIVATE METHODS
- *********************************************/
