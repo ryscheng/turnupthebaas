@@ -46,7 +46,7 @@ func NewContextCUDA(name string, kernelSource string, kernelDataSize int) (*Cont
 	c.Ctx.SetCurrent()
 
 	//major, minor := c.device.ComputeCapability()
-	//c.log.Info.Printf("!!! %v.%v\n", major, minor)
+	//c.log.Info.Printf("CUDA Compute Compatibility: %v.%v\n", major, minor)
 
 	//c.module = cu.ModuleLoadData(kernelSource)
 	c.module = cu.ModuleLoad(kernelSource)
