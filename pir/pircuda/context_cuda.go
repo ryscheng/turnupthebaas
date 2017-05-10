@@ -1,6 +1,6 @@
 //+build !nocuda,!travis
 
-package pir
+package pircuda
 
 import (
 	"sync"
