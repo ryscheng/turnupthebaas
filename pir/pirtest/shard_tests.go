@@ -7,23 +7,33 @@ import (
 	"github.com/privacylab/talek/pir"
 )
 
+// FatalInterface is a abstracts out calls to Fatal and Fatalf
 type FatalInterface interface {
 	Fatal(args ...interface{})
 	Fatalf(format string, args ...interface{})
 }
 
 const (
-	TestBatchSize    = 3
-	TestNumMessages  = 32
-	TestMessageSize  = 8
-	TestDepth        = 2       // 16 buckets
-	BenchBatchSize   = 128     // This seems to provide the best GPU perf
+	// TestBatchSize is the batch size used in tests
+	TestBatchSize = 3
+	// TestNumMessages is the number of messages on the database used in tests
+	TestNumMessages = 32
+	// TestMessageSize is the message size used in tests
+	TestMessageSize = 8
+	// TestDepth is the bucket depth used in tests
+	TestDepth = 2 // 16 buckets
+	// BenchBatchSize is the batch size used in benchmarks
+	BenchBatchSize = 128 // This seems to provide the best GPU perf
+	// BenchNumMessages is the number of messages on the database used in benchmarks
 	BenchNumMessages = 1048576 // 2^20
-	//BenchNumMessages = 524288 // 2^19; Note: AMD devices have a smaller max memory allocation size
+	// BenchMessageSize is the message size used in benchmarks
 	BenchMessageSize = 1024
-	BenchDepth       = 4 // 262144=2^18 buckets
+	// BenchDepth is the bucket depth used in benchmarks
+	BenchDepth = 4 // 262144=2^18 buckets
+//BenchNumMessages = 524288 // 2^19; Note: AMD devices have a smaller max memory allocation size
 )
 
+// AfterEach frees up the shard and context used in a test
 func AfterEach(f FatalInterface, shard pir.Shard, context pir.Context) {
 	var err error
 	if shard != nil {
@@ -40,6 +50,7 @@ func AfterEach(f FatalInterface, shard pir.Shard, context pir.Context) {
 	}
 }
 
+// GenerateData will generate a byte array for tests
 func GenerateData(size int) []byte {
 	data := make([]byte, size)
 	for i := 0; i < size; i++ {
@@ -48,8 +59,8 @@ func GenerateData(size int) []byte {
 	return data
 }
 
+// HelperTestShardRead is the generic function for testing correctness of a PIR implementation
 func HelperTestShardRead(t *testing.T, shard pir.Shard) {
-
 	// Populate batch read request
 	reqLength := shard.GetNumBuckets() / 8
 	if shard.GetNumBuckets()%8 != 0 {
@@ -108,6 +119,7 @@ func HelperTestShardRead(t *testing.T, shard pir.Shard) {
 	}
 }
 
+// HelperBenchmarkShardRead is the generic function for testing performance of a PIR implementation
 func HelperBenchmarkShardRead(b *testing.B, shard pir.Shard, batchSize int) {
 	reqLength := shard.GetNumBuckets() / 8
 	if shard.GetNumBuckets()%8 != 0 {
