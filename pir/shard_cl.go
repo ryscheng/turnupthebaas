@@ -183,9 +183,10 @@ func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 	if err != cl.SUCCESS {
 		return nil, fmt.Errorf("Failed to execute kernel")
 	}
-	cl.Finish(s.context.CommandQueue) //@todo inside or outside lock region?
 	s.context.KernelMutex.Unlock()
 	/** END LOCK REGION **/
+
+	cl.Finish(s.context.CommandQueue) //@todo inside or outside lock region?
 
 	err = cl.EnqueueReadBuffer(s.context.CommandQueue, output, cl.TRUE, 0, uint64(outputSize), unsafe.Pointer(&responses[0]), 0, nil, nil)
 	if err != cl.SUCCESS {
@@ -194,7 +195,3 @@ func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 
 	return responses, nil
 }
-
-/*********************************************
- * PRIVATE METHODS
- *********************************************/
