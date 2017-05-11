@@ -3,7 +3,6 @@ package common
 import (
 	"log"
 	"os"
-	//"io/ioutil"
 )
 
 // Logger tracks status.
