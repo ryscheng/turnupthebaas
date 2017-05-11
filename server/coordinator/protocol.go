@@ -13,6 +13,7 @@ type GetInfoReply struct {
 type CommitArgs struct {
 }
 
+// CommitReply acknowledges commits
 type CommitReply struct {
 	Err string
 }

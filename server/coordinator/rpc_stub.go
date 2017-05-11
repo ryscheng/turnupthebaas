@@ -15,7 +15,7 @@ type RPCStub struct {
 	lastErr error
 }
 
-// NewCoordinatorRPC instantiates a client stub
+// NewRPCStub instantiates a client stub
 func NewRPCStub(name string, address string) *RPCStub {
 	c := &RPCStub{}
 	c.log = common.NewLogger(name)
@@ -35,18 +35,19 @@ func (c *RPCStub) Close() error {
 	return nil
 }
 
-// GetName returns the name of the leader.
+// GetInfo returns info about this server
 func (c *RPCStub) GetInfo(_ *interface{}, reply *GetInfoReply) error {
 	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Coordinator.GetInfo", nil, reply)
 	return c.lastErr
 }
 
-// GetConfig tells the client about current config.
+// GetConfig returns the current config.
 func (c *RPCStub) GetConfig(_ *interface{}, reply *common.Config) error {
 	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Coordinator.GetConfig", nil, reply)
 	return c.lastErr
 }
 
+// Commit a set of Writes
 func (c *RPCStub) Commit(args *CommitArgs, reply *CommitReply) error {
 	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Coordinator.Commit", args, reply)
 	return c.lastErr
