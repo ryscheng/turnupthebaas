@@ -46,11 +46,6 @@ func (s *ShardCPU) Free() error {
 	return nil
 }
 
-// GetName returns the name of the shard
-func (s *ShardCPU) GetName() string {
-	return s.name
-}
-
 // GetBucketSize returns the size (in bytes) of a bucket
 func (s *ShardCPU) GetBucketSize() int {
 	return s.bucketSize
@@ -92,6 +87,8 @@ func (s *ShardCPU) Read(reqs []byte, reqLength int) ([]byte, error) {
 		return s.read0(reqs, reqLength)
 	} else if s.readVersion == 1 {
 		return s.read1(reqs, reqLength)
+	} else if s.readVersion == 2 {
+		return s.read2(reqs, reqLength)
 	}
 
 	return nil, fmt.Errorf("ShardCPU.Read: invalid readVersion=%d", s.readVersion)
@@ -102,16 +99,16 @@ func (s *ShardCPU) read0(reqs []byte, reqLength int) ([]byte, error) {
 	responses := make([]byte, numReqs*s.bucketSize)
 
 	// calculate PIR
-	// Note: Much better for outer loop to be reqIndex, not bucketIndex
 	for reqIndex := 0; reqIndex < numReqs; reqIndex++ {
+		reqOffset := reqIndex * reqLength
+		respOffset := reqIndex * s.bucketSize
 		for bucketIndex := 0; bucketIndex < s.numBuckets; bucketIndex++ {
-			reqByte := reqs[reqIndex*reqLength+(bucketIndex/8)]
+			reqByte := reqs[reqOffset+(bucketIndex/8)]
 			if reqByte&(byte(1)<<uint(bucketIndex%8)) != 0 {
-				bucket := s.data[(bucketIndex * s.bucketSize):]
-				response := responses[(reqIndex * s.bucketSize):]
-				for offset := 0; offset < s.bucketSize; offset++ {
-					response[offset] ^= bucket[offset]
-				}
+				bucketOffset := bucketIndex * s.bucketSize
+				bucket := s.data[bucketOffset:(bucketOffset + s.bucketSize)]
+				response := responses[respOffset:(respOffset + s.bucketSize)]
+				xorWords(response, response, bucket)
 			}
 		}
 	}
@@ -133,7 +130,29 @@ func (s *ShardCPU) read1(reqs []byte, reqLength int) ([]byte, error) {
 				bucketOffset := bucketIndex * s.bucketSize
 				bucket := s.data[bucketOffset:(bucketOffset + s.bucketSize)]
 				response := responses[respOffset:(respOffset + s.bucketSize)]
-				xorWords(response, response, bucket)
+				xorBytes(response, response, bucket)
+			}
+		}
+	}
+
+	return responses, nil
+}
+
+func (s *ShardCPU) read2(reqs []byte, reqLength int) ([]byte, error) {
+	numReqs := len(reqs) / reqLength
+	responses := make([]byte, numReqs*s.bucketSize)
+
+	// calculate PIR
+	// Note: Much better for outer loop to be reqIndex, not bucketIndex
+	for reqIndex := 0; reqIndex < numReqs; reqIndex++ {
+		for bucketIndex := 0; bucketIndex < s.numBuckets; bucketIndex++ {
+			reqByte := reqs[reqIndex*reqLength+(bucketIndex/8)]
+			if reqByte&(byte(1)<<uint(bucketIndex%8)) != 0 {
+				bucket := s.data[(bucketIndex * s.bucketSize):]
+				response := responses[(reqIndex * s.bucketSize):]
+				for offset := 0; offset < s.bucketSize; offset++ {
+					response[offset] ^= bucket[offset]
+				}
 			}
 		}
 	}

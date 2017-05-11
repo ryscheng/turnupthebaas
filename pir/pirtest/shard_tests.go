@@ -117,6 +117,12 @@ func HelperTestShardRead(t *testing.T, shard pir.Shard) {
 			t.Fatalf("response2 is incorrect. byte %d was %d, not '%d'\n", i, res[i], expected)
 		}
 	}
+
+	// Try to a malformed Read
+	_, err = shard.Read(reqs, 7)
+	if err == nil {
+		t.Fatalf("shard.Read should have returned an error with mismatched reqs and reqLength")
+	}
 }
 
 // HelperBenchmarkShardRead is the generic function for testing performance of a PIR implementation

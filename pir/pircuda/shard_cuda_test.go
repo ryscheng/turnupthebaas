@@ -9,6 +9,23 @@ import (
 	pt "github.com/privacylab/talek/pir/pirtest"
 )
 
+func TestShardCUDACreate(t *testing.T) {
+	fmt.Printf("TestShardCUDACreate: ...\n")
+	context, err := NewContextCUDA("contextcuda", "/kernel.ptx", 8)
+	if err != nil {
+		t.Fatalf("cannot create new ContextCUDA: error=%v\n", err)
+	}
+	shard, err := NewShardCUDA("shardcuda", context, 7, pt.GenerateData(pt.TestNumMessages*pt.TestMessageSize), pt.TestNumMessages*pt.TestMessageSize/context.GetKernelDataSize())
+	if err == nil {
+		t.Fatalf("new ShardCUDA should have failed with invalid bucketSize, but didn't return error")
+	}
+	if shard != nil {
+		t.Fatalf("new ShardCUDA should have failed with invalid bucketSize, but returned a shard")
+	}
+	pt.AfterEach(t, nil, context)
+	fmt.Printf("... done \n")
+}
+
 func TestShardCUDAReadv0(t *testing.T) {
 	fmt.Printf("TestShardCUDAReadv0: ...\n")
 	context, err := NewContextCUDA("contextcuda", "/kernel.ptx", 8)

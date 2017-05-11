@@ -64,11 +64,6 @@ func (s *ShardCUDA) Free() error {
 	return nil
 }
 
-// GetName returns the name of the shard
-func (s *ShardCUDA) GetName() string {
-	return s.name
-}
-
 // GetBucketSize returns the size (in bytes) of a bucket
 func (s *ShardCUDA) GetBucketSize() int {
 	return s.bucketSize

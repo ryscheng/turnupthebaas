@@ -64,11 +64,6 @@ func NewContextCUDA(name string, kernelSource string, kernelDataSize int) (*Cont
  * PUBLIC METHODS
  *********************************************/
 
-// GetName returns the name of the context
-func (c *ContextCUDA) GetName() string {
-	return c.name
-}
-
 // GetGroupSize returns the working group size of this context
 func (c *ContextCUDA) GetGroupSize() int {
 	return c.groupSize

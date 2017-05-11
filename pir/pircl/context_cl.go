@@ -126,11 +126,6 @@ func NewContextCL(name string, kernelSource string, kernelDataSize int, gpuScrat
  * PUBLIC METHODS
  *********************************************/
 
-// GetName returns the name of the context
-func (c *ContextCL) GetName() string {
-	return c.name
-}
-
 // GetGroupSize returns the working group size of this context
 func (c *ContextCL) GetGroupSize() int {
 	return c.groupSize

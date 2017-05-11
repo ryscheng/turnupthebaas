@@ -9,6 +9,25 @@ import (
 	pt "github.com/privacylab/talek/pir/pirtest"
 )
 
+func TestShardCLCreate(t *testing.T) {
+	fmt.Printf("TestShardCLCreate: ...\n")
+	context, err := NewContextCL("contextcl", KernelCL0, 8, pt.BenchMessageSize*pt.BenchDepth)
+	if err != nil {
+		t.Fatalf("cannot create new ContextCL: error=%v\n", err)
+	}
+	// Creating with invalid bucketSize
+	shard, err := NewShardCL("shardcl", context, 7, pt.GenerateData(pt.TestNumMessages*pt.TestMessageSize), pt.TestBatchSize*context.GetGroupSize())
+	if err == nil {
+		t.Fatalf("new ShardCL should have failed with invalid bucketSize, but didn't return error")
+	}
+	if shard != nil {
+		t.Fatalf("new ShardCL should have failed with invalid bucketSize, but returned a shard")
+	}
+	pt.AfterEach(t, nil, context)
+	fmt.Printf("... done \n")
+
+}
+
 func TestShardCLReadv0(t *testing.T) {
 	fmt.Printf("TestShardCLReadv0: ...\n")
 	context, err := NewContextCL("contextcl", KernelCL0, 8, pt.BenchMessageSize*pt.BenchDepth)

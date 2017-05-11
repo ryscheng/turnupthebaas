@@ -80,11 +80,6 @@ func (s *ShardCL) Free() error {
 	return nil
 }
 
-// GetName returns the name of the shard
-func (s *ShardCL) GetName() string {
-	return s.name
-}
-
 // GetBucketSize returns the size (in bytes) of a bucket
 func (s *ShardCL) GetBucketSize() int {
 	return s.bucketSize
