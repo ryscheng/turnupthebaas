@@ -112,7 +112,7 @@ func (t *Table) Contains(item *Item) bool {
 func (t *Table) Insert(item *Item) (bool, *Item) {
 	var nextBucket int
 	if item.Bucket1 >= t.numBuckets || item.Bucket2 >= t.numBuckets {
-		t.log.Error.Printf("Insert: invalid buckets=(%v,%v)%v\n", item.Bucket1, item.Bucket2)
+		t.log.Error.Printf("Insert: invalid buckets=(%v,%v)\n", item.Bucket1, item.Bucket2)
 		return false, nil
 	}
 
