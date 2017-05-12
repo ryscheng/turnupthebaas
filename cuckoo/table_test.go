@@ -47,6 +47,16 @@ func TestGetCapacity(t *testing.T) {
 	fmt.Printf("... done \n")
 }
 
+func TestInvalidConstruction(t *testing.T) {
+	fmt.Printf("TestInvalidConstruction: ...\n")
+	data := make([]byte, 7)
+	table := NewTable("t", 1, 2, 3, data, 0)
+	if table != nil {
+		t.Fatalf("table with malformed size was created\n")
+	}
+	fmt.Printf("... done \n")
+}
+
 func TestBasic(t *testing.T) {
 	table := NewTable("t", 10, 2, 64, nil, 0)
 
