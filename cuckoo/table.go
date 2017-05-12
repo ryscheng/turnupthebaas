@@ -18,58 +18,16 @@ type ItemLocation struct {
 	bucket2 int
 }
 
-// Item holds a full item data for cuckoo table placement.
-type Item struct {
-	ID      int
-	Data    []byte
-	Bucket1 int
-	Bucket2 int
-}
-
-// Copy duplicates an Item.
-func (i Item) Copy() *Item {
-	other := &Item{}
-	other.ID = i.ID
-	other.Data = make([]byte, len(i.Data))
-	other.Bucket1 = i.Bucket1
-	other.Bucket2 = i.Bucket2
-	copy(other.Data, i.Data)
-	return other
-}
-
-// Equals compares item equality.
-func (i *Item) Equals(other *Item) bool {
-	if other == nil {
-		return false
-	}
-	return i.Bucket1 == other.Bucket1 &&
-		i.Bucket2 == other.Bucket2 &&
-		i.ID == other.ID
-}
-
-/**
-// Bucket returns the bucket in a table that the Item is in, if it is in the table.
-func (i *Item) Bucket(table *Table) int {
-	if table.isInBucket(i.Bucket1, i) {
-		return i.Bucket1
-	} else if table.isInBucket(i.Bucket2, i) {
-		return i.Bucket2
-	}
-	return -1
-}
-**/
-
 // Table is a cuckoo table managing placement of Items.
 type Table struct {
 	name        string
-	numBuckets  int // Number of buckets
-	bucketDepth int // Items in each bucket
-	itemSize    int // number of bytes in an item
+	numBuckets  int    // Number of buckets
+	bucketDepth int    // Items in each bucket
+	itemSize    int    // number of bytes in an item
+	data        []byte //
 	rand        *rand.Rand
 	log         *common.Logger
-
-	index []ItemLocation
-	data  []byte
+	index       []ItemLocation
 }
 
 // NewTable creates a new cuckoo table optionaly backed by a pre-allocated memory area.
@@ -82,14 +40,13 @@ type Table struct {
 func NewTable(name string, numBuckets int, bucketDepth int, itemSize int,
 	data []byte, randSeed int64) *Table {
 	t := &Table{name, numBuckets, bucketDepth, itemSize, nil, nil, nil, nil}
-	t.rand = rand.New(rand.NewSource(randSeed))
-	t.log = common.NewLogger(name)
-
-	t.index = make([]ItemLocation, numBuckets*bucketDepth)
 	if data == nil {
 		data = make([]byte, numBuckets*bucketDepth*itemSize)
 	}
 	t.data = data
+	t.rand = rand.New(rand.NewSource(randSeed))
+	t.log = common.NewLogger(name)
+	t.index = make([]ItemLocation, numBuckets*bucketDepth)
 
 	if len(data) != numBuckets*bucketDepth*itemSize {
 		t.log.Error.Printf("NewTable(%v) failed: len(data)=%v is not equal to numBuckets*bucketDepth*itemSize (%v,%v,%v)", name, len(data), numBuckets, bucketDepth, itemSize)
@@ -119,6 +76,17 @@ func (t *Table) GetNumElements() int {
 	}
 
 	return result
+}
+
+// Bucket returns the bucket in a table that the Item is in, if it is in the table.
+// -1 otherwise
+func (t *Table) Bucket(item *Item) int {
+	if t.isInBucket(item.Bucket1, item) {
+		return item.Bucket1
+	} else if t.isInBucket(item.Bucket2, item) {
+		return item.Bucket2
+	}
+	return -1
 }
 
 // Contains checks if value exists in specified buckets
