@@ -28,6 +28,7 @@ func main() {
 	// Support setting flags from either command-line arguments or environment variables
 	// command-line arguments take priority
 	configPath := pflag.StringP("config", "c", "replica.conf", "Talek Replica Configuration (env TALEK_CONFIG)")
+	commonPath := pflag.StringP("common", "f", "common.conf", "Talek Common Configuration (env TALEK_COMMON)")
 	pirSocket := pflag.StringP("socket", "s", "../../pird/pir.socket", "PIR daemon socket (env TALEK_SOCKET)")
 	err := flags.SetPflagsFromEnv(common.EnvPrefix, pflag.CommandLine)
 	if err != nil {
@@ -45,6 +46,11 @@ func main() {
 		log.Printf("Could not read %s!\n", *configPath)
 		return
 	}
+	commonString, err := ioutil.ReadFile(*commonPath)
+	if err != nil {
+		log.Printf("Could not read %s!\n", *commonPath)
+		return
+	}
 
 	// Default configuration. The server can be started with just a trustdomain
 	// config and this will be used for the serverConfig struct in that case.
@@ -58,6 +64,10 @@ func main() {
 	}
 	if err := json.Unmarshal(configString, &serverConfig); err != nil {
 		log.Printf("Could not parse %s: %v\n", *configPath, err)
+		return
+	}
+	if err := json.Unmarshal(commonString, serverConfig.Config); err != nil {
+		log.Printf("Could not parse %s: %v\n", *commonPath, err)
 		return
 	}
 
