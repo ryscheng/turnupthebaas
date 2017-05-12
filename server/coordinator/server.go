@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/privacylab/talek/common"
-	//"github.com/privacylab/talek/cuckoo"
-	//"golang.org/x/net/trace"
+	"github.com/privacylab/talek/cuckoo"
+	"golang.org/x/net/trace"
 )
 
 // Server is the main logic for the central coordinator
@@ -53,6 +53,8 @@ func NewServer(name string, config common.Config, buildThreshold uint64, buildIn
 
 // GetInfo returns information about this server
 func (s *Server) GetInfo(args *interface{}, reply *GetInfoReply) error {
+	tr := trace.New("Coordinator", "GetInfo")
+	defer tr.Finish()
 	reply.Err = ""
 	reply.Name = s.name
 	return nil
@@ -60,6 +62,8 @@ func (s *Server) GetInfo(args *interface{}, reply *GetInfoReply) error {
 
 // GetCommonConfig returns the common global config
 func (s *Server) GetCommonConfig(args *interface{}, reply *common.Config) error {
+	tr := trace.New("Coordinator", "GetCommonConfig")
+	defer tr.Finish()
 	config := s.config.Load().(common.Config)
 	*reply = config
 	return nil
@@ -67,6 +71,8 @@ func (s *Server) GetCommonConfig(args *interface{}, reply *common.Config) error 
 
 // Commit accepts a single Write to commit. The
 func (s *Server) Commit(args *CommitArgs, reply *CommitReply) error {
+	tr := trace.New("Coordinator", "Commit")
+	defer tr.Finish()
 	s.commitChan <- args
 	reply.Err = ""
 	return nil
@@ -74,6 +80,8 @@ func (s *Server) Commit(args *CommitArgs, reply *CommitReply) error {
 
 /**
 func (s *Server) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdatesReply) error {
+	tr := trace.New("Coordinator", "GetUpdates")
+	defer tr.Finish()
 }
 **/
 
@@ -83,6 +91,7 @@ func (s *Server) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdate
 
 // Close shuts down the server
 func (s *Server) Close() {
+	close(s.commitChan)
 }
 
 /**********************************
@@ -130,8 +139,13 @@ func (s *Server) processCommits() {
 	}
 }
 
-func (s *Server) buildLayout(buildId uint64, commitLog []*CommitArgs) {
+func (s *Server) buildLayout(buildId uint64, config common.Config, commitLog []*CommitArgs) {
+	tr := trace.New("Coordinator", "buildLayout")
+	defer tr.Finish()
+
 	// Construct cuckoo table layout
+	data := make([]byte, config.NumBuckets*uint64(config.BucketDepth)*8)
+	table := cuckoo.NewTable(string(buildId), config.NumBuckets, config.BucketDepth, config.DataSize, data, 0)
 
 	// Construct global interest vector
 
