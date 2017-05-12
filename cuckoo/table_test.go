@@ -133,9 +133,9 @@ func TestBucket(t *testing.T) {
 	fmt.Printf("TestBucket: ...\n")
 	table := NewTable("t", 10, 2, 64, nil, 0)
 	items := []*Item{
-		&Item{1, GetBytes("value1"), 5, 5},
-		&Item{2, GetBytes("value2"), 5, 5},
-		&Item{3, GetBytes("value3"), 5, 6},
+		{1, GetBytes("value1"), 5, 5},
+		{2, GetBytes("value2"), 5, 5},
+		{3, GetBytes("value3"), 5, 6},
 	}
 	for _, v := range items {
 		ok, _ := table.Insert(v)
