@@ -5,9 +5,9 @@ import (
 	"encoding/binary"
 
 	"github.com/agl/ed25519"
-	"github.com/privacylab/talek/bloom"
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/drbg"
+	"github.com/willf/bloom"
 	"golang.org/x/crypto/nacl/box"
 )
 
