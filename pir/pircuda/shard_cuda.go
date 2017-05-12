@@ -38,7 +38,9 @@ func NewShardCUDA(name string, context *ContextCUDA, bucketSize int, data []byte
 	// If len(s.data) is not cleanly divisible by s.bucketSize,
 	// returns an error
 	if len(data)%bucketSize != 0 {
-		return nil, fmt.Errorf("NewShardCL(%v) failed: data(len=%v) not multiple of bucketSize=%v", name, len(data), bucketSize)
+		rErr := fmt.Errorf("NewShardCUDA(%v) failed: data(len=%v) not multiple of bucketSize=%v", name, len(data), bucketSize)
+		s.log.Error.Printf("%v\n", rErr)
+		return nil, rErr
 	}
 
 	s.bucketSize = bucketSize
@@ -47,10 +49,15 @@ func NewShardCUDA(name string, context *ContextCUDA, bucketSize int, data []byte
 	s.numThreads = numThreads
 
 	/** CUDA **/
+	// Weird context hack
+	if cu.CtxGetCurrent() == 0 {
+		s.context.Ctx.SetCurrent()
+	}
 	//  Create buffers
 	s.cudaData = cu.MemAlloc(int64(len(data)))
 	cu.MemcpyHtoD(s.cudaData, unsafe.Pointer(&data[0]), int64(len(data)))
 
+	s.log.Info.Printf("NewShardCUDA(%v) finished\n", s.name)
 	return s, nil
 }
 
@@ -61,6 +68,7 @@ func NewShardCUDA(name string, context *ContextCUDA, bucketSize int, data []byte
 // Free releases all OpenCL buffers
 func (s *ShardCUDA) Free() error {
 	cu.MemFree(s.cudaData)
+	s.log.Info.Printf("%v.Free finished\n", s.name)
 	return nil
 }
 
@@ -85,8 +93,12 @@ func (s *ShardCUDA) GetData() []byte {
 // Returns: a single byte array where responses are concatenated by the order in `reqs`
 //   each response consists of `s.bucketSize` bytes
 func (s *ShardCUDA) Read(reqs []byte, reqLength int) ([]byte, error) {
+	s.log.Trace.Printf("%v.Read: start\n", s.name)
+
 	if len(reqs)%reqLength != 0 {
-		return nil, fmt.Errorf("ShardCUDA.Read expects len(reqs)=%d to be a multiple of reqLength=%d", len(reqs), reqLength)
+		rErr := fmt.Errorf("ShardCUDA.Read expects len(reqs)=%d to be a multiple of reqLength=%d", len(reqs), reqLength)
+		s.log.Error.Printf("%v.Read error: %v\n", s.name, rErr)
+		return nil, rErr
 	}
 
 	inputSize := int64(len(reqs))
@@ -153,5 +165,6 @@ func (s *ShardCUDA) Read(reqs []byte, reqLength int) ([]byte, error) {
 	// Read responses
 	cu.MemcpyDtoH(unsafe.Pointer(&responses[0]), output, outputSize)
 
+	s.log.Trace.Printf("%v.Read: end \n", s.name)
 	return responses, nil
 }

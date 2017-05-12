@@ -61,6 +61,7 @@ func GenerateData(size int) []byte {
 
 // HelperTestShardRead is the generic function for testing correctness of a PIR implementation
 func HelperTestShardRead(t *testing.T, shard pir.Shard) {
+
 	// Populate batch read request
 	reqLength := shard.GetNumBuckets() / 8
 	if shard.GetNumBuckets()%8 != 0 {

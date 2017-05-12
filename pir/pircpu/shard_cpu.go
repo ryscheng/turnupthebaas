@@ -38,11 +38,14 @@ func NewShardCPU(name string, bucketSize int, data []byte, readVersion int) (*Sh
 	s.numBuckets = (len(data) / bucketSize)
 	s.data = data
 	s.readVersion = readVersion
+
+	s.log.Info.Printf("NewShardCPU(%v) finished\n", s.name)
 	return s, nil
 }
 
 // Free currently does nothing. ShardCPU waits for the go garbage collector
 func (s *ShardCPU) Free() error {
+	s.log.Info.Printf("%v.Free finished\n", s.name)
 	return nil
 }
 
@@ -95,6 +98,7 @@ func (s *ShardCPU) Read(reqs []byte, reqLength int) ([]byte, error) {
 }
 
 func (s *ShardCPU) read0(reqs []byte, reqLength int) ([]byte, error) {
+	s.log.Trace.Printf("%v.read0: start\n", s.name)
 	numReqs := len(reqs) / reqLength
 	responses := make([]byte, numReqs*s.bucketSize)
 
@@ -113,10 +117,12 @@ func (s *ShardCPU) read0(reqs []byte, reqLength int) ([]byte, error) {
 		}
 	}
 
+	s.log.Trace.Printf("%v.read0: end\n", s.name)
 	return responses, nil
 }
 
 func (s *ShardCPU) read1(reqs []byte, reqLength int) ([]byte, error) {
+	s.log.Trace.Printf("%v.read1: start\n", s.name)
 	numReqs := len(reqs) / reqLength
 	responses := make([]byte, numReqs*s.bucketSize)
 
@@ -135,10 +141,12 @@ func (s *ShardCPU) read1(reqs []byte, reqLength int) ([]byte, error) {
 		}
 	}
 
+	s.log.Trace.Printf("%v.read1: end\n", s.name)
 	return responses, nil
 }
 
 func (s *ShardCPU) read2(reqs []byte, reqLength int) ([]byte, error) {
+	s.log.Trace.Printf("%v.read2: start\n", s.name)
 	numReqs := len(reqs) / reqLength
 	responses := make([]byte, numReqs*s.bucketSize)
 
@@ -157,5 +165,6 @@ func (s *ShardCPU) read2(reqs []byte, reqLength int) ([]byte, error) {
 		}
 	}
 
+	s.log.Trace.Printf("%v.read2: end\n", s.name)
 	return responses, nil
 }

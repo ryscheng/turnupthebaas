@@ -39,7 +39,9 @@ func NewShardCL(name string, context *ContextCL, bucketSize int, data []byte, nu
 	// If len(s.data) is not cleanly divisible by s.bucketSize,
 	// returns an error
 	if len(data)%bucketSize != 0 {
-		return nil, fmt.Errorf("NewShardCL(%v) failed: data(len=%v) not multiple of bucketSize=%v", name, len(data), bucketSize)
+		rErr := fmt.Errorf("NewShardCL(%v) failed: data(len=%v) not multiple of bucketSize=%v", name, len(data), bucketSize)
+		s.log.Error.Printf("%v\n", rErr)
+		return nil, rErr
 	}
 
 	s.bucketSize = bucketSize
@@ -52,14 +54,19 @@ func NewShardCL(name string, context *ContextCL, bucketSize int, data []byte, nu
 	var errptr *cl.ErrorCode
 	s.clData = cl.CreateBuffer(s.context.Context, cl.MEM_READ_ONLY, uint64(len(data)), nil, errptr)
 	if errptr != nil && cl.ErrorCode(*errptr) != cl.SUCCESS {
-		return nil, fmt.Errorf("NewShardCL(%v) failed: couldnt create OpenCL buffer", name)
+		rErr := fmt.Errorf("NewShardCL(%v) failed: couldnt create OpenCL buffer", name)
+		s.log.Error.Printf("%v\n", rErr)
+		return nil, rErr
 	}
 	//Write shard data to GPU
 	err := cl.EnqueueWriteBuffer(s.context.CommandQueue, s.clData, cl.TRUE, 0, uint64(len(data)), unsafe.Pointer(&data[0]), 0, nil, nil)
 	if err != cl.SUCCESS {
-		return nil, fmt.Errorf("NewShardCL(%v) failed: cannot write shard to GPU (OpenCL buffer)", name)
+		rErr := fmt.Errorf("NewShardCL(%v) failed: cannot write shard to GPU (OpenCL buffer)", name)
+		s.log.Error.Printf("%v\n", rErr)
+		return nil, rErr
 	}
 
+	s.log.Info.Printf("NewShardCL(%v) finished\n", s.name)
 	return s, nil
 }
 
@@ -75,8 +82,10 @@ func (s *ShardCL) Free() error {
 		errStr += cl.ErrToStr(err) + "\n"
 	}
 	if strings.Compare(errStr, "") != 0 {
+		s.log.Error.Printf("%v.Free error: %v\n", s.name, errStr)
 		return fmt.Errorf("ContextCL.Free errors: " + errStr)
 	}
+	s.log.Info.Printf("%v.Free finished\n", s.name)
 	return nil
 }
 
@@ -101,8 +110,11 @@ func (s *ShardCL) GetData() []byte {
 // Returns: a single byte array where responses are concatenated by the order in `reqs`
 //   each response consists of `s.bucketSize` bytes
 func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
+	s.log.Trace.Printf("%v.Read: start\n", s.name)
 	if len(reqs)%reqLength != 0 {
-		return nil, fmt.Errorf("ShardCL.Read expects len(reqs)=%d to be a multiple of reqLength=%d", len(reqs), reqLength)
+		rErr := fmt.Errorf("ShardCL.Read expects len(reqs)=%d to be a multiple of reqLength=%d", len(reqs), reqLength)
+		s.log.Error.Printf("%v.Read error: %v\n", s.name, rErr)
+		return nil, rErr
 	}
 
 	inputSize := len(reqs)
@@ -116,20 +128,26 @@ func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 	//Create buffers
 	input := cl.CreateBuffer(context, cl.MEM_READ_ONLY, uint64(inputSize), nil, errptr)
 	if errptr != nil && cl.ErrorCode(*errptr) != cl.SUCCESS {
-		return nil, fmt.Errorf("couldnt create input buffer")
+		rErr := fmt.Errorf("couldnt create input buffer")
+		s.log.Error.Printf("%v.Read error: %v\n", s.name, rErr)
+		return nil, rErr
 	}
 	defer cl.ReleaseMemObject(input)
 
 	output := cl.CreateBuffer(context, cl.MEM_WRITE_ONLY, uint64(outputSize), nil, errptr)
 	if errptr != nil && cl.ErrorCode(*errptr) != cl.SUCCESS {
-		return nil, fmt.Errorf("couldnt create output buffer")
+		rErr := fmt.Errorf("couldnt create output buffer")
+		s.log.Error.Printf("%v.Read error: %v\n", s.name, rErr)
+		return nil, rErr
 	}
 	defer cl.ReleaseMemObject(output)
 
 	//Write request data
 	err = cl.EnqueueWriteBuffer(s.context.CommandQueue, input, cl.TRUE, 0, uint64(inputSize), unsafe.Pointer(&reqs[0]), 0, nil, nil)
 	if err != cl.SUCCESS {
-		return nil, fmt.Errorf("Failed to write to input requests (OpenCL buffer)")
+		rErr := fmt.Errorf("Failed to write to input requests (OpenCL buffer)")
+		s.log.Error.Printf("%v.Read error: %v\n", s.name, rErr)
+		return nil, rErr
 	}
 
 	//Set kernel args
@@ -169,14 +187,18 @@ func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 	for i := 0; i < len(args); i++ {
 		err = cl.SetKernelArg(s.context.Kernel, uint32(i), argSizes[i], args[i])
 		if err != cl.SUCCESS {
-			return nil, fmt.Errorf("Failed to write kernel arg %v", i)
+			rErr := fmt.Errorf("Failed to write kernel arg %v", i)
+			s.log.Error.Printf("%v.Read error: %v\n", s.name, rErr)
+			return nil, rErr
 		}
 	}
 
 	//s.log.Info.Printf("local=%v, global=%v\n", local, global)
 	err = cl.EnqueueNDRangeKernel(s.context.CommandQueue, s.context.Kernel, 1, nil, &global, &local, 0, nil, nil)
 	if err != cl.SUCCESS {
-		return nil, fmt.Errorf("Failed to execute kernel")
+		rErr := fmt.Errorf("Failed to execute kernel")
+		s.log.Error.Printf("%v.Read error: %v\n", s.name, rErr)
+		return nil, rErr
 	}
 	s.context.KernelMutex.Unlock()
 	/** END LOCK REGION **/
@@ -185,8 +207,11 @@ func (s *ShardCL) Read(reqs []byte, reqLength int) ([]byte, error) {
 
 	err = cl.EnqueueReadBuffer(s.context.CommandQueue, output, cl.TRUE, 0, uint64(outputSize), unsafe.Pointer(&responses[0]), 0, nil, nil)
 	if err != cl.SUCCESS {
-		return nil, fmt.Errorf("Failed to read output response (OpenCL buffer), err=%v", cl.ErrToStr(err))
+		rErr := fmt.Errorf("Failed to read output response (OpenCL buffer), err=%v", cl.ErrToStr(err))
+		s.log.Error.Printf("%v.Read error: %v\n", s.name, rErr)
+		return nil, rErr
 	}
 
+	s.log.Trace.Printf("%v.Read: end\n", s.name)
 	return responses, nil
 }

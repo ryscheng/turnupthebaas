@@ -6,11 +6,17 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/privacylab/talek/common"
 	pt "github.com/privacylab/talek/pir/pirtest"
 )
 
+func beforeEach() {
+	common.SilenceLoggers()
+}
+
 func TestShardCLCreate(t *testing.T) {
 	fmt.Printf("TestShardCLCreate: ...\n")
+	beforeEach()
 	context, err := NewContextCL("contextcl", KernelCL0, 8, pt.BenchMessageSize*pt.BenchDepth)
 	if err != nil {
 		t.Fatalf("cannot create new ContextCL: error=%v\n", err)
@@ -30,6 +36,7 @@ func TestShardCLCreate(t *testing.T) {
 
 func TestShardCLReadv0(t *testing.T) {
 	fmt.Printf("TestShardCLReadv0: ...\n")
+	beforeEach()
 	context, err := NewContextCL("contextcl", KernelCL0, 8, pt.BenchMessageSize*pt.BenchDepth)
 	if err != nil {
 		t.Fatalf("cannot create new ContextCL: error=%v\n", err)
@@ -45,6 +52,7 @@ func TestShardCLReadv0(t *testing.T) {
 
 func TestShardCLReadv1(t *testing.T) {
 	fmt.Printf("TestShardCLReadv1: ...\n")
+	beforeEach()
 	context, err := NewContextCL("contextcl", KernelCL1, 8, 1)
 	if err != nil {
 		t.Fatalf("cannot create new ContextCL: error=%v\n", err)
@@ -60,6 +68,7 @@ func TestShardCLReadv1(t *testing.T) {
 
 func TestShardCLReadv2(t *testing.T) {
 	fmt.Printf("TestShardCLReadv2: ...\n")
+	beforeEach()
 	context, err := NewContextCL("contextcl", KernelCL2, 8, 1)
 	if err != nil {
 		t.Fatalf("cannot create new ContextCL: error=%v\n", err)
@@ -74,6 +83,8 @@ func TestShardCLReadv2(t *testing.T) {
 }
 
 func BenchmarkShardCLReadv0(b *testing.B) {
+	//fmt.Printf("BenchmarkShardCLReadv0 began with N=%d... \n", b.N)
+	beforeEach()
 	context, err := NewContextCL("contextcl", KernelCL0, 8, pt.BenchMessageSize*pt.BenchDepth)
 	if err != nil {
 		b.Fatalf("cannot create new ContextCL: error=%v\n", err)
@@ -87,6 +98,8 @@ func BenchmarkShardCLReadv0(b *testing.B) {
 }
 
 func BenchmarkShardCLReadv1(b *testing.B) {
+	//fmt.Printf("BenchmarkShardCLReadv1 began with N=%d... \n", b.N)
+	beforeEach()
 	context, err := NewContextCL("contextcl", KernelCL1, 8, 1)
 	if err != nil {
 		b.Fatalf("cannot create new ContextCL: error=%v\n", err)
@@ -100,6 +113,8 @@ func BenchmarkShardCLReadv1(b *testing.B) {
 }
 
 func BenchmarkShardCLReadv2(b *testing.B) {
+	//fmt.Printf("BenchmarkShardCLReadv2 began with N=%d... \n", b.N)
+	beforeEach()
 	context, err := NewContextCL("contextcl", KernelCL2, 8, 1)
 	if err != nil {
 		b.Fatalf("cannot create new ContextCL: error=%v\n", err)

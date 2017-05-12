@@ -6,11 +6,17 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/privacylab/talek/common"
 	pt "github.com/privacylab/talek/pir/pirtest"
 )
 
+func beforeEach() {
+	common.SilenceLoggers()
+}
+
 func TestShardCUDACreate(t *testing.T) {
 	fmt.Printf("TestShardCUDACreate: ...\n")
+	beforeEach()
 	context, err := NewContextCUDA("contextcuda", "/kernel.ptx", 8)
 	if err != nil {
 		t.Fatalf("cannot create new ContextCUDA: error=%v\n", err)
@@ -28,6 +34,7 @@ func TestShardCUDACreate(t *testing.T) {
 
 func TestShardCUDAReadv0(t *testing.T) {
 	fmt.Printf("TestShardCUDAReadv0: ...\n")
+	beforeEach()
 	context, err := NewContextCUDA("contextcuda", "/kernel.ptx", 8)
 	if err != nil {
 		t.Fatalf("cannot create new ContextCUDA: error=%v\n", err)
@@ -42,6 +49,7 @@ func TestShardCUDAReadv0(t *testing.T) {
 }
 
 func BenchmarkShardCUDAReadv0(b *testing.B) {
+	beforeEach()
 	context, err := NewContextCUDA("contextcuda", "/kernel.ptx", 8)
 	if err != nil {
 		b.Fatalf("cannot create new ShardCUDA: error=%v\n", err)

@@ -48,7 +48,9 @@ func NewContextCL(name string, kernelSource string, kernelDataSize int, gpuScrat
 	err := cl.GetPlatformIDs(uint32(len(ids)), &ids[0], &count)
 	if err != cl.SUCCESS || count < 1 {
 		c.Free()
-		return nil, fmt.Errorf("NewContextCl: failed to retrieve OpenCL platform ID")
+		rErr := fmt.Errorf("NewContextCl: failed to retrieve OpenCL platform ID")
+		c.log.Error.Printf("NewContextCL(%v) error: %v\n", c.name, rErr)
+		return nil, rErr
 	}
 	c.platformID = ids[0]
 
@@ -57,7 +59,9 @@ func NewContextCL(name string, kernelSource string, kernelDataSize int, gpuScrat
 	err = cl.GetDeviceIDs(c.platformID, cl.DEVICE_TYPE_GPU, 1, &device, &count)
 	if err != cl.SUCCESS || count < 1 {
 		c.Free()
-		return nil, fmt.Errorf("NewContextCl: failed to create OpenCL device group")
+		rErr := fmt.Errorf("NewContextCl: failed to create OpenCL device group")
+		c.log.Error.Printf("NewContextCL(%v) error: %v\n", c.name, rErr)
+		return nil, rErr
 	}
 	c.deviceID = device
 
@@ -69,14 +73,18 @@ func NewContextCL(name string, kernelSource string, kernelDataSize int, gpuScrat
 	c.Context = cl.CreateContext(nil, 1, &device, notify, nil, errptr)
 	if errptr != nil && cl.ErrorCode(*errptr) != cl.SUCCESS {
 		c.Free()
-		return nil, fmt.Errorf("NewContextCl: couldnt create context")
+		rErr := fmt.Errorf("NewContextCl: couldnt create context")
+		c.log.Error.Printf("NewContextCL(%v) error: %v\n", c.name, rErr)
+		return nil, rErr
 	}
 
 	//Create Command Queue
 	c.CommandQueue = cl.CreateCommandQueue(c.Context, device, 0, errptr)
 	if errptr != nil && cl.ErrorCode(*errptr) != cl.SUCCESS {
 		c.Free()
-		return nil, fmt.Errorf("NewContextCl: couldnt create command queue")
+		rErr := fmt.Errorf("NewContextCl: couldnt create command queue")
+		c.log.Error.Printf("NewContextCL(%v) error: %v\n", c.name, rErr)
+		return nil, rErr
 	}
 
 	//Create program
@@ -86,7 +94,9 @@ func NewContextCL(name string, kernelSource string, kernelDataSize int, gpuScrat
 	c.program = cl.CreateProgramWithSource(c.Context, 1, &srcptr, nil, errptr)
 	if errptr != nil && cl.ErrorCode(*errptr) != cl.SUCCESS {
 		c.Free()
-		return nil, fmt.Errorf("NewContextCl: couldnt create program")
+		rErr := fmt.Errorf("NewContextCl: couldnt create program")
+		c.log.Error.Printf("NewContextCL(%v) error: %v\n", c.name, rErr)
+		return nil, rErr
 	}
 
 	err = cl.BuildProgram(c.program, 1, &device, nil, nil, nil)
@@ -96,17 +106,23 @@ func NewContextCL(name string, kernelSource string, kernelDataSize int, gpuScrat
 		c.log.Error.Println("NewContextCl Error: Failed to build program executable!")
 		cl.GetProgramBuildInfo(c.program, device, cl.PROGRAM_BUILD_LOG, uint64(len(buffer)), unsafe.Pointer(&buffer[0]), &length)
 		c.Free()
+		var rErr error
 		if length < uint64(len(buffer)) {
-			return nil, fmt.Errorf(string(buffer[0:length]))
+			rErr = fmt.Errorf(string(buffer[0:length]))
+		} else {
+			rErr = fmt.Errorf(string(buffer[0:]))
 		}
-		return nil, fmt.Errorf(string(buffer[0:]))
+		c.log.Error.Printf("NewContextCL(%v) error: %v\n", c.name, rErr)
+		return nil, rErr
 	}
 
 	//Get Kernel (~CUDA Grid)
 	c.Kernel = cl.CreateKernel(c.program, cl.Str("pir"+"\x00"), errptr)
 	if errptr != nil && cl.ErrorCode(*errptr) != cl.SUCCESS {
 		c.Free()
-		return nil, fmt.Errorf("NewContextCl: couldnt create compute kernel")
+		rErr := fmt.Errorf("NewContextCl: couldnt create compute kernel")
+		c.log.Error.Printf("NewContextCL(%v) error: %v\n", c.name, rErr)
+		return nil, rErr
 	}
 
 	// OpenCL work-group = CUDA block
@@ -114,10 +130,13 @@ func NewContextCL(name string, kernelSource string, kernelDataSize int, gpuScrat
 	err = cl.GetKernelWorkGroupInfo(c.Kernel, device, cl.KERNEL_WORK_GROUP_SIZE, 8, unsafe.Pointer(&groupSize), nil)
 	if err != cl.SUCCESS {
 		c.Free()
-		return nil, fmt.Errorf("NewContextCl: Failed to get kernel work group info")
+		rErr := fmt.Errorf("NewContextCl: Failed to get kernel work group info")
+		c.log.Error.Printf("NewContextCL(%v) error: %v\n", c.name, rErr)
+		return nil, rErr
 	}
 	c.groupSize = int(groupSize)
 
+	c.log.Info.Printf("NewContextCL(%v) finished\n", c.name)
 	return c, nil
 
 }
@@ -153,8 +172,10 @@ func (c *ContextCL) Free() error {
 		errStr += cl.ErrToStr(err) + "\n"
 	}
 	if strings.Compare(errStr, "") != 0 {
+		c.log.Error.Printf("%v.Free error: %v\n", c.name, errStr)
 		return fmt.Errorf("ContextCL.Free errors: " + errStr)
 	}
+	c.log.Info.Printf("%v.Free finished\n", c.name)
 	return nil
 }
 

@@ -57,6 +57,7 @@ func NewContextCUDA(name string, kernelSource string, kernelDataSize int) (*Cont
 		c.Ctx.SetCurrent()
 	}
 
+	c.log.Info.Printf("NewContextCUDA(%v) finished\n", c.name)
 	return c, nil
 }
 
@@ -77,5 +78,6 @@ func (c *ContextCUDA) GetKernelDataSize() int {
 // Free currently does nothing. ShardCL waits for the go garbage collector
 func (c *ContextCUDA) Free() error {
 	c.Ctx.Destroy()
+	c.log.Info.Printf("%v.Free finished\n", c.name)
 	return nil
 }
