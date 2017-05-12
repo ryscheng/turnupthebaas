@@ -119,6 +119,7 @@ func TestBasic(t *testing.T) {
 	fmt.Printf("... done \n")
 }
 
+/**
 func TestBucket(t *testing.T) {
 	table := NewTable("t", 10, 2, 64, nil, 0)
 	item := &Item{1, GetBytes("value"), 5, 5}
@@ -130,6 +131,7 @@ func TestBucket(t *testing.T) {
 		t.Fatalf("Bucket should report expected item position.")
 	}
 }
+**/
 
 func TestOutOfBounds(t *testing.T) {
 	table := NewTable("t", 10, 2, 64, nil, 0)

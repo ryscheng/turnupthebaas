@@ -1,9 +1,7 @@
 package cuckoo
 
 import (
-	"log"
 	"math/rand"
-	"os"
 
 	"github.com/privacylab/talek/common"
 )
@@ -49,6 +47,7 @@ func (i *Item) Equals(other *Item) bool {
 		i.ID == other.ID
 }
 
+/**
 // Bucket returns the bucket in a table that the Item is in, if it is in the table.
 func (i *Item) Bucket(table *Table) int {
 	if table.isInBucket(i.Bucket1, i) {
@@ -58,6 +57,7 @@ func (i *Item) Bucket(table *Table) int {
 	}
 	return -1
 }
+**/
 
 // Table is a cuckoo table managing placement of Items.
 type Table struct {
@@ -164,7 +164,7 @@ func (t *Table) Insert(item *Item) (bool, *Item) {
 	var ok bool
 	for i := 0; i < MaxEvictions; i++ {
 		if ok, item = t.insertAndEvict(nextBucket, item); !ok {
-			t.log.Fatalf("Lost item. Evicted, but was unable to add.")
+			t.log.Error.Fatalf("Lost item. Evicted, but was unable to add.")
 			return false, item
 		} else if item == nil {
 			return true, nil
@@ -188,7 +188,7 @@ func (t *Table) Insert(item *Item) (bool, *Item) {
 // - fails if either bucket is out of range
 func (t *Table) Remove(item *Item) bool {
 	if item.Bucket1 >= t.numBuckets || item.Bucket2 >= t.numBuckets {
-		//t.log.Fatalf("Failed to remove item with invalid buckets.")
+		//t.log.Error.Fatalf("Failed to remove item with invalid buckets.")
 		return false
 	}
 
@@ -269,7 +269,7 @@ func (t *Table) insertAndEvict(bucketIndex int, item *Item) (bool, *Item) {
 	t.index[itemIndex].filled = false
 
 	if !t.tryInsertToBucket(bucketIndex, item) {
-		t.log.Fatalf("insertAndEvict: no space in bucket after eviction!")
+		t.log.Error.Fatalf("insertAndEvict: no space in bucket after eviction!")
 		return false, removedItem
 	}
 	return true, removedItem

@@ -78,7 +78,7 @@ func (s *Server) Close() {
 // processCommits will read from s.commitChan and properly trigger work
 func (s *Server) processCommits() {
 	var commit *CommitArgs
-	conf := s.config.Load().(common.Config)
+	//conf := s.config.Load().(common.Config)
 
 	for {
 		select {
