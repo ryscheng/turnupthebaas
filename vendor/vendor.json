@@ -57,10 +57,18 @@
 			"revisionTime": "2016-08-31T15:17:26Z"
 		},
 		{
+
 			"checksumSHA1": "tRoYXEtC282IUw8jB3aHbxK0Tpw=",
 			"path": "github.com/go-gl/cl/v1.2/cl",
 			"revision": "283e73a0ca2a3a2bcd6a087e852404eb0ca0b1bf",
 			"revisionTime": "2016-04-02T05:07:51Z"
+    },
+    {
+			"checksumSHA1": "bbilAC3Am0MP1lPfSKblFsIvg4Q=",
+			"path": "github.com/spaolacci/murmur3",
+			"revision": "0d12bf811670bf6a1a63828dfbd003eded177fce",
+			"revisionTime": "2015-08-29T17:28:44Z"
+
 		},
 		{
 			"checksumSHA1": "0Qi2QAv9T10RCUs9vhbIAAnyEZU=",
@@ -73,6 +81,12 @@
 			"path": "github.com/willf/bitset",
 			"revision": "5c3c0fce48842b2c0bbaa99b4e61b0175d84b47c",
 			"revisionTime": "2016-12-02T17:00:36Z"
+		},
+		{
+			"checksumSHA1": "yyysY3Ior4jy2HtchTxlP1ayIvQ=",
+			"path": "github.com/willf/bloom",
+			"revision": "54e3b963ee1652b06c4562cb9b6020ebc6e36e59",
+			"revisionTime": "2017-05-05T22:16:40Z"
 		},
 		{
 			"checksumSHA1": "nAu0XmCeC6WnUySyI8R7w4cxAqU=",
