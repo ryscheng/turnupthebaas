@@ -106,11 +106,17 @@ func (t *Table) Contains(item *Item) bool {
 // Insert adds item into the cuckoo table, even if a duplicate value already
 // exists in table. Returns:
 // - true on success, false on failure
+// - false if item.Data is not equal to t.itemSize
 // - false if either bucket is out of range
 // - false if insertion cannot complete because reached MAX_EVICTIONS
 func (t *Table) Insert(item *Item) (bool, *Item) {
 	var nextBucket int
 	if item.Bucket1 >= t.numBuckets || item.Bucket2 >= t.numBuckets {
+		return false, nil
+	}
+
+	// Check item data size
+	if len(item.Data) != t.itemSize {
 		return false, nil
 	}
 
@@ -199,6 +205,7 @@ func (t *Table) isInBucket(bucketIndex int, item *Item) bool {
 // If the bucket is already full, no-op
 // Preconditions:
 // - bucket MUST be within bounds
+// - item MUST contain data of size t.itemSize
 // Returns: true if success, false if bucket already full
 func (t *Table) tryInsertToBucket(bucketIndex int, item *Item) bool {
 	// Search for an empty slot
@@ -219,6 +226,7 @@ func (t *Table) tryInsertToBucket(bucketIndex int, item *Item) bool {
 // Tries to insert `bucketLoc, value` into specified bucket
 // Preconditions:
 // - bucket MUST be within bounds
+// - item MUST contain data of size t.itemSize
 // Returns:
 // - (-1, BucketLocation{}, nil, true) if there's empty space and succeeds
 // - false if insertion triggered an eviction
