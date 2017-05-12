@@ -112,11 +112,13 @@ func (t *Table) Contains(item *Item) bool {
 func (t *Table) Insert(item *Item) (bool, *Item) {
 	var nextBucket int
 	if item.Bucket1 >= t.numBuckets || item.Bucket2 >= t.numBuckets {
+		t.log.Error.Printf("Insert: invalid buckets=(%v,%v)%v\n", item.Bucket1, item.Bucket2)
 		return false, nil
 	}
 
 	// Check item data size
 	if len(item.Data) != t.itemSize {
+		t.log.Error.Printf("Insert: invalid data size=%v\n", len(item.Data))
 		return false, nil
 	}
 
@@ -149,7 +151,7 @@ func (t *Table) Insert(item *Item) (bool, *Item) {
 		}
 	}
 
-	//t.log.Printf("Insert: MAX %v evictions\n", MAX_EVICTIONS)
+	t.log.Error.Printf("Insert: max %v evictions\n", MaxEvictions)
 	return false, item
 }
 
@@ -162,7 +164,7 @@ func (t *Table) Insert(item *Item) (bool, *Item) {
 // - fails if either bucket is out of range
 func (t *Table) Remove(item *Item) bool {
 	if item.Bucket1 >= t.numBuckets || item.Bucket2 >= t.numBuckets {
-		//t.log.Error.Fatalf("Failed to remove item with invalid buckets.")
+		t.log.Error.Printf("Remove: invalid buckets (%v, %v)\n", item.Bucket1, item.Bucket2)
 		return false
 	}
 

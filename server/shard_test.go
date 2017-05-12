@@ -46,18 +46,22 @@ func TestShardSanity(t *testing.T) {
 	go pir.CreateMockServer(status, sock)
 	<-status
 
-	shard := NewShard("Test Shard", sock, testConf())
+	conf := testConf()
+	shard := NewShard("Test Shard", sock, conf)
 	if shard == nil {
 		t.Error("Failed to create shard.")
 		return
 	}
 
 	writeReplyChan := make(chan *common.WriteReply)
+
+	data := make([]byte, conf.Config.DataSize)
+	copy(data, bytes.NewBufferString("Magic").Bytes())
 	shard.Write(&common.ReplicaWriteArgs{
 		WriteArgs: common.WriteArgs{
 			Bucket1:        0,
 			Bucket2:        1,
-			Data:           bytes.NewBufferString("Magic").Bytes(),
+			Data:           data,
 			InterestVector: []byte{},
 			ReplyChan:      writeReplyChan,
 		},
