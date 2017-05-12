@@ -4,6 +4,8 @@ import (
 	"log"
 	"math/rand"
 	"os"
+
+	"github.com/privacylab/talek/common"
 )
 
 // MaxEvictions represents the number of chained evictions before an insert
@@ -64,8 +66,8 @@ type Table struct {
 	bucketDepth int // Items in each bucket
 	itemSize    int // number of bytes in an item
 	rand        *rand.Rand
+	log         *common.Logger
 
-	log   *log.Logger
 	index []ItemLocation
 	data  []byte
 }
@@ -80,18 +82,19 @@ type Table struct {
 func NewTable(name string, numBuckets int, bucketDepth int, itemSize int,
 	data []byte, randSeed int64) *Table {
 	t := &Table{name, numBuckets, bucketDepth, itemSize, nil, nil, nil, nil}
-	t.log = log.New(os.Stderr, "[Cuckoo:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
 	t.rand = rand.New(rand.NewSource(randSeed))
+	t.log = common.NewLogger(name)
 
+	t.index = make([]ItemLocation, numBuckets*bucketDepth)
 	if data == nil {
 		data = make([]byte, numBuckets*bucketDepth*itemSize)
 	}
-	if len(data) != numBuckets*bucketDepth*itemSize {
-		return nil
-	}
 	t.data = data
 
-	t.index = make([]ItemLocation, numBuckets*bucketDepth)
+	if len(data) != numBuckets*bucketDepth*itemSize {
+		t.log.Error.Printf("NewTable(%v) failed: len(data)=%v is not equal to numBuckets*bucketDepth*itemSize (%v,%v,%v)", name, len(data), numBuckets, bucketDepth, itemSize)
+		return nil
+	}
 
 	return t
 }

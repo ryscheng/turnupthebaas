@@ -16,8 +16,11 @@ type Server struct {
 	name string
 
 	// Thread-safe
-	config atomic.Value //Config
+	config    atomic.Value  // Config
+	commitLog []*CommitArgs // Append and read only
+
 	// Channels
+	commitChan chan *CommitArgs
 }
 
 // NewServer creates a new Centralized talek server.
@@ -48,11 +51,14 @@ func (s *Server) GetCommonConfig(args *interface{}, reply *common.Config) error 
 	return nil
 }
 
-/**
+// Commit accepts a single Write to commit. The
 func (s *Server) Commit(args *CommitArgs, reply *CommitReply) error {
-
+	s.commitChan <- args
+	reply.Err = ""
+	return nil
 }
 
+/**
 func (s *Server) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdatesReply) error {
 }
 **/
@@ -66,5 +72,18 @@ func (s *Server) Close() {
 }
 
 /**********************************
- * PRIVATE METHODS
+ * PRIVATE METHODS (single-threaded)
  **********************************/
+
+// processCommits will read from s.commitChan and properly trigger work
+func (s *Server) processCommits() {
+	var commit *CommitArgs
+	conf := s.config.Load().(common.Config)
+
+	for {
+		select {
+		case commit = <-s.commitChan:
+			s.commitLog = append(s.commitLog, commit)
+		}
+	}
+}
