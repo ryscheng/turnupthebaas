@@ -119,19 +119,37 @@ func TestBasic(t *testing.T) {
 	fmt.Printf("... done \n")
 }
 
-/**
 func TestBucket(t *testing.T) {
+	fmt.Printf("TestBucket: ...\n")
 	table := NewTable("t", 10, 2, 64, nil, 0)
-	item := &Item{1, GetBytes("value"), 5, 5}
-	ok, _ := table.Insert(item)
-	if !ok {
-		t.Fatalf("Failed to insert item.")
+	items := []*Item{
+		&Item{1, GetBytes("value1"), 5, 5},
+		&Item{2, GetBytes("value2"), 5, 5},
+		&Item{3, GetBytes("value3"), 5, 6},
 	}
-	if item.Bucket(table) != 5 {
-		t.Fatalf("Bucket should report expected item position.")
+	for _, v := range items {
+		ok, _ := table.Insert(v)
+		if !ok {
+			t.Fatalf("Failed to insert item %v\n", v)
+		}
 	}
+
+	if table.Bucket(items[0]) != 5 {
+		t.Fatalf("Bucket should report expected item %v position.", items[0].ID)
+	}
+	if table.Bucket(items[1]) != 5 {
+		t.Fatalf("Bucket should report expected item %v position.", items[1].ID)
+	}
+	if table.Bucket(items[2]) != 6 {
+		t.Fatalf("Bucket should report expected item %v position.", items[2].ID)
+	}
+	nonItem := &Item{4, GetBytes("value1"), 1, 1}
+	if table.Bucket(nonItem) != -1 {
+		t.Fatalf("Bucket should report expected item %v position.", nonItem.ID)
+	}
+
+	fmt.Printf("... done \n")
 }
-**/
 
 func TestOutOfBounds(t *testing.T) {
 	table := NewTable("t", 10, 2, 64, nil, 0)
