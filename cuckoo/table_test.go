@@ -333,7 +333,7 @@ func TestLoadFactor(t *testing.T) {
 	fmt.Printf("... done\n")
 }
 
-func BenchmarkBigTable(b *testing.B) {
+func BenchmarkInserts(b *testing.B) {
 	//numMessages := uint64(1073741824) //2^30
 	numMessages := uint64(268435456) //2^28
 	dataSize := uint64(8)
@@ -345,6 +345,7 @@ func BenchmarkBigTable(b *testing.B) {
 	var ok bool
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		// Insert up to capacity
 		for x := uint64(0); x < end; x++ {
 			binary.PutUvarint(data, x)
 			item := &Item{
