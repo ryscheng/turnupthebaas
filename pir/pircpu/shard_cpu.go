@@ -2,7 +2,12 @@ package pircpu
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/pir"
+	"github.com/prometheus/common/log"
 )
 
 // ShardCPU represents a read-only shard of the database
@@ -15,6 +20,26 @@ type ShardCPU struct {
 	numBuckets  int
 	data        []byte
 	readVersion int
+}
+
+// NewShard creates a new cpu shard conforming to the common interface
+func NewShard(bucketSize int, data []byte, userdata string) pir.Shard {
+	parts := strings.Split(userdata, ".")
+	if len(parts) < 2 {
+		log.Errorf("Invalid cpu specification: %s. Should be CPU.[0-2]", parts)
+		return nil
+	}
+	readVersion, err := strconv.ParseInt(parts[1], 10, 32)
+	if err != nil {
+		log.Errorf("Invalid cpu specification: %s. Should be CPU.[0-2]", parts)
+		return nil
+	}
+	shard, err := NewShardCPU("CPU Shard ("+userdata+")", bucketSize, data, readVersion)
+	if err != nil {
+		log.Errorf("Could not create CPU shard: %v", err)
+		return nil
+	}
+	return pir.Shard(shard)
 }
 
 // NewShardCPU creates a new CPU-backed shard

@@ -1,16 +1,16 @@
 package pir
 
-import "bytes"
-import "encoding/binary"
-import "errors"
-import "fmt"
-import "net"
-import "github.com/YoshikiShibata/xusyscall"
+import (
+	"errors"
+	"strings"
+
+	"github.com/privacylab/talek/pir/pircpu"
+)
 
 // DB is a memory area for PIR computations shared with a PIR daemon.
 type DB struct {
 	DB    []byte
-	shmid int
+	shard *Shard
 }
 
 type pirReq struct {
@@ -20,67 +20,34 @@ type pirReq struct {
 
 // Server is a connection and state for a running PIR Server.
 type Server struct {
-	sock          net.Conn
-	responseQueue chan *pirReq
-	CellLength    int
-	CellCount     int
-	BatchSize     int
-	DB            *DB
+	newshard   *func(int, []byte, string) Shard
+	backing    string
+	CellLength int
+	CellCount  int
+	BatchSize  int
+	DB         *DB
 }
-
-const pirCommands = `123`
-const defaultSocket = "pir.socket"
 
 // Connect opens a Server for communication with a unix-socket representating a
 // running PIR Daemon.
-func Connect(socket string) (*Server, error) {
-	if len(socket) == 0 {
-		socket = defaultSocket
-	}
-
-	sock, err := net.Dial("unix", socket)
-	if err != nil {
-		return nil, err
-	}
-
+func NewServer(backing string) (*Server, error) {
 	server := new(Server)
-	server.sock = sock
-	server.responseQueue = make(chan *pirReq)
 
-	go server.watchResponses()
-
-	return server, nil
-}
-
-func (s *Server) watchResponses() {
-	var responseSize int
-
-	for req := range s.responseQueue {
-		if req.reqtype == 0 { // reconfigure
-			//future buffers will be the new size.
-			responseSize = s.CellLength * s.BatchSize
-		} else if req.reqtype == -1 { //close
-			return
-		} else {
-			response := make([]byte, responseSize)
-			readAmt := 0
-			for readAmt < responseSize {
-				count, err := s.sock.Read(response[readAmt:])
-				readAmt += count
-				if count <= 0 || err != nil {
-					return
-				}
-			}
-			req.response <- response
-		}
+	if strings.HasPrefix(backing, "cpu") {
+		server.newshard = &pircpu.NewShard
+	} else {
+		return nil, errors.New("Backing " + backing + " is not known")
 	}
+
+	s.backing = backing
+	return server, nil
 }
 
 // Disconnect closes a Server connection
 func (s *Server) Disconnect() error {
-	s.responseQueue <- &pirReq{-1, nil}
-	defer close(s.responseQueue)
-	return s.sock.Close()
+	if s.DB != nil {
+		s.DB.Free()
+	}
 }
 
 // Configure sets the size of the DB and operational parameters.
@@ -93,19 +60,6 @@ func (s *Server) Configure(celllength int, cellcount int, batchsize int) error {
 		return errors.New("invalid sizing of database; everything needs to be multiples of 8 bytes")
 	}
 
-	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, int32(celllength))
-	binary.Write(buf, binary.LittleEndian, int32(cellcount))
-	binary.Write(buf, binary.LittleEndian, int32(batchsize))
-	_, err := s.sock.Write([]byte{pirCommands[1]})
-	if err != nil {
-		return err
-	}
-	_, err = s.sock.Write(buf.Bytes())
-	if err != nil {
-		return err
-	}
-	s.responseQueue <- &pirReq{0, nil}
 	return nil
 }
 
@@ -115,29 +69,21 @@ func (s *Server) GetDB() (*DB, error) {
 		return nil, errors.New("pir server unconfigured")
 	}
 	db := new(DB)
-	shmid, err := xusyscall.Shmget(0, s.CellLength*s.CellCount, xusyscall.IPC_CREAT|xusyscall.IPC_EXCL|0777)
-	if err != nil {
-		return nil, err
-	}
-	db.shmid = shmid
-	db.DB, err = xusyscall.Shmat(db.shmid, false)
-	if err != nil {
-		return nil, err
-	}
+
+	db.DB = make([]byte, s.CellCount*s.CellLength)
+
 	return db, nil
 }
 
 // SetDB updates the PIR Server Database
 func (s *Server) SetDB(db *DB) error {
-	if _, err := s.sock.Write([]byte{pirCommands[2]}); err != nil {
-		return err
+	if s.DB != nil {
+		s.DB.shard.Free()
 	}
 
-	fmt.Printf("DB being set for shmid %d\n", db.shmid)
-	dbptrarr := make([]byte, 4)
-	binary.LittleEndian.PutUint32(dbptrarr, uint32(db.shmid))
-	if _, err := s.sock.Write(dbptrarr); err != nil {
-		return err
+	db.shard = s.newshard(s.CellLength, db.DB, s.backing)
+	if db.shard == nil {
+		return errors.New("Couldn't set DB")
 	}
 	s.DB = db
 	return nil
@@ -145,8 +91,10 @@ func (s *Server) SetDB(db *DB) error {
 
 // Free releases memory for a DB instance
 func (db *DB) Free() error {
-	xusyscall.Shmrm(db.shmid)
-	return xusyscall.Shmdt(db.DB)
+	if db.shard {
+		db.shard.Free()
+	}
+	return nil
 }
 
 // Read makes a PIR request against the server.
@@ -159,13 +107,11 @@ func (s *Server) Read(masks []byte, responseChan chan []byte) error {
 		return errors.New("wrong mask length")
 	}
 
-	if _, err := s.sock.Write([]byte{pirCommands[0]}); err != nil {
+	responses, err := s.DB.shard.Read(masks, len(masks))
+	if err != nil {
 		return err
 	}
+	responseChan <- responses
 
-	if _, err := s.sock.Write(masks); err != nil {
-		return err
-	}
-	s.responseQueue <- &pirReq{1, responseChan}
 	return nil
 }
