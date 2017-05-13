@@ -109,7 +109,7 @@ func (s *Server) Read(masks []byte, responseChan chan []byte) error {
 		return errors.New("wrong mask length")
 	}
 
-	responses, err := s.DB.shard.Read(masks, len(masks))
+	responses, err := s.DB.shard.Read(masks, s.CellCount/8)
 	if err != nil {
 		return err
 	}
