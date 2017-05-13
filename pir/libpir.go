@@ -4,13 +4,13 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/privacylab/talek/pir/pircpu"
+	"github.com/privacylab/talek/pir/common"
 )
 
 // DB is a memory area for PIR computations shared with a PIR daemon.
 type DB struct {
 	DB    []byte
-	shard *Shard
+	shard common.Shard
 }
 
 type pirReq struct {
@@ -20,7 +20,7 @@ type pirReq struct {
 
 // Server is a connection and state for a running PIR Server.
 type Server struct {
-	newshard   *func(int, []byte, string) Shard
+	newshard   func(int, []byte, string) common.Shard
 	backing    string
 	CellLength int
 	CellCount  int
@@ -32,15 +32,16 @@ type Server struct {
 // running PIR Daemon.
 func NewServer(backing string) (*Server, error) {
 	server := new(Server)
+	server.backing = backing
 
-	if strings.HasPrefix(backing, "cpu") {
-		server.newshard = &pircpu.NewShard
-	} else {
-		return nil, errors.New("Backing " + backing + " is not known")
+	for k, v := range common.PIRBackings {
+		if strings.HasPrefix(backing, k) {
+			server.newshard = v
+			return server, nil
+		}
 	}
 
-	s.backing = backing
-	return server, nil
+	return nil, errors.New("Backing " + backing + " is not known")
 }
 
 // Disconnect closes a Server connection
@@ -48,6 +49,7 @@ func (s *Server) Disconnect() error {
 	if s.DB != nil {
 		s.DB.Free()
 	}
+	return nil
 }
 
 // Configure sets the size of the DB and operational parameters.
@@ -78,7 +80,7 @@ func (s *Server) GetDB() (*DB, error) {
 // SetDB updates the PIR Server Database
 func (s *Server) SetDB(db *DB) error {
 	if s.DB != nil {
-		s.DB.shard.Free()
+		s.DB.Free()
 	}
 
 	db.shard = s.newshard(s.CellLength, db.DB, s.backing)
@@ -91,7 +93,7 @@ func (s *Server) SetDB(db *DB) error {
 
 // Free releases memory for a DB instance
 func (db *DB) Free() error {
-	if db.shard {
+	if db.shard != nil {
 		db.shard.Free()
 	}
 	return nil

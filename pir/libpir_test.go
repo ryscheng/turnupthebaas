@@ -1,10 +1,15 @@
 package pir
 
-import "errors"
+import (
+	"errors"
+	"math/rand"
+	"strconv"
 
-import "math/rand"
+	_ "github.com/privacylab/talek/pir/pircpu"
+)
+
 import "os"
-import "strconv"
+
 import "testing"
 
 func TestServer(t *testing.T) {
@@ -38,7 +43,7 @@ func TestPir(t *testing.T) {
 
 	pirServer.SetDB(db)
 
-	responseChan := make(chan []byte)
+	responseChan := make(chan []byte, 1)
 	masks := make([]byte, 512)
 	masks[0] = 0x01
 

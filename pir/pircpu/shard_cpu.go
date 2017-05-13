@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/privacylab/talek/common"
-	"github.com/privacylab/talek/pir"
+	pir "github.com/privacylab/talek/pir/common"
 	"github.com/prometheus/common/log"
 )
 
@@ -34,12 +34,16 @@ func NewShard(bucketSize int, data []byte, userdata string) pir.Shard {
 		log.Errorf("Invalid cpu specification: %s. Should be CPU.[0-2]", parts)
 		return nil
 	}
-	shard, err := NewShardCPU("CPU Shard ("+userdata+")", bucketSize, data, readVersion)
+	shard, err := NewShardCPU("CPU Shard ("+userdata+")", bucketSize, data, int(readVersion))
 	if err != nil {
 		log.Errorf("Could not create CPU shard: %v", err)
 		return nil
 	}
 	return pir.Shard(shard)
+}
+
+func init() {
+	pir.PIRBackings["cpu"] = NewShard
 }
 
 // NewShardCPU creates a new CPU-backed shard

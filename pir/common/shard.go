@@ -1,4 +1,4 @@
-package pir
+package common
 
 // Shard abstracts out the common interface for ShardCPU, ShardCUDA, and ShardOpenCL.
 // A Shard represents an immutable range of data for PIR operations
@@ -13,4 +13,11 @@ type Shard interface {
 	GetNumBuckets() int
 	GetData() []byte
 	Read(reqs []byte, reqLength int) ([]byte, error)
+}
+
+// PIRBackings is a static table of the registered / available PIR implementations
+var PIRBackings map[string]func(int, []byte, string) Shard
+
+func init() {
+	PIRBackings = make(map[string]func(int, []byte, string) Shard)
 }
