@@ -2,10 +2,10 @@ package cuckoo
 
 // Item holds a full item data for cuckoo table placement.
 type Item struct {
-	ID      int
+	ID      uint64
 	Data    []byte
-	Bucket1 int
-	Bucket2 int
+	Bucket1 uint64
+	Bucket2 uint64
 }
 
 // Copy duplicates an Item.

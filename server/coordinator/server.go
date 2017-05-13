@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/privacylab/talek/common"
-	"github.com/privacylab/talek/cuckoo"
+	//"github.com/privacylab/talek/cuckoo"
 	"golang.org/x/net/trace"
 )
 
@@ -15,22 +15,22 @@ type Server struct {
 	// Static
 	log            *common.Logger
 	name           string
-	buildThreshold uint64
+	buildThreshold int64
 	buildInterval  time.Duration
 
 	// Thread-safe
 	config        atomic.Value  // Config
 	commitLog     []*CommitArgs // Append and read only
-	numNewCommits uint64
+	numNewCommits int64
 	timeLastBuild time.Time
-	buildCount    uint64
+	buildCount    int64
 
 	// Channels
 	commitChan chan *CommitArgs
 }
 
 // NewServer creates a new Centralized talek server.
-func NewServer(name string, config common.Config, buildThreshold uint64, buildInterval time.Duration) *Server {
+func NewServer(name string, config common.Config, buildThreshold int64, buildInterval time.Duration) *Server {
 	s := &Server{}
 	s.log = common.NewLogger(name)
 	s.name = name
@@ -107,16 +107,17 @@ func (s *Server) processCommits() {
 
 	triggerBuild := func() {
 		// Garbage collect old items
-		idx := 0
-		if len(s.commitLog) > windowSize {
-			idx = len(s.commitLog) - windowSize
+		logLength := uint64(len(s.commitLog))
+		idx := uint64(0)
+		if logLength > windowSize {
+			idx = logLength - windowSize
 		}
 		s.commitLog = s.commitLog[idx:]
 		// Spawn build goroutine
-		go s.buildLayout(s.buildCount, s.commitLog[:])
+		go s.buildLayout(s.buildCount, conf, s.commitLog[:])
 		// Reset state
 		s.numNewCommits = 0
-		s.buildCount += 1
+		s.buildCount++
 	}
 
 	for {
@@ -124,7 +125,7 @@ func (s *Server) processCommits() {
 		// Handle new commits
 		case commit = <-s.commitChan:
 			s.commitLog = append(s.commitLog, commit)
-			s.numNewCommits += 1
+			s.numNewCommits++
 			// Trigger build if over threshold
 			if s.numNewCommits > s.buildThreshold {
 				triggerBuild()
@@ -139,13 +140,15 @@ func (s *Server) processCommits() {
 	}
 }
 
-func (s *Server) buildLayout(buildId uint64, config common.Config, commitLog []*CommitArgs) {
+func (s *Server) buildLayout(buildID int64, config common.Config, commitLog []*CommitArgs) {
 	tr := trace.New("Coordinator", "buildLayout")
 	defer tr.Finish()
 
 	// Construct cuckoo table layout
-	data := make([]byte, config.NumBuckets*uint64(config.BucketDepth)*8)
-	table := cuckoo.NewTable(string(buildId), config.NumBuckets, config.BucketDepth, config.DataSize, data, 0)
+	/**
+	data := make([]byte, config.NumBuckets*config.BucketDepth*8)
+	table := cuckoo.NewTable(string(buildID), config.NumBuckets, config.BucketDepth, config.DataSize, data, 0)
+	**/
 
 	// Construct global interest vector
 

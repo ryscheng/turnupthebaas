@@ -74,7 +74,7 @@ func (c *Client) Kill() {
 
 // MaxLength returns the maximum allowed message the client can Publish.
 // TODO: support messages spanning multiple data items.
-func (c *Client) MaxLength() int {
+func (c *Client) MaxLength() uint64 {
 	config := c.config.Load().(ClientConfig)
 	return config.DataSize
 }
@@ -83,9 +83,9 @@ func (c *Client) MaxLength() int {
 func (c *Client) Publish(handle *Topic, data []byte) error {
 	config := c.config.Load().(ClientConfig)
 
-	if len(data) > config.DataSize-PublishingOverhead {
+	if len(data) > int(config.DataSize)-PublishingOverhead {
 		return errors.New("message too long")
-	} else if len(data) < config.DataSize-PublishingOverhead {
+	} else if len(data) < int(config.DataSize)-PublishingOverhead {
 		allocation := make([]byte, config.DataSize-PublishingOverhead)
 		copy(allocation[:], data)
 		data = allocation

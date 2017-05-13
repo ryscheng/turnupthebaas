@@ -11,9 +11,9 @@ type Config struct {
 	// How many buckets are in the server?
 	NumBuckets uint64
 	// How many items are in a bucket?
-	BucketDepth int
+	BucketDepth uint64
 	// How many bytes are in an item?
-	DataSize int // Number of bytes
+	DataSize uint64 // Number of bytes
 	// False positive rate of interest vectors
 	BloomFalsePositive float64
 	// Minimum period between writes
@@ -21,16 +21,16 @@ type Config struct {
 	// Minimum period between reads
 	ReadInterval time.Duration `json:",string"`
 	// Max fraction of DB capacity that can store messages
-	MaxLoadFactor float32
+	MaxLoadFactor float64
 
 	/** @todo remove below **/
 	// What fraction of items should be removed from the DB when items are removed?
-	LoadFactorStep float32
+	LoadFactorStep float64
 }
 
 // WindowSize is a computed property of Config for how many items are available at a time
-func (cc *Config) WindowSize() int {
-	return int(float32(int(cc.NumBuckets)*cc.BucketDepth) * cc.MaxLoadFactor)
+func (cc *Config) WindowSize() uint64 {
+	return uint64(float64(cc.NumBuckets*cc.BucketDepth) * cc.MaxLoadFactor)
 }
 
 // ConfigFromFile restores a JSON file. returns the config on success or nil if

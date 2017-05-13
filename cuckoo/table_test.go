@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-const ItemSize = 64
+const ItemSize = uint64(64)
 
 // Test identical state after operations
 // Test contains after insert/remove sequence
@@ -20,11 +20,8 @@ func GetBytes(val string) []byte {
 	return buf
 }
 
-func randBucket(numBuckets int) int {
-	result := rand.Int() % numBuckets
-	if result < 0 {
-		result = result * -1
-	}
+func randBucket(numBuckets uint64) uint64 {
+	result := rand.Uint64() % numBuckets
 	return result
 }
 
@@ -153,18 +150,22 @@ func TestBucket(t *testing.T) {
 		}
 	}
 
-	if table.Bucket(items[0]) != 5 {
+	bucket, err := table.Bucket(items[0])
+	if bucket != 5 || err != nil {
 		t.Fatalf("Table should report expected item position %v", items[0])
 	}
-	if table.Bucket(items[1]) != 5 {
+	bucket, err = table.Bucket(items[1])
+	if bucket != 5 || err != nil {
 		t.Fatalf("Table should report expected item position %v", items[1])
 	}
-	if table.Bucket(items[2]) != 6 {
+	bucket, err = table.Bucket(items[2])
+	if bucket != 6 || err != nil {
 		t.Fatalf("Table should report expected item position %v", items[2])
 	}
 
 	nonItem := &Item{4, GetBytes("value4"), 1, 1}
-	if table.Bucket(nonItem) != -1 {
+	_, err = table.Bucket(nonItem)
+	if err == nil {
 		t.Fatalf("Table should report expected item position %v", nonItem)
 	}
 
@@ -197,23 +198,23 @@ func TestOutOfBounds(t *testing.T) {
 }
 
 func TestFullTable(t *testing.T) {
-	numBuckets := 100
-	depth := 4
+	numBuckets := uint64(100)
+	depth := uint64(4)
 
 	capacity := numBuckets * depth
 	entries := make([]Item, 0, capacity)
 	table := NewTable("t", numBuckets, depth, ItemSize, nil, 0)
 	ok := true
-	count := 0
+	count := uint64(0)
 	var evic *Item
-	var b1, b2 int
+	var b1, b2 uint64
 
 	// Insert random values until we've reached a limit
 	fmt.Printf("TestFullTable: Insert until reach capacity...\n")
 	for ok {
 		b1 = randBucket(numBuckets)
 		b2 = randBucket(numBuckets)
-		id := rand.Int()
+		id := rand.Uint64()
 		val := GetBytes(strconv.Itoa(rand.Int()))
 		entries = append(entries, Item{id, nil, b1, b2})
 		ok, evic = table.Insert(&Item{id, val, b1, b2})
@@ -305,20 +306,20 @@ func TestDuplicateValues(t *testing.T) {
 
 func TestLoadFactor(t *testing.T) {
 	fmt.Printf("TestLoadFactor: ...\n")
-	numBuckets := 1000
+	numBuckets := uint64(1000)
 	var table *Table
 
-	for depth := 1; depth < 32; depth *= 2 {
+	for depth := uint64(1); depth < uint64(32); depth *= 2 {
 		count := -1
 		ok := true
 		table = NewTable("t", numBuckets, depth, ItemSize, nil, int64(depth))
 		for ok {
 			count++
 			val := GetBytes(strconv.Itoa(rand.Int()))
-			ok, _ = table.Insert(&Item{rand.Int(), val, randBucket(numBuckets), randBucket(numBuckets)})
+			ok, _ = table.Insert(&Item{rand.Uint64(), val, randBucket(numBuckets), randBucket(numBuckets)})
 		}
 
-		if table.GetNumElements() != count {
+		if table.GetNumElements() != uint64(count) {
 			t.Fatalf("Mismatch count=%v with GetNumElements()=%v \n", count, table.GetNumElements())
 		}
 		fmt.Printf("count=%v, depth=%v, capacity=%v, loadfactor=%v \n",

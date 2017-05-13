@@ -77,7 +77,7 @@ func NewShard(name string, socket string, config Config) *Shard {
 		return nil
 	}
 	s.Server = pirServer
-	err = s.Server.Configure(config.Config.DataSize*config.Config.BucketDepth, int(config.Config.NumBuckets), config.ReadBatch)
+	err = s.Server.Configure(int(config.Config.DataSize*config.Config.BucketDepth), int(config.Config.NumBuckets), config.ReadBatch)
 	if err != nil {
 		s.log.Error.Fatalf("Could not start PIR back end with correct parameters: %v", err)
 		return nil
@@ -93,8 +93,8 @@ func NewShard(name string, socket string, config Config) *Shard {
 	s.Server.SetDB(s.DB)
 
 	// TODO: rand seed
-	s.Table = cuckoo.NewTable(name+"-Table", int(config.Config.NumBuckets), config.Config.BucketDepth, config.Config.DataSize, db.DB, 0)
-	s.Entries = make([]cuckoo.Item, 0, int(config.Config.NumBuckets)*config.Config.BucketDepth)
+	s.Table = cuckoo.NewTable(name+"-Table", config.Config.NumBuckets, config.Config.BucketDepth, config.Config.DataSize, db.DB, 0)
+	s.Entries = make([]cuckoo.Item, 0, config.Config.NumBuckets*config.Config.BucketDepth)
 
 	//TODO: should be a parameter in globalconfig
 	s.outstandingLimit = int(float32(config.Config.NumBuckets*uint64(config.Config.BucketDepth)) * 0.50)
@@ -167,7 +167,7 @@ func (s *Shard) processReads() {
 func (s *Shard) processReplies() {
 	var outputChannel chan *common.BatchReadReply
 	conf := s.config.Load().(Config)
-	itemLength := conf.DataSize * conf.BucketDepth
+	itemLength := int(conf.DataSize * conf.BucketDepth)
 
 	for {
 		select {
@@ -202,7 +202,7 @@ func (s *Shard) processWrites() {
 			ok, evicted := s.Table.Insert(itm)
 			// No longer need this pointer.
 			itm.Data = nil
-			if !ok || len(s.Entries) > int(float32(int(conf.Config.NumBuckets)*conf.Config.BucketDepth)*conf.Config.MaxLoadFactor) {
+			if !ok || len(s.Entries) > int(float64(conf.Config.NumBuckets*conf.Config.BucketDepth)*conf.Config.MaxLoadFactor) {
 				s.evictOldItems()
 			}
 			if evicted != nil {
@@ -230,7 +230,7 @@ func (s *Shard) applyWrites() {
 
 func (s *Shard) evictOldItems() {
 	conf := s.config.Load().(Config)
-	toRemove := int(float32(int(conf.Config.NumBuckets)*conf.Config.BucketDepth) * conf.Config.LoadFactorStep)
+	toRemove := int(float64(conf.Config.NumBuckets*conf.Config.BucketDepth) * conf.Config.LoadFactorStep)
 	if toRemove >= len(s.Entries) {
 		toRemove = len(s.Entries) - 1
 	}
@@ -242,7 +242,7 @@ func (s *Shard) evictOldItems() {
 
 func asCuckooItem(wa *common.WriteArgs) *cuckoo.Item {
 	//TODO: cuckoo should continue int64 sized buckets if needed.
-	return &cuckoo.Item{ID: int(wa.GlobalSeqNo), Data: wa.Data, Bucket1: int(wa.Bucket1), Bucket2: int(wa.Bucket2)}
+	return &cuckoo.Item{ID: wa.GlobalSeqNo, Data: wa.Data, Bucket1: wa.Bucket1, Bucket2: wa.Bucket2}
 }
 
 func (s *Shard) batchRead(req *DecodedBatchReadRequest, conf Config) {

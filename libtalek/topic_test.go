@@ -159,7 +159,7 @@ func BenchmarkGeneratePublishN1M(b *testing.B) {
 func HelperBenchmarkGeneratePublish(b *testing.B, BucketDepth int) {
 	config := &common.Config{}
 	config.NumBuckets = 100
-	config.BucketDepth = BucketDepth
+	config.BucketDepth = uint64(BucketDepth)
 	config.DataSize = 1024
 	config.MaxLoadFactor = 1.0
 	config.BloomFalsePositive = 0.0001

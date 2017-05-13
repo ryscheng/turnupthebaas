@@ -26,8 +26,8 @@ func testConf() Config {
 	return Config{
 		Config: &common.Config{
 			NumBuckets:         uint64(fromEnvOrDefault("NUM_BUCKETS", 512)),
-			BucketDepth:        fromEnvOrDefault("BUCKET_DEPTH", 4),
-			DataSize:           fromEnvOrDefault("DATA_SIZE", 512),
+			BucketDepth:        uint64(fromEnvOrDefault("BUCKET_DEPTH", 4)),
+			DataSize:           uint64(fromEnvOrDefault("DATA_SIZE", 512)),
 			BloomFalsePositive: 0.95,
 			MaxLoadFactor:      0.95,
 			LoadFactorStep:     0.02,
