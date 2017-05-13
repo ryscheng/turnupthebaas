@@ -52,7 +52,7 @@ func NewShard(bucketSize int, data []byte, userdata string) pir.Shard {
 		source = KernelCL2
 	}
 
-	context, err := NewContextCL("contextcl", source, int(dataSize), int(scratch))
+	context, err := NewContextCL("contextcl", source, int(dataSize), int(scratchSize))
 	if err != nil {
 		t.Fatalf("cannot create new ContextCL: error=%v\n", err)
 	}

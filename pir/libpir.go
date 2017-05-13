@@ -28,8 +28,7 @@ type Server struct {
 	DB         *DB
 }
 
-// Connect opens a Server for communication with a unix-socket representating a
-// running PIR Daemon.
+// NewServer creates a Server for communication
 func NewServer(backing string) (*Server, error) {
 	server := new(Server)
 	server.backing = backing
