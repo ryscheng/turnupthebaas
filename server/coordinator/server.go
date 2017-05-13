@@ -27,6 +27,10 @@ type Server struct {
 	buildCount    int64
 
 	// Channels
+	//   public
+	LayoutChan chan []byte
+	//InterestVecChan chan
+	//   private
 	commitChan chan *CommitArgs
 }
 
@@ -165,6 +169,7 @@ func (s *Server) buildLayout(buildID int64, config common.Config, commitLog []*C
 		}
 	}
 	s.log.Info.Printf("%v\n", data)
+	//s.LayoutChan <- data
 
 	// Push layout to replicas
 	// @todo

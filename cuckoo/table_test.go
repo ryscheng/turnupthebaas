@@ -2,6 +2,7 @@ package cuckoo
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -330,4 +331,32 @@ func TestLoadFactor(t *testing.T) {
 	}
 
 	fmt.Printf("... done\n")
+}
+
+func BenchmarkBigTable(b *testing.B) {
+	//numMessages := uint64(1073741824) //2^30
+	numMessages := uint64(268435456) //2^28
+	dataSize := uint64(8)
+	depth := uint64(4)
+	numBuckets := numMessages / depth
+	data := make([]byte, dataSize)
+	table := NewTable("t", numBuckets, depth, dataSize, nil, 0)
+	end := uint64(float64(numMessages) * 0.90)
+	var ok bool
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for x := uint64(0); x < end; x++ {
+			binary.PutUvarint(data, x)
+			item := &Item{
+				ID:      x,
+				Data:    data,
+				Bucket1: rand.Uint64() % numBuckets,
+				Bucket2: rand.Uint64() % numBuckets,
+			}
+			ok, _ = table.Insert(item)
+			if !ok {
+				b.Fatalf("error inserting into table after %v inserts", x)
+			}
+		}
+	}
 }
