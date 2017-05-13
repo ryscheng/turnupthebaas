@@ -6,7 +6,6 @@
 Talek is a privacy-preserving messaging system. User communication is stored on untrusted systems using PIR.
 
 ## Getting Started
-
 A basic client (which is not resistant to traffic analysis!) can be found at   
 ```go get github.com/privacylab/talek/cli/talekclient```
 
@@ -23,15 +22,29 @@ below.
     talekclient --config=talek.conf --topic=newhandle --share=readOnlyHandle
     talekclient --config=talek.conf --topic=readOnlyHandle --read
 
-### Following Along:
-
-Join the mailing list: https://lists.riseup.net/www/info/talek
 
 ## Develop
 Pull requests are welcome! Please run all tests (see below) before submitting a PR.
 
-### Tools
+### System Dependencies
+Depending on which PIR implementation you use, you may need to install OpenCL / CUDA.
+Make sure you have the latest graphics drivers for your video card.
 
+NVIDIA CUDA:
+- [Drivers](http://www.nvidia.com/Download/index.aspx?lang=en-us)
+- [CUDA](https://developer.nvidia.com/cuda-downloads)
+
+OpenCL on Ubuntu:
+
+    sudo apt-get install -y ocl-icd-libopencl1 ocl-icd-opencl-dev opencl-headers clinfo
+    sudo ln -s /usr/lib/x86_64-linux-gnu/libOpenCL.so /usr/lib/x86_64-linux-gnu/libCL.so
+
+OpenCL on macOS:
+- OpenCL is included in the developer tools. See [here](https://developer.apple.com/opencl/)
+
+
+
+### Tools
 - [govendor](https://github.com/kardianos/govendor) for vendoring
 - [gometalinter](https://github.com/alecthomas/gometalinter) for linting
 
@@ -40,7 +53,6 @@ $ make get-tools
 ```
 
 ### Testing
-
 All tests should pass before submitting a pull request
 
 ```bash
@@ -48,7 +60,6 @@ $ make test
 ```
 
 ### Vendoring
-
 Talek vendors all of its dependencies into the local `vendor/` directory.
 To add or update dependencies to the latest in `vendor/`, use the `govendor` tool, as follows:
 - `govendor fetch github.com/foo/bar`
@@ -57,8 +68,11 @@ To see a list and status of dependencies:
 - `govendor list`
 
 
-## Publication
+## Following Along:
+Join the mailing list: https://lists.riseup.net/www/info/talek
 
+
+## Publication
 Talek: a Private Publish-Subscribe Protocol.   
 Raymond Cheng, Will Scott, Bryan Parno, Irene Zhang, Arvind Krishnamurthy, Tom Anderson.   
 In Submission. 2017.   
