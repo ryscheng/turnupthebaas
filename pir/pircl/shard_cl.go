@@ -4,11 +4,13 @@ package pircl
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"unsafe"
 
 	"github.com/go-gl/cl/v1.2/cl"
 	"github.com/privacylab/talek/common"
+	"github.com/prometheus/common/log"
 )
 
 // ShardCL represents a read-only shard of the database,
@@ -22,6 +24,54 @@ type ShardCL struct {
 	data       []byte
 	numThreads int
 	clData     cl.Mem
+}
+
+// NewShard creates a new cuda shard conforming to the common interface
+func NewShard(bucketSize int, data []byte, userdata string) pir.Shard {
+	parts := strings.Split(userdata, ".")
+	if len(parts) < 6 {
+		log.Errorf("Invalid cl specification: %s. Should be cl.[source].[datasize].[scratchsize].[threads]", parts)
+		return nil
+	}
+
+	dataSize, err := strconv.ParseInt(parts[2], 10, 32)
+	if err != nil {
+		log.Errorf("Invalid datasize: %s. Should be numeric", parts[2])
+		return nil
+	}
+	scratchSize, err := strconv.ParseInt(parts[3], 10, 32)
+	if err != nil {
+		log.Errorf("Invalid scratch size: %s. Should be numeric", parts[3])
+		return nil
+	}
+
+	source := KernelCL0
+	if parts[1] == "1" {
+		source = KernelCL1
+	} else if parts[1] == "2" {
+		source = KernelCL2
+	}
+
+	context, err := NewContextCL("contextcl", source, int(dataSize), int(scratch))
+	if err != nil {
+		t.Fatalf("cannot create new ContextCL: error=%v\n", err)
+	}
+
+	threads, err := strconv.ParseInt(parts[4], 10, 32)
+	if err != nil {
+		log.Errorf("Invalid threads: %s. Should be numeric", parts[4])
+		return nil
+	}
+	shard, err := NewShardCL("CL Shard ("+userdata+")", context, bucketSize, data, int(threads))
+	if err != nil {
+		log.Errorf("Could not create CL shard: %v", err)
+		return nil
+	}
+	return pir.Shard(shard)
+}
+
+func init() {
+	pir.PIRBackings["cl"] = NewShard
 }
 
 // NewShardCL creates a new OpenCL-backed shard
