@@ -58,7 +58,7 @@ type DecodedBatchReadRequest struct {
 
 // NewShard creates an interface to a PIR daemon at socket, using a given
 // server configuration for sizing and locating data.
-func NewShard(name string, socket string, config Config) *Shard {
+func NewShard(name string, backing string, config Config) *Shard {
 	s := &Shard{}
 	s.log = common.NewLogger(name)
 	s.name = name
@@ -71,7 +71,7 @@ func NewShard(name string, socket string, config Config) *Shard {
 	s.readReplies = make(chan []byte)
 
 	// TODO: per-server config of where the local PIR socket is.
-	pirServer, err := pir.Connect(socket)
+	pirServer, err := pir.NewServer(backing)
 	if err != nil {
 		s.log.Error.Fatalf("Could not connect to pir back end: %v", err)
 		return nil

@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,14 +11,12 @@ import (
 
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/libtalek"
-	"github.com/privacylab/talek/pir"
 	"github.com/privacylab/talek/server"
 )
 
 var numClients = flag.Int("clients", 1, "Number of clients")
-var leaderPIR = flag.String("leader", "../pird/pir.socket", "PIR daemon for leader")
-var followerPIR = flag.String("follower", "../pird/pir2.socket", "PIR daemon for follower")
-var mockPIR = flag.Bool("mock", false, "Use the mock PIR daemon")
+var leaderPIR = flag.String("leader", "cpu.0", "PIR backing for leader shard")
+var followerPIR = flag.String("follower", "cpu.1", "PIR backing for follower shard")
 
 type killable interface {
 	Kill()
@@ -45,17 +42,6 @@ func main() {
 	serverConfig0.TrustDomain = trustDomainConfig0
 	serverConfigF := server.ConfigFromFile("../serverconfig.json", config)
 	serverConfigF.TrustDomain = trustDomainFE
-
-	status := make(chan int)
-
-	if *mockPIR {
-		*followerPIR = fmt.Sprintf("pirtest%d.socket", rand.Int())
-		*leaderPIR = fmt.Sprintf("pirtest%d.socket", rand.Int())
-		go pir.CreateMockServer(status, *followerPIR)
-		go pir.CreateMockServer(status, *leaderPIR)
-		<-status
-		<-status
-	}
 
 	// Trust Domain 1
 	t1 := server.NewCentralized("t1", *followerPIR, *serverConfig1)
@@ -101,10 +87,4 @@ func main() {
 	f0.Close()
 	t1.Close()
 	t0.Close()
-	if *mockPIR {
-		status <- 1
-		status <- 1
-		<-status
-		<-status
-	}
 }
