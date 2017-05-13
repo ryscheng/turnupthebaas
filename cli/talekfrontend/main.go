@@ -20,7 +20,8 @@ func main() {
 	log.Println("--- Talek Frontend ---")
 	log.Println("----------------------")
 
-	configPath := pflag.String("config", "talek.conf", "Talek Client Configuration")
+	configPath := pflag.String("client", "talek.conf", "Talek Client Configuration")
+	commonPath := pflag.String("common", "common.conf", "Talek Common Configuration")
 	systemPath := pflag.String("server", "server.conf", "Talek Server Configuration")
 	err := flags.SetPflagsFromEnv(common.EnvPrefix, pflag.CommandLine)
 	if err != nil {
@@ -30,6 +31,7 @@ func main() {
 	pflag.Parse()
 
 	config := libtalek.ClientConfigFromFile(*configPath)
+	config.Config = common.ConfigFromFile(*commonPath)
 	serverConfig := server.ConfigFromFile(*systemPath, config.Config)
 
 	replicas := make([]common.ReplicaInterface, len(config.TrustDomains))
