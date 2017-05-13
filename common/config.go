@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+const IDSize = 8
+
 // Config is a shared configuration needed by both libtalek and server
 type Config struct {
 	// How many buckets are in the server?

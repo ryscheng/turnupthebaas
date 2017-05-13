@@ -1,11 +1,12 @@
 package coordinator
 
 import (
+	"encoding/binary"
 	"sync/atomic"
 	"time"
 
 	"github.com/privacylab/talek/common"
-	//"github.com/privacylab/talek/cuckoo"
+	"github.com/privacylab/talek/cuckoo"
 	"golang.org/x/net/trace"
 )
 
@@ -43,7 +44,7 @@ func NewServer(name string, config common.Config, buildThreshold int64, buildInt
 	s.timeLastBuild = time.Now()
 	s.buildCount = 0
 
-	go s.processCommits()
+	go s.loop()
 	return s
 }
 
@@ -98,8 +99,7 @@ func (s *Server) Close() {
  * PRIVATE METHODS (single-threaded)
  **********************************/
 
-// processCommits will read from s.commitChan and properly trigger work
-func (s *Server) processCommits() {
+func (s *Server) loop() {
 	var commit *CommitArgs
 	conf := s.config.Load().(common.Config)
 	windowSize := conf.WindowSize()
@@ -115,6 +115,7 @@ func (s *Server) processCommits() {
 		s.commitLog = s.commitLog[idx:]
 		// Spawn build goroutine
 		go s.buildLayout(s.buildCount, conf, s.commitLog[:])
+		go s.buildInterestVec(s.buildCount, conf, s.commitLog[:])
 		// Reset state
 		s.numNewCommits = 0
 		s.buildCount++
@@ -145,15 +146,36 @@ func (s *Server) buildLayout(buildID int64, config common.Config, commitLog []*C
 	defer tr.Finish()
 
 	// Construct cuckoo table layout
-	/**
-	data := make([]byte, config.NumBuckets*config.BucketDepth*8)
+	var item *cuckoo.Item
+	var ok bool
+	itemData := make([]byte, common.IDSize)
+	data := make([]byte, config.NumBuckets*config.BucketDepth*uint64(common.IDSize))
 	table := cuckoo.NewTable(string(buildID), config.NumBuckets, config.BucketDepth, config.DataSize, data, 0)
-	**/
-
-	// Construct global interest vector
+	for _, elt := range commitLog {
+		binary.PutUvarint(itemData, elt.ID)
+		item = &cuckoo.Item{
+			ID:      elt.ID,
+			Data:    itemData,
+			Bucket1: elt.Bucket1,
+			Bucket2: elt.Bucket2,
+		}
+		ok, _ = table.Insert(item)
+		if !ok {
+			s.log.Error.Fatalf("%v.buildLayout failed to construct cuckoo layout", s.name)
+		}
+	}
+	s.log.Info.Printf("%v\n", data)
 
 	// Push layout to replicas
+	// @todo
+
+}
+
+func (s *Server) buildInterestVec(buildID int64, config common.Config, commitLog []*CommitArgs) {
+	// Construct global interest vector
+	// @todo
 
 	// Push global interest vector to global frontends
+	// @todo
 
 }
