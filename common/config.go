@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// IDSize is the size of unique IDs in bytes
 const IDSize = 8
 
 // Config is a shared configuration needed by both libtalek and server
