@@ -176,6 +176,12 @@ func (s *Shard) processReplies() {
 			outputChannel = <-s.outstandingReads
 
 			response := &common.BatchReadReply{Err: "", Replies: make([]common.ReadReply, conf.ReadBatch)}
+
+			if len(reply) < conf.ReadBatch*itemLength {
+				s.log.Error.Printf("PIR Response was of length %d, not %d * %d\n", len(reply), conf.ReadBatch, itemLength)
+				outputChannel <- response
+				continue
+			}
 			for i := 0; i < conf.ReadBatch; i++ {
 				response.Replies[i].Data = reply[i*itemLength : (i+1)*itemLength]
 				//TODO: reply.GlobalSeqNo

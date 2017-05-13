@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/privacylab/talek/common"
+	_ "github.com/privacylab/talek/pir/pircpu"
 )
 
 import "testing"
@@ -74,7 +75,6 @@ func TestShardSanity(t *testing.T) {
 
 	reply := <-replychan
 	if reply.Replies[0].Data[0] != bytes.NewBufferString("Magic").Bytes()[0] {
-		status <- 1
 		t.Error("Failed to round-trip a write.")
 		return
 	}
