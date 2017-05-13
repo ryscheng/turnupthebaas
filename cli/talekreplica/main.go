@@ -36,7 +36,7 @@ func main() {
 
 	log.Printf("Arguments:\n")
 	log.Printf("config=%v\n", *configPath)
-	log.Printf("socket=%v\n", *pirSocket)
+	log.Printf("backing=%v\n", *backing)
 
 	configString, err := ioutil.ReadFile(*configPath)
 	if err != nil {
