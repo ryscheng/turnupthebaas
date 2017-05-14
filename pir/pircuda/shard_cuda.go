@@ -4,6 +4,7 @@ package pircuda
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"unsafe"
@@ -29,29 +30,29 @@ type ShardCUDA struct {
 func NewShard(bucketSize int, data []byte, userdata string) pir.Shard {
 	parts := strings.Split(userdata, ".")
 	if len(parts) < 4 {
-		fmt.Errorf("Invalid cuda specification: %s. Should be cuda.[context].[contextdatasize].[threads]", parts)
+		fmt.Fprintf(os.Stderr, "Invalid cuda specification: %s. Should be cuda.[context].[contextdatasize].[threads]", parts)
 		return nil
 	}
 
 	contextDataSize, err := strconv.ParseInt(parts[2], 10, 32)
 	if err != nil {
-		fmt.Errorf("Invalid datasize: %s. Should be numeric", parts[2])
+		fmt.Fprintf(os.Stderr, "Invalid datasize: %s. Should be numeric", parts[2])
 		return nil
 	}
 
 	context, err := NewContextCUDA("contextcuda", parts[1], int(contextDataSize))
 	if err != nil {
-		fmt.Fatalf("cannot create new ContextCUDA: error=%v\n", err)
+		fmt.Fprintf(os.Stderr, "cannot create new ContextCUDA: error=%v\n", err)
 	}
 
 	threads, err := strconv.ParseInt(parts[3], 10, 32)
 	if err != nil {
-		fmt.Errorf("Invalid threads: %s. Should be numeric", parts[3])
+		fmt.Fprintf(os.Stderr, "Invalid threads: %s. Should be numeric", parts[3])
 		return nil
 	}
 	shard, err := NewShardCUDA("CUDA Shard ("+userdata+")", context, bucketSize, data, int(threads))
 	if err != nil {
-		fmt.Errorf("Could not create cuda shard: %v", err)
+		fmt.Fprintf(os.Stderr, "Could not create cuda shard: %v", err)
 		return nil
 	}
 	return pir.Shard(shard)

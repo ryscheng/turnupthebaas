@@ -2,6 +2,7 @@ package pircpu
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -25,17 +26,17 @@ type ShardCPU struct {
 func NewShard(bucketSize int, data []byte, userdata string) pir.Shard {
 	parts := strings.Split(userdata, ".")
 	if len(parts) < 2 {
-		fmt.Errorf("Invalid cpu specification: %s. Should be CPU.[0-2]", parts)
+		fmt.Fprintf(os.Stderr, "Invalid cpu specification: %s. Should be CPU.[0-2]", parts)
 		return nil
 	}
 	readVersion, err := strconv.ParseInt(parts[1], 10, 32)
 	if err != nil {
-		fmt.Errorf("Invalid cpu specification: %s. Should be CPU.[0-2]", parts)
+		fmt.Fprintf(os.Stderr, "Invalid cpu specification: %s. Should be CPU.[0-2]", parts)
 		return nil
 	}
 	shard, err := NewShardCPU("CPU Shard ("+userdata+")", bucketSize, data, int(readVersion))
 	if err != nil {
-		fmt.Errorf("Could not create CPU shard: %v", err)
+		fmt.Fprintf(os.Stderr, "Could not create CPU shard: %v", err)
 		return nil
 	}
 	return pir.Shard(shard)

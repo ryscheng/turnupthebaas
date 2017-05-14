@@ -4,6 +4,7 @@ package pircl
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"unsafe"
@@ -29,18 +30,18 @@ type ShardCL struct {
 func NewShard(bucketSize int, data []byte, userdata string) pir.Shard {
 	parts := strings.Split(userdata, ".")
 	if len(parts) < 6 {
-		fmt.Errorf("Invalid cl specification: %s. Should be cl.[source].[datasize].[scratchsize].[threads]", parts)
+		fmt.Fprintf(os.Stderr, "Invalid cl specification: %s. Should be cl.[source].[datasize].[scratchsize].[threads]", parts)
 		return nil
 	}
 
 	dataSize, err := strconv.ParseInt(parts[2], 10, 32)
 	if err != nil {
-		fmt.Errorf("Invalid datasize: %s. Should be numeric", parts[2])
+		fmt.Fprintf(os.Stderr, "Invalid datasize: %s. Should be numeric", parts[2])
 		return nil
 	}
 	scratchSize, err := strconv.ParseInt(parts[3], 10, 32)
 	if err != nil {
-		fmt.Errorf("Invalid scratch size: %s. Should be numeric", parts[3])
+		fmt.Fprintf(os.Stderr, "Invalid scratch size: %s. Should be numeric", parts[3])
 		return nil
 	}
 
@@ -53,17 +54,17 @@ func NewShard(bucketSize int, data []byte, userdata string) pir.Shard {
 
 	context, err := NewContextCL("contextcl", source, int(dataSize), int(scratchSize))
 	if err != nil {
-		fmt.Fatalf("cannot create new ContextCL: error=%v\n", err)
+		fmt.Fprintf(os.Stderr, "cannot create new ContextCL: error=%v\n", err)
 	}
 
 	threads, err := strconv.ParseInt(parts[4], 10, 32)
 	if err != nil {
-		fmt.Errorf("Invalid threads: %s. Should be numeric", parts[4])
+		fmt.Fprintf(os.Stderr, "Invalid threads: %s. Should be numeric", parts[4])
 		return nil
 	}
 	shard, err := NewShardCL("CL Shard ("+userdata+")", context, bucketSize, data, int(threads))
 	if err != nil {
-		fmt.Errorf("Could not create CL shard: %v", err)
+		fmt.Fprintf(os.Stderr, "Could not create CL shard: %v", err)
 		return nil
 	}
 	return pir.Shard(shard)
