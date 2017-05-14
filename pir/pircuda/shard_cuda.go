@@ -10,7 +10,6 @@ import (
 
 	"github.com/barnex/cuda5/cu"
 	"github.com/privacylab/talek/common"
-	"github.com/prometheus/common/log"
 )
 
 // ShardCUDA represents a read-only shard of the database,
@@ -30,29 +29,29 @@ type ShardCUDA struct {
 func NewShard(bucketSize int, data []byte, userdata string) pir.Shard {
 	parts := strings.Split(userdata, ".")
 	if len(parts) < 4 {
-		log.Errorf("Invalid cuda specification: %s. Should be cuda.[context].[contextdatasize].[threads]", parts)
+		fmt.Errorf("Invalid cuda specification: %s. Should be cuda.[context].[contextdatasize].[threads]", parts)
 		return nil
 	}
 
 	contextDataSize, err := strconv.ParseInt(parts[2], 10, 32)
 	if err != nil {
-		log.Errorf("Invalid datasize: %s. Should be numeric", parts[2])
+		fmt.Errorf("Invalid datasize: %s. Should be numeric", parts[2])
 		return nil
 	}
 
 	context, err := NewContextCUDA("contextcuda", parts[1], int(contextDataSize))
 	if err != nil {
-		t.Fatalf("cannot create new ContextCUDA: error=%v\n", err)
+		fmt.Fatalf("cannot create new ContextCUDA: error=%v\n", err)
 	}
 
 	threads, err := strconv.ParseInt(parts[3], 10, 32)
 	if err != nil {
-		log.Errorf("Invalid threads: %s. Should be numeric", parts[3])
+		fmt.Errorf("Invalid threads: %s. Should be numeric", parts[3])
 		return nil
 	}
 	shard, err := NewShardCUDA("CUDA Shard ("+userdata+")", context, bucketSize, data, int(threads))
 	if err != nil {
-		log.Errorf("Could not create cuda shard: %v", err)
+		fmt.Errorf("Could not create cuda shard: %v", err)
 		return nil
 	}
 	return pir.Shard(shard)
