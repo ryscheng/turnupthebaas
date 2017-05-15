@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/privacylab/talek/common"
-	pir "github.com/privacylab/talek/pir/common"
+	"github.com/privacylab/talek/pir/pirinterface"
 )
 
 // ShardCPU represents a read-only shard of the database
@@ -23,7 +23,7 @@ type ShardCPU struct {
 }
 
 // NewShard creates a new cpu shard conforming to the common interface
-func NewShard(bucketSize int, data []byte, userdata string) pir.Shard {
+func NewShard(bucketSize int, data []byte, userdata string) pirinterface.Shard {
 	parts := strings.Split(userdata, ".")
 	if len(parts) < 2 {
 		fmt.Fprintf(os.Stderr, "Invalid cpu specification: %s. Should be CPU.[0-2]", parts)
@@ -39,11 +39,11 @@ func NewShard(bucketSize int, data []byte, userdata string) pir.Shard {
 		fmt.Fprintf(os.Stderr, "Could not create CPU shard: %v", err)
 		return nil
 	}
-	return pir.Shard(shard)
+	return pirinterface.Shard(shard)
 }
 
 func init() {
-	pir.PIRBackings["cpu"] = NewShard
+	pirinterface.Register("cpu", NewShard)
 }
 
 // NewShardCPU creates a new CPU-backed shard

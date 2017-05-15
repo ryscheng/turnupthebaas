@@ -2,15 +2,14 @@ package pir
 
 import (
 	"errors"
-	"strings"
 
-	"github.com/privacylab/talek/pir/common"
+	"github.com/privacylab/talek/pir/pirinterface"
 )
 
 // DB is a memory area for PIR computations shared with a PIR daemon.
 type DB struct {
 	DB    []byte
-	shard common.Shard
+	shard pirinterface.Shard
 }
 
 type pirReq struct {
@@ -20,7 +19,7 @@ type pirReq struct {
 
 // Server is a connection and state for a running PIR Server.
 type Server struct {
-	newshard   func(int, []byte, string) common.Shard
+	newshard   func(int, []byte, string) pirinterface.Shard
 	backing    string
 	CellLength int
 	CellCount  int
@@ -33,11 +32,9 @@ func NewServer(backing string) (*Server, error) {
 	server := new(Server)
 	server.backing = backing
 
-	for k, v := range common.PIRBackings {
-		if strings.HasPrefix(backing, k) {
-			server.newshard = v
-			return server, nil
-		}
+	if cons := pirinterface.GetBacking(backing); cons != nil {
+		server.newshard = cons
+		return server, nil
 	}
 
 	return nil, errors.New("Backing " + backing + " is not known")

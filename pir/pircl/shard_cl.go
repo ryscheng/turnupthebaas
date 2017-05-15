@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-gl/cl/v1.2/cl"
 	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/pir/pirinterface"
 )
 
 // ShardCL represents a read-only shard of the database,
@@ -27,7 +28,7 @@ type ShardCL struct {
 }
 
 // NewShard creates a new cuda shard conforming to the common interface
-func NewShard(bucketSize int, data []byte, userdata string) pir.Shard {
+func NewShard(bucketSize int, data []byte, userdata string) pirinterface.Shard {
 	parts := strings.Split(userdata, ".")
 	if len(parts) < 6 {
 		fmt.Fprintf(os.Stderr, "Invalid cl specification: %s. Should be cl.[source].[datasize].[scratchsize].[threads]", parts)
@@ -67,11 +68,11 @@ func NewShard(bucketSize int, data []byte, userdata string) pir.Shard {
 		fmt.Fprintf(os.Stderr, "Could not create CL shard: %v", err)
 		return nil
 	}
-	return pir.Shard(shard)
+	return pirinterface.Shard(shard)
 }
 
 func init() {
-	pir.PIRBackings["cl"] = NewShard
+	pirinterface.Register("cl", NewShard)
 }
 
 // NewShardCL creates a new OpenCL-backed shard

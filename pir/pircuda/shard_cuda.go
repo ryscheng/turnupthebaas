@@ -11,6 +11,7 @@ import (
 
 	"github.com/barnex/cuda5/cu"
 	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/pir/pirinterface"
 )
 
 // ShardCUDA represents a read-only shard of the database,
@@ -27,7 +28,7 @@ type ShardCUDA struct {
 }
 
 // NewShard creates a new cuda shard conforming to the common interface
-func NewShard(bucketSize int, data []byte, userdata string) pir.Shard {
+func NewShard(bucketSize int, data []byte, userdata string) pirinterface.Shard {
 	parts := strings.Split(userdata, ".")
 	if len(parts) < 4 {
 		fmt.Fprintf(os.Stderr, "Invalid cuda specification: %s. Should be cuda.[context].[contextdatasize].[threads]", parts)
@@ -55,11 +56,11 @@ func NewShard(bucketSize int, data []byte, userdata string) pir.Shard {
 		fmt.Fprintf(os.Stderr, "Could not create cuda shard: %v", err)
 		return nil
 	}
-	return pir.Shard(shard)
+	return pirinterface.Shard(shard)
 }
 
 func init() {
-	pir.PIRBackings["cuda"] = NewShard
+	pirinterface.Register("cuda", NewShard)
 }
 
 // NewShardCUDA creates a new CUDA-backed shard
