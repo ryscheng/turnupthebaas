@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/privacylab/talek/pir"
-	"github.com/privacylab/talek/pir/common"
+	"github.com/privacylab/talek/pir/pirinterface"
 )
 
 // FatalInterface is a abstracts out calls to Fatal and Fatalf
@@ -35,7 +35,7 @@ const (
 )
 
 // AfterEach frees up the shard and context used in a test
-func AfterEach(f FatalInterface, shard common.Shard, context pir.Context) {
+func AfterEach(f FatalInterface, shard pirinterface.Shard, context pir.Context) {
 	var err error
 	if shard != nil {
 		err = shard.Free()
@@ -61,7 +61,7 @@ func GenerateData(size int) []byte {
 }
 
 // HelperTestShardRead is the generic function for testing correctness of a PIR implementation
-func HelperTestShardRead(t *testing.T, shard common.Shard) {
+func HelperTestShardRead(t *testing.T, shard pirinterface.Shard) {
 
 	// Populate batch read request
 	reqLength := shard.GetNumBuckets() / 8
@@ -128,7 +128,7 @@ func HelperTestShardRead(t *testing.T, shard common.Shard) {
 }
 
 // HelperBenchmarkShardRead is the generic function for testing performance of a PIR implementation
-func HelperBenchmarkShardRead(b *testing.B, shard common.Shard, batchSize int) {
+func HelperBenchmarkShardRead(b *testing.B, shard pirinterface.Shard, batchSize int) {
 	reqLength := shard.GetNumBuckets() / 8
 	if shard.GetNumBuckets()%8 != 0 {
 		reqLength++
