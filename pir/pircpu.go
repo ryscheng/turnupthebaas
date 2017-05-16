@@ -1,5 +1,3 @@
-//  +build pircpu
-
 package pir
 
 import (

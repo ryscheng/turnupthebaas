@@ -1,4 +1,4 @@
-//  +build pircuda
+//+build !nocuda,!travis
 
 package pir
 

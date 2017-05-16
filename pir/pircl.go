@@ -1,4 +1,4 @@
-//  +build pircl
+//+build !noopencl,!travis
 
 package pir
 

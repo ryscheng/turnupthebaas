@@ -1,4 +1,4 @@
-//+build !travis
+//+build !noopencl,!travis
 
 package main
 
