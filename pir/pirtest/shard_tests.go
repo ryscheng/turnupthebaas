@@ -4,7 +4,6 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/privacylab/talek/pir"
 	"github.com/privacylab/talek/pir/pirinterface"
 )
 
@@ -35,7 +34,7 @@ const (
 )
 
 // AfterEach frees up the shard and context used in a test
-func AfterEach(f FatalInterface, shard pirinterface.Shard, context pir.Context) {
+func AfterEach(f FatalInterface, shard pirinterface.Shard, context pirinterface.Context) {
 	var err error
 	if shard != nil {
 		err = shard.Free()
