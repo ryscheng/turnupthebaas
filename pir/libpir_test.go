@@ -1,45 +1,31 @@
 package pir
 
-import "errors"
-import "fmt"
-import "math/rand"
+import (
+	"errors"
+	"math/rand"
+	"strconv"
+
+	_ "github.com/privacylab/talek/pir/pircpu"
+)
+
 import "os"
-import "strconv"
+
 import "testing"
 
-func getSocket() string {
-	if os.Getenv("PIR_SOCKET") != "" {
-		fmt.Printf("Testing against running pird at %s.\n", os.Getenv("PIR_SOCKET"))
-		return os.Getenv("PIR_SOCKET")
-	}
-	return fmt.Sprintf("pirtest%d.socket", rand.Int())
-}
+func TestServer(t *testing.T) {
 
-func TestConnnect(t *testing.T) {
-	sockName := getSocket()
-	status := make(chan int)
-	go CreateMockServer(status, sockName)
-	<-status
-
-	pirServer, err := Connect(sockName)
+	pirServer, err := NewServer("cpu.0")
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
 	pirServer.Disconnect()
-
-	status <- 1
-	<-status
 }
 
 func TestPir(t *testing.T) {
-	sockName := getSocket()
-	status := make(chan int)
-	go CreateMockServer(status, sockName)
-	<-status
 
-	pirServer, err := Connect(sockName)
+	pirServer, err := NewServer("cpu.1")
 	if err != nil {
 		t.Error(err)
 		return
@@ -57,7 +43,7 @@ func TestPir(t *testing.T) {
 
 	pirServer.SetDB(db)
 
-	responseChan := make(chan []byte)
+	responseChan := make(chan []byte, 1)
 	masks := make([]byte, 512)
 	masks[0] = 0x01
 
@@ -79,9 +65,6 @@ func TestPir(t *testing.T) {
 	}
 
 	pirServer.Disconnect()
-
-	status <- 1
-	<-status
 }
 
 func BenchmarkPir(b *testing.B) {
@@ -98,12 +81,7 @@ func BenchmarkPir(b *testing.B) {
 		batchSize, _ = strconv.Atoi(os.Getenv("PIR_BATCH_SIZE"))
 	}
 
-	sockName := getSocket()
-	status := make(chan int)
-	go CreateMockServer(status, sockName)
-	<-status
-
-	pirServer, err := Connect(sockName)
+	pirServer, err := NewServer("cpu.2")
 	if err != nil {
 		b.Error(err)
 		return
@@ -149,7 +127,4 @@ func BenchmarkPir(b *testing.B) {
 	<-signalChan
 
 	pirServer.Disconnect()
-
-	status <- 1
-	<-status
 }

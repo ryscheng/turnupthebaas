@@ -62,7 +62,8 @@ func (f *FrontendRPC) GetName(_ *interface{}, reply *string) error {
 
 // GetConfig tells the client about current config.
 func (f *FrontendRPC) GetConfig(_ *interface{}, reply *Config) error {
-	err := f.Call(f.methodPrefix+".Config", nil, reply)
+	var args interface{}
+	err := f.Call(f.methodPrefix+".GetConfig", &args, reply)
 	return err
 }
 

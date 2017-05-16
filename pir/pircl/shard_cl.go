@@ -4,11 +4,14 @@ package pircl
 
 import (
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"unsafe"
 
 	"github.com/go-gl/cl/v1.2/cl"
 	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/pir/pirinterface"
 )
 
 // ShardCL represents a read-only shard of the database,
@@ -22,6 +25,54 @@ type ShardCL struct {
 	data       []byte
 	numThreads int
 	clData     cl.Mem
+}
+
+// NewShard creates a new cuda shard conforming to the common interface
+func NewShard(bucketSize int, data []byte, userdata string) pirinterface.Shard {
+	parts := strings.Split(userdata, ".")
+	if len(parts) < 6 {
+		fmt.Fprintf(os.Stderr, "Invalid cl specification: %s. Should be cl.[source].[datasize].[scratchsize].[threads]", parts)
+		return nil
+	}
+
+	dataSize, err := strconv.ParseInt(parts[2], 10, 32)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Invalid datasize: %s. Should be numeric", parts[2])
+		return nil
+	}
+	scratchSize, err := strconv.ParseInt(parts[3], 10, 32)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Invalid scratch size: %s. Should be numeric", parts[3])
+		return nil
+	}
+
+	source := KernelCL0
+	if parts[1] == "1" {
+		source = KernelCL1
+	} else if parts[1] == "2" {
+		source = KernelCL2
+	}
+
+	context, err := NewContextCL("contextcl", source, int(dataSize), int(scratchSize))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "cannot create new ContextCL: error=%v\n", err)
+	}
+
+	threads, err := strconv.ParseInt(parts[4], 10, 32)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Invalid threads: %s. Should be numeric", parts[4])
+		return nil
+	}
+	shard, err := NewShardCL("CL Shard ("+userdata+")", context, bucketSize, data, int(threads))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Could not create CL shard: %v", err)
+		return nil
+	}
+	return pirinterface.Shard(shard)
+}
+
+func init() {
+	pirinterface.Register("cl", NewShard)
 }
 
 // NewShardCL creates a new OpenCL-backed shard

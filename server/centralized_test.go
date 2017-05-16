@@ -6,7 +6,6 @@ import (
 
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/libtalek"
-	"github.com/privacylab/talek/pir"
 )
 
 func BenchmarkWrite(b *testing.B) {
@@ -36,11 +35,7 @@ func BenchmarkWrite(b *testing.B) {
 	}
 
 	var reply common.ReplicaWriteReply
-	t0s := getSocket()
-	t0c := make(chan int)
-	go pir.CreateMockServer(t0c, t0s)
-	<-t0c
-	t0 := NewCentralized("t0", t0s, Config{&config, 1, 0, 0, nil, 0})
+	t0 := NewCentralized("t0", "cpu.0", Config{&config, 1, 0, 0, nil, 0})
 
 	// Start timing
 	b.ResetTimer()
@@ -48,5 +43,4 @@ func BenchmarkWrite(b *testing.B) {
 		_ = t0.Write(repArgs, &reply)
 	}
 
-	t0c <- 1
 }
