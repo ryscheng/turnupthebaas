@@ -4,10 +4,14 @@ package pircuda
 
 import (
 	"fmt"
+	"os"
+	"strconv"
+	"strings"
 	"unsafe"
 
 	"github.com/barnex/cuda5/cu"
 	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/pir/pirinterface"
 )
 
 // ShardCUDA represents a read-only shard of the database,
@@ -21,6 +25,42 @@ type ShardCUDA struct {
 	data       []byte
 	numThreads int
 	cudaData   cu.DevicePtr
+}
+
+// NewShard creates a new cuda shard conforming to the common interface
+func NewShard(bucketSize int, data []byte, userdata string) pirinterface.Shard {
+	parts := strings.Split(userdata, ".")
+	if len(parts) < 4 {
+		fmt.Fprintf(os.Stderr, "Invalid cuda specification: %s. Should be cuda.[context].[contextdatasize].[threads]", parts)
+		return nil
+	}
+
+	contextDataSize, err := strconv.ParseInt(parts[2], 10, 32)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Invalid datasize: %s. Should be numeric", parts[2])
+		return nil
+	}
+
+	context, err := NewContextCUDA("contextcuda", parts[1], int(contextDataSize))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "cannot create new ContextCUDA: error=%v\n", err)
+	}
+
+	threads, err := strconv.ParseInt(parts[3], 10, 32)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Invalid threads: %s. Should be numeric", parts[3])
+		return nil
+	}
+	shard, err := NewShardCUDA("CUDA Shard ("+userdata+")", context, bucketSize, data, int(threads))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Could not create cuda shard: %v", err)
+		return nil
+	}
+	return pirinterface.Shard(shard)
+}
+
+func init() {
+	pirinterface.Register("cuda", NewShard)
 }
 
 // NewShardCUDA creates a new CUDA-backed shard

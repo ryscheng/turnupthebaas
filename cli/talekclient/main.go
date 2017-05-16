@@ -42,7 +42,7 @@ func main() {
 	}
 
 	topicdata, err := ioutil.ReadFile(*handlePath)
-	if err != nil {
+	if err != nil && !*create {
 		panic(err)
 	}
 	topic := libtalek.Topic{}
