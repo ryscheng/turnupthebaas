@@ -83,6 +83,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Failed to publish: %s", err)
 			panic(err)
 		}
+		client.Flush()
 	} else if *read == false {
 		fmt.Fprintf(os.Stderr, "No Read or Write operation requested. Closing.")
 	} else {

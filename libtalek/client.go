@@ -23,8 +23,12 @@ type Client struct {
 
 	handles       []Handle
 	pendingWrites chan *common.WriteArgs
-	pendingReads  chan request
-	handleMutex   sync.Mutex
+	writeCount    int
+	writeMutex    sync.Mutex
+	writeWaiters  *sync.Cond
+
+	pendingReads chan request
+	handleMutex  sync.Mutex
 
 	lastSeqNo uint64
 }
@@ -49,6 +53,8 @@ func NewClient(name string, config ClientConfig, leader common.FrontendInterface
 	c.pendingReads = make(chan request, 5)
 	c.pendingWrites = make(chan *common.WriteArgs, 5)
 
+	c.writeWaiters = sync.NewCond(&c.writeMutex)
+
 	go c.readPeriodic()
 	go c.writePeriodic()
 
@@ -70,6 +76,7 @@ func (c *Client) SetConfig(config ClientConfig) {
 // Kill stops client processing. This allows for graceful shutdown or suspension of requests.
 func (c *Client) Kill() {
 	atomic.StoreInt32(&c.dead, 1)
+	c.Flush()
 }
 
 // MaxLength returns the maximum allowed message the client can Publish.
@@ -101,8 +108,21 @@ func (c *Client) Publish(handle *Topic, data []byte) error {
 		return err
 	}
 
+	c.writeMutex.Lock()
+	c.writeCount++
+	c.writeMutex.Unlock()
 	c.pendingWrites <- writeArgs
 	return nil
+}
+
+// Flush blocks until the the client has finished in-progress reads and writes.
+func (c *Client) Flush() {
+	c.writeMutex.Lock()
+	for c.writeCount > 0 {
+		c.writeWaiters.Wait()
+	}
+	c.writeMutex.Unlock()
+	return
 }
 
 // Poll handles to updates on a given log.
@@ -163,6 +183,12 @@ func (c *Client) writePeriodic() {
 		conf := c.config.Load().(ClientConfig)
 		select {
 		case req = <-c.pendingWrites:
+			c.writeMutex.Lock()
+			c.writeCount--
+			if c.writeCount == 0 {
+				c.writeWaiters.Broadcast()
+			}
+			c.writeMutex.Unlock()
 			break
 		default:
 			req = c.generateRandomWrite(conf)
