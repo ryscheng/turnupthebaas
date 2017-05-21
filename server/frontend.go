@@ -23,6 +23,8 @@ type Frontend struct {
 
 	replicas []common.ReplicaInterface
 	dead     int32
+
+	Verbose bool
 }
 
 // readRequest is the grouped request and reply memory used for batching
@@ -136,7 +138,7 @@ func (fe *Frontend) batchReads() {
 			if len(batch) >= fe.Config.ReadBatch {
 				go fe.triggerBatchRead(batch)
 				batch = make([]*readRequest, 0, fe.Config.ReadBatch)
-			} else {
+			} else if fe.Verbose {
 				fe.log.Printf("Read: add to batch, size=%v\n", len(batch))
 			}
 			continue
@@ -159,6 +161,9 @@ func (fe *Frontend) triggerBatchRead(batch []*readRequest) error {
 		if val.Args != nil {
 			args.Args[i] = *val.Args
 		}
+	}
+	if fe.Verbose {
+		fe.log.Printf("Batch read with %d items sent to replicas.\n", len(batch))
 	}
 
 	// Choose a SeqNoRange

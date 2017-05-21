@@ -23,6 +23,7 @@ func main() {
 	configPath := pflag.String("client", "talek.conf", "Talek Client Configuration")
 	commonPath := pflag.String("common", "common.conf", "Talek Common Configuration")
 	systemPath := pflag.String("server", "server.conf", "Talek Server Configuration")
+	verbose := pflag.Bool("verbose", false, "Verbose output")
 	err := flags.SetPflagsFromEnv(common.EnvPrefix, pflag.CommandLine)
 	if err != nil {
 		log.Printf("Error reading environment variables, %v\n", err)
@@ -40,6 +41,7 @@ func main() {
 	}
 
 	f := server.NewFrontend("Talek Frontend", serverConfig, replicas)
+	f.Verbose = *verbose
 	_, port, _ := net.SplitHostPort(config.FrontendAddr)
 	pnum, _ := strconv.Atoi(port)
 	_ = server.NewNetworkRPC(f, pnum)

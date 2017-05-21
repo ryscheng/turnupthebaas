@@ -3,10 +3,8 @@ package libtalek
 import (
 	"crypto/rand"
 	"errors"
-	"fmt"
 	"io"
 	"math/big"
-	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -231,7 +229,7 @@ func (c *Client) readPeriodic() {
 			req = c.nextRequest(&conf)
 		}
 		if c.Verbose {
-			fmt.Fprintf(os.Stderr, "Reading bucket %d\n", req.Bucket())
+			c.log.Info.Printf("Reading bucket %d\n", req.Bucket())
 		}
 		encreq, err := req.ReadArgs.Encode(conf.TrustDomains)
 		if err != nil {

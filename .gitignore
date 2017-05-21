@@ -1,6 +1,6 @@
 # Binaries
 cli/talekclient/talekclient
-cli/talekfrontead/talekfrontend
+cli/talekfrontend/talekfrontend
 cli/talekreplica/talekreplica
 cli/talekutil/talekutil
 benchmark/consistency/consistency
@@ -9,6 +9,7 @@ pird/pird
 
 # Config files
 *.conf
+*.handle
 
 # Coverage
 overalls.coverprofile
