@@ -93,6 +93,7 @@ func (fe *Frontend) Write(args *common.WriteArgs, reply *common.WriteReply) erro
 			reply.Err = replicaReply.Err
 		}
 	}
+	reply.GlobalSeqNo = args.GlobalSeqNo
 
 	return nil
 }

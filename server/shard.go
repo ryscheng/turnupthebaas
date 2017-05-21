@@ -191,6 +191,7 @@ func (s *Shard) processWrites() {
 				return
 			} else if writeReq.EpochFlag {
 				s.applyWrites()
+				continue
 			}
 
 			itm := asCuckooItem(&writeReq.WriteArgs)

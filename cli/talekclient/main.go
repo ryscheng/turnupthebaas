@@ -88,15 +88,15 @@ func main() {
 
 	if *read == false && len(*write) > 0 {
 		if err = client.Publish(&topic, []byte(*write)); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to publish: %s", err)
+			fmt.Fprintf(os.Stderr, "Failed to publish: %s\n", err)
 			panic(err)
 		}
 		client.Flush()
 	} else if *read == false {
-		fmt.Fprintf(os.Stderr, "No Read or Write operation requested. Closing.")
+		fmt.Fprintf(os.Stderr, "No Read or Write operation requested. Closing.\n")
 	} else {
 		if len(*write) > 0 {
-			fmt.Fprintf(os.Stderr, "Cannot read and write at the same time. Ignoring write.")
+			fmt.Fprintf(os.Stderr, "Cannot read and write at the same time. Ignoring write.\n")
 		}
 		msgs := client.Poll(&topic.Handle)
 		timeout := time.After(config.ReadInterval * readTimeoutMultiple)
