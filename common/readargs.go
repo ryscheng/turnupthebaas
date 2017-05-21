@@ -32,9 +32,9 @@ func (r *ReadArgs) Encode(trustDomains []*TrustDomainConfig) (out EncodedReadArg
 
 	out.PirArgs = make([][]byte, len(trustDomains))
 
-	var msg bytes.Buffer
-	enc := gob.NewEncoder(&msg)
 	for i := 0; i < len(trustDomains); i++ {
+		var msg bytes.Buffer
+		enc := gob.NewEncoder(&msg)
 		err = enc.Encode(r.TD[i])
 		if err != nil {
 			return
