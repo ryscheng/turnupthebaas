@@ -2,22 +2,12 @@ package server
 
 import (
 	"fmt"
-	"math/rand"
-	"os"
 	"sync/atomic"
 
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/cuckoo"
 	"github.com/privacylab/talek/pir"
 )
-
-func getSocket() string {
-	if os.Getenv("PIR_SOCKET") != "" {
-		fmt.Printf("Testing against running pird at %s.\n", os.Getenv("PIR_SOCKET"))
-		return os.Getenv("PIR_SOCKET")
-	}
-	return fmt.Sprintf("pirtest%d.socket", rand.Int())
-}
 
 // Shard represents a single shard of the PIR database.
 // It runs a thread handling processing of incoming requests. It is

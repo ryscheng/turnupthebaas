@@ -79,7 +79,9 @@ func (s *Server) SetDB(db *DB) error {
 		s.DB.Free()
 	}
 
-	db.shard = s.newshard(s.CellLength, db.DB, s.backing)
+	shardMemory := make([]byte, len(db.DB))
+	copy(shardMemory[:], db.DB[:])
+	db.shard = s.newshard(s.CellLength, shardMemory, s.backing)
 	if db.shard == nil {
 		return errors.New("Couldn't set DB")
 	}
@@ -91,6 +93,7 @@ func (s *Server) SetDB(db *DB) error {
 func (db *DB) Free() error {
 	if db.shard != nil {
 		db.shard.Free()
+		db.shard = nil
 	}
 	return nil
 }
