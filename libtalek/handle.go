@@ -1,10 +1,10 @@
 package libtalek
 
 import (
-	"crypto/rand"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/agl/ed25519"
@@ -68,7 +68,7 @@ func (h *Handle) nextBuckets(conf *common.Config) (uint64, uint64) {
 	return b1 % conf.NumBuckets, b2 % conf.NumBuckets
 }
 
-func makeReadArg(config *ClientConfig, bucket uint64) *common.ReadArgs {
+func makeReadArg(config *ClientConfig, bucket uint64, rand io.Reader) *common.ReadArgs {
 	arg := &common.ReadArgs{}
 	num := len(config.TrustDomains)
 	arg.TD = make([]common.PirArgs, num)
@@ -95,7 +95,7 @@ func makeReadArg(config *ClientConfig, bucket uint64) *common.ReadArgs {
 	return arg
 }
 
-func (h *Handle) generatePoll(config *ClientConfig, _ uint64) (*common.ReadArgs, *common.ReadArgs, error) {
+func (h *Handle) generatePoll(config *ClientConfig, rand io.Reader) (*common.ReadArgs, *common.ReadArgs, error) {
 	if h.SharedSecret == nil || h.SigningPublicKey == nil {
 		return nil, nil, errors.New("Subscription not fully initialized")
 	}
@@ -103,8 +103,8 @@ func (h *Handle) generatePoll(config *ClientConfig, _ uint64) (*common.ReadArgs,
 	args := make([]*common.ReadArgs, 2)
 	bucket1, bucket2 := h.nextBuckets(config.Config)
 
-	args[0] = makeReadArg(config, bucket1)
-	args[1] = makeReadArg(config, bucket2)
+	args[0] = makeReadArg(config, bucket1, rand)
+	args[1] = makeReadArg(config, bucket2, rand)
 
 	return args[0], args[1], nil
 }
@@ -163,6 +163,7 @@ func (h *Handle) retrieveResponse(args *common.ReadArgs, reply *common.ReadReply
 	for i := uint(0); i < uint(len(data)); i += dataSize {
 		plaintext, err := h.Decrypt(data[i:i+dataSize], &seqNoBytes)
 		if err == nil {
+			fmt.Fprintf(os.Stderr, "Successful Decryption: %v\n", plaintext)
 			return plaintext
 		}
 		fmt.Fprintf(os.Stderr, "decryption failed for read %d of bucket %d [%v](%d): %v\n",

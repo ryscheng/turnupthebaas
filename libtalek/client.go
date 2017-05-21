@@ -3,7 +3,10 @@ package libtalek
 import (
 	"crypto/rand"
 	"errors"
+	"fmt"
+	"io"
 	"math/big"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -31,6 +34,10 @@ type Client struct {
 	handleMutex  sync.Mutex
 
 	lastSeqNo uint64
+
+	// for debugging / testing
+	Verbose bool
+	Rand    io.Reader
 }
 
 type request struct {
@@ -54,6 +61,7 @@ func NewClient(name string, config ClientConfig, leader common.FrontendInterface
 	c.pendingWrites = make(chan *common.WriteArgs, 5)
 
 	c.writeWaiters = sync.NewCond(&c.writeMutex)
+	c.Rand = rand.Reader
 
 	go c.readPeriodic()
 	go c.writePeriodic()
@@ -99,11 +107,13 @@ func (c *Client) Publish(handle *Topic, data []byte) error {
 	}
 
 	writeArgs, err := handle.GeneratePublish(config.Config, data)
-	c.log.Info.Printf("Wrote %v(%d) to %d,%d.",
-		writeArgs.Data[0:4],
-		len(writeArgs.Data),
-		writeArgs.Bucket1,
-		writeArgs.Bucket2)
+	if c.Verbose {
+		c.log.Info.Printf("Wrote %v(%d) to %d,%d.",
+			writeArgs.Data[0:4],
+			len(writeArgs.Data),
+			writeArgs.Bucket1,
+			writeArgs.Bucket2)
+	}
 	if err != nil {
 		return err
 	}
@@ -220,6 +230,9 @@ func (c *Client) readPeriodic() {
 		default:
 			req = c.nextRequest(&conf)
 		}
+		if c.Verbose {
+			fmt.Fprintf(os.Stderr, "Reading bucket %d\n", req.Bucket())
+		}
 		encreq, err := req.ReadArgs.Encode(conf.TrustDomains)
 		if err != nil {
 			reply.Err = err.Error()
@@ -242,12 +255,12 @@ func (c *Client) readPeriodic() {
 func (c *Client) generateRandomWrite(config ClientConfig) *common.WriteArgs {
 	args := &common.WriteArgs{}
 	var max big.Int
-	b1, _ := rand.Int(rand.Reader, max.SetUint64(config.NumBuckets))
-	b2, _ := rand.Int(rand.Reader, max.SetUint64(config.NumBuckets))
+	b1, _ := rand.Int(c.Rand, max.SetUint64(config.NumBuckets))
+	b2, _ := rand.Int(c.Rand, max.SetUint64(config.NumBuckets))
 	args.Bucket1 = b1.Uint64()
 	args.Bucket2 = b2.Uint64()
 	args.Data = make([]byte, config.Config.DataSize, config.Config.DataSize)
-	if _, err := rand.Read(args.Data); err != nil {
+	if _, err := c.Rand.Read(args.Data); err != nil {
 		return nil
 	}
 	return args
@@ -259,7 +272,7 @@ func (c *Client) generateRandomRead(config *ClientConfig) *common.ReadArgs {
 	args.TD = make([]common.PirArgs, len(config.TrustDomains), len(config.TrustDomains))
 	for i := 0; i < len(args.TD); i++ {
 		args.TD[i].RequestVector = make([]byte, vectorSize, vectorSize)
-		rand.Read(args.TD[i].RequestVector)
+		c.Rand.Read(args.TD[i].RequestVector)
 		seed, err := drbg.NewSeed()
 		if err != nil {
 			c.log.Error.Fatalf("Error creating random seed: %v\n", err)
@@ -280,7 +293,7 @@ func (c *Client) nextRequest(config *ClientConfig) request {
 		c.handles = c.handles[1:]
 		c.handles = append(c.handles, nextTopic)
 
-		ra1, ra2, err := nextTopic.generatePoll(config, c.lastSeqNo)
+		ra1, ra2, err := nextTopic.generatePoll(config, c.Rand)
 		if err != nil {
 			c.handleMutex.Unlock()
 			c.log.Error.Fatal(err)

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"time"
 
@@ -23,6 +24,7 @@ func main() {
 	handlePath := pflag.String("topic", "talek.handle", "The talek handle to use")
 	write := pflag.String("write", "", "A message to append to the log (If not specified, the next item will be read.)")
 	read := pflag.Bool("read", false, "Read from the provided topic")
+	randSeed := pflag.Int("randSeed", 0, "Use a deterministic random seed. [Dangerous!]")
 	verbose := pflag.Bool("verbose", false, "Print diagnostic information")
 	err := flags.SetPflagsFromEnv(common.EnvPrefix, pflag.CommandLine)
 	if err != nil {
@@ -77,6 +79,12 @@ func main() {
 	} else if *verbose {
 		fmt.Fprintln(os.Stderr, "Connection to RPC established.")
 	}
+	if *randSeed != 0 {
+		fmt.Fprintln(os.Stderr, "Using deterministic random seed. This can cause replay of nonces, and should not be used in production.")
+		r := rand.New(rand.NewSource(int64(*randSeed)))
+		client.Rand = r
+	}
+	client.Verbose = *verbose
 
 	if *read == false && len(*write) > 0 {
 		if err = client.Publish(&topic, []byte(*write)); err != nil {
