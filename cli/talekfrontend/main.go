@@ -44,7 +44,7 @@ func main() {
 	f.Verbose = *verbose
 	_, port, _ := net.SplitHostPort(config.FrontendAddr)
 	pnum, _ := strconv.Atoi(port)
-	_ = server.NewNetworkRPC(f, pnum)
+	_ = server.NewNetworkRPC(common.FrontendInterface(f), pnum)
 
 	log.Println("Running.")
 

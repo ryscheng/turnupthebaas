@@ -80,6 +80,9 @@ func (fe *Frontend) Write(args *common.WriteArgs, reply *common.WriteReply) erro
 		WriteArgs: *args,
 	}
 	replicaReply := common.ReplicaWriteReply{}
+	if fe.Verbose {
+		fe.log.Printf("write to %d,%d serialized.\n", args.Bucket1, args.Bucket2)
+	}
 	//@todo writes in parallel
 	for i, r := range fe.replicas {
 		err := r.Write(replicaWrite, &replicaReply)
@@ -120,6 +123,9 @@ func (fe *Frontend) periodicWrite() {
 				EpochFlag: true,
 			}
 			var rep common.ReplicaWriteReply
+			if fe.Verbose {
+				fe.log.Printf("Periodic update of database sent to replicas.\n")
+			}
 			for _, r := range fe.replicas {
 				r.Write(args, &rep)
 			}
