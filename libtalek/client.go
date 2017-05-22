@@ -22,7 +22,7 @@ type Client struct {
 	dead   int32
 	leader common.FrontendInterface
 
-	handles       []Handle
+	handles       []*Handle
 	pendingWrites chan *common.WriteArgs
 	writeCount    int
 	writeMutex    sync.Mutex
@@ -64,7 +64,6 @@ func NewClient(name string, config ClientConfig, leader common.FrontendInterface
 	go c.readPeriodic()
 	go c.writePeriodic()
 
-	c.log.Info.Println("NewClient: starting new client - " + name)
 	return c
 }
 
@@ -140,17 +139,23 @@ func (c *Client) Poll(handle *Handle) chan []byte {
 	// Check if already polling.
 	c.handleMutex.Lock()
 	for x := range c.handles {
-		if &c.handles[x] == handle {
+		if c.handles[x] == handle {
 			c.handleMutex.Unlock()
+			if c.Verbose {
+				c.log.Info.Println("Ignoring request to poll, becuase already polling.")
+			}
 			return nil
 		}
+	}
+	if c.Verbose {
+		handle.log = c.log
 	}
 	if handle.updates == nil {
 		if err := initHandle(handle); err != nil {
 			return nil
 		}
 	}
-	c.handles = append(c.handles, *handle)
+	c.handles = append(c.handles, handle)
 	c.handleMutex.Unlock()
 
 	return handle.updates
@@ -160,7 +165,7 @@ func (c *Client) Poll(handle *Handle) chan []byte {
 func (c *Client) Done(handle *Handle) bool {
 	c.handleMutex.Lock()
 	for i := 0; i < len(c.handles); i++ {
-		if &c.handles[i] == handle {
+		if c.handles[i] == handle {
 			c.handles[i] = c.handles[len(c.handles)-1]
 			c.handles = c.handles[:len(c.handles)-1]
 			c.handleMutex.Unlock()
@@ -297,9 +302,9 @@ func (c *Client) nextRequest(config *ClientConfig) request {
 			c.log.Error.Fatal(err)
 			return request{c.generateRandomRead(config), nil}
 		}
-		c.pendingReads <- request{ra2, &nextTopic}
+		c.pendingReads <- request{ra2, nextTopic}
 		c.handleMutex.Unlock()
-		return request{ra1, &nextTopic}
+		return request{ra1, nextTopic}
 	}
 	c.handleMutex.Unlock()
 

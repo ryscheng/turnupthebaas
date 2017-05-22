@@ -3,9 +3,7 @@ package libtalek
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
-	"os"
 
 	"github.com/agl/ed25519"
 	"github.com/dchest/siphash"
@@ -36,6 +34,9 @@ type Handle struct {
 
 	// Notifications of new messages
 	updates chan []byte
+
+	// log for messages
+	log *common.Logger
 }
 
 //NewHandle creates a new topic handle, without attachment to a specific topic.
@@ -141,6 +142,7 @@ func (h *Handle) Decrypt(cyphertext []byte, nonce *[24]byte) ([]byte, error) {
 func (h *Handle) OnResponse(args *common.ReadArgs, reply *common.ReadReply, dataSize uint) {
 	msg := h.retrieveResponse(args, reply, dataSize)
 	if msg != nil && h.updates != nil {
+		h.Seqno++
 		h.updates <- msg
 	}
 }
@@ -151,7 +153,9 @@ func (h *Handle) retrieveResponse(args *common.ReadArgs, reply *common.ReadReply
 	// strip out the padding injected by trust domains.
 	for i := 0; i < len(args.TD); i++ {
 		if err := drbg.Overlay(args.TD[i].PadSeed, data); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to remove pad on returned read: %v\n", err)
+			if h.log != nil {
+				h.log.Info.Printf("Failed to remove pad on returned read: %v\n", err)
+			}
 			return nil
 		}
 	}
@@ -163,15 +167,20 @@ func (h *Handle) retrieveResponse(args *common.ReadArgs, reply *common.ReadReply
 	for i := uint(0); i < uint(len(data)); i += dataSize {
 		plaintext, err := h.Decrypt(data[i:i+dataSize], &seqNoBytes)
 		if err == nil {
-			fmt.Fprintf(os.Stderr, "Successful Decryption: %v\n", plaintext)
+			if h.log != nil {
+				h.log.Trace.Printf("Successful Decryption.\n")
+			}
 			return plaintext
 		}
-		fmt.Fprintf(os.Stderr, "decryption failed for read %d of bucket %d [%v](%d): %v\n",
-			i/dataSize,
-			args.Bucket(),
-			data[i:i+4],
-			len(data[i:i+dataSize]),
-			err)
+
+		if h.log != nil {
+			h.log.Trace.Printf("decryption failed for read %d of bucket %d [%v](%d): %v\n",
+				i/dataSize,
+				args.Bucket(),
+				data[i:i+4],
+				len(data[i:i+dataSize]),
+				err)
+		}
 	}
 	return nil
 }

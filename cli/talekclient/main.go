@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"os/signal"
 	"time"
 
 	"github.com/coreos/etcd/pkg/flags"
@@ -24,6 +25,7 @@ func main() {
 	handlePath := pflag.String("topic", "talek.handle", "The talek handle to use")
 	write := pflag.String("write", "", "A message to append to the log (If not specified, the next item will be read.)")
 	read := pflag.Bool("read", false, "Read from the provided topic")
+	follow := pflag.Bool("follow", false, "Keep reading until interrupt")
 	randSeed := pflag.Int("randSeed", 0, "Use a deterministic random seed. [Dangerous!]")
 	verbose := pflag.Bool("verbose", false, "Print diagnostic information")
 	err := flags.SetPflagsFromEnv(common.EnvPrefix, pflag.CommandLine)
@@ -68,6 +70,7 @@ func main() {
 		}
 		ioutil.WriteFile(*share, handleBytes, 0640)
 		fmt.Fprintf(os.Stderr, "Read-only topic written to %s\n", *share)
+		return
 	}
 
 	// Client-connected activity below.
@@ -96,22 +99,39 @@ func main() {
 		fmt.Fprintf(os.Stderr, "No Read or Write operation requested. Closing.\n")
 	} else {
 		if len(*write) > 0 {
-			fmt.Fprintf(os.Stderr, "Cannot read and write at the same time. Ignoring write.\n")
+			fmt.Fprintf(os.Stderr, "Cannot read and write at the same time.\n")
+			return
 		}
 		msgs := client.Poll(&topic.Handle)
-		timeout := time.After(config.ReadInterval * readTimeoutMultiple)
-		select {
-		case next := <-msgs:
-			fmt.Println(next)
-			break
-		case <-timeout:
-			if *verbose {
-				fmt.Fprintln(os.Stderr, "Timed out waiting for new message.")
+
+		if *follow {
+			c := make(chan os.Signal, 1)
+			signal.Notify(c, os.Interrupt)
+		forever:
+			for {
+				select {
+				case next := <-msgs:
+					fmt.Fprintf(os.Stdout, "%s\n", next)
+				case <-c:
+					break forever
+				}
 			}
-			return
+		} else {
+			timeout := time.After(config.ReadInterval * readTimeoutMultiple)
+			select {
+			case next := <-msgs:
+				fmt.Fprintf(os.Stdout, "%s\n", next)
+				break
+			case <-timeout:
+				if *verbose {
+					fmt.Fprintln(os.Stderr, "Timed out waiting for new message.")
+				}
+				return
+			}
 		}
 		client.Done(&topic.Handle)
 	}
+
 	updatedTopic, err := json.Marshal(topic)
 	if err != nil {
 		panic(err)
