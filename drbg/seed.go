@@ -46,14 +46,13 @@ func (s *Seed) MarshalBinary() ([]byte, error) {
 	return s.value[:], nil
 }
 
-// MarshalJSON serializes the seed to JSON
-// Implements the json.Marshaller interface
-func (s *Seed) MarshalJSON() ([]byte, error) {
+// MarshalText serializes the seed to textual representation
+func (s *Seed) MarshalText() ([]byte, error) {
 	return json.Marshal(s.value)
 }
 
-// UnmarshalJSON restores the seed from a JSON representation.
-func (s *Seed) UnmarshalJSON(data []byte) error {
+// UnmarshalText restores the seed from a Text representation.
+func (s *Seed) UnmarshalText(data []byte) error {
 	if err := json.Unmarshal(data, &s.value); err != nil {
 		return err
 	}

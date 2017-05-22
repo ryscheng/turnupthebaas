@@ -1,6 +1,7 @@
 package libtalek
 
 import (
+	"bytes"
 	"crypto/rand"
 	"fmt"
 	"testing"
@@ -37,6 +38,26 @@ func TestGeneratePoll(t *testing.T) {
 	fmt.Printf("len(args0)=%v; \n", 3*(len(args0.TD[0].RequestVector)+len(args0.TD[0].PadSeed)))
 
 	fmt.Printf("... done \n")
+}
+
+func TestSerialization(t *testing.T) {
+	topic, _ := NewTopic()
+	h := topic.Handle
+
+	txt, err := h.MarshalText()
+	if err != nil {
+		t.Fatalf("Error serializing: %v\n", err)
+	}
+	fmt.Printf("Serialized handle looks like %s\n", txt)
+
+	h2, _ := NewHandle()
+	err = h2.UnmarshalText(txt)
+	if err != nil {
+		t.Fatalf("Could not deserialize: %v\n", err)
+	}
+	if !bytes.Equal(h.SharedSecret[:], h2.SharedSecret[:]) {
+		t.Fatalf("serialization log info!")
+	}
 }
 
 func BenchmarkGeneratePollN10K(b *testing.B) {
