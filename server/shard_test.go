@@ -41,7 +41,8 @@ func testConf() Config {
 }
 
 func TestShardSanity(t *testing.T) {
-	shard := NewShard("Test Shard", "cpu.0", testConf())
+	conf := testConf()
+	shard := NewShard("Test Shard", "cpu.0", conf)
 	if shard == nil {
 		t.Error("Failed to create shard.")
 		return
