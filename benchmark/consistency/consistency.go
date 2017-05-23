@@ -1,50 +1,83 @@
 package main
 
 import (
-	"encoding/json"
-	"flag"
-	"io/ioutil"
+	"fmt"
 	"log"
-	"strings"
+	"os"
 	"time"
 
 	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/drbg"
 	"github.com/privacylab/talek/libtalek"
+	"github.com/privacylab/talek/server"
+	"github.com/spf13/pflag"
 )
 
-var trustDomainPath = flag.String("trust", "../keys/leaderpublic.json,../keys/followerpublic.json", "Server keys (comma separated)")
+func initReadArg(buckets uint64, replicas int) *common.ReadArgs {
+	args := common.ReadArgs{}
+	args.TD = make([]common.PirArgs, replicas)
+	for i := 0; i < replicas; i++ {
+		args.TD[i].PadSeed = make([]byte, drbg.SeedLength)
+		args.TD[i].RequestVector = make([]byte, buckets/8)
+	}
+	return &args
+}
 
 // Consistency acts as a client driver against a talek system to verify that
 // consistency guarantees are enforced. It will write into a cell, and then
 // perform a set of reads to ensure that all servers expose the same snapshot
 // of the database and are synchronized.
 func main() {
-	flag.Parse()
+	configPath := pflag.String("config", "talek.conf", "Client configuration for talek")
+	integrated := pflag.Bool("integrated", false, "Local benchmark in a single process")
+	spotChecks := pflag.Int("spotcheck", 8, "How many cells to check for consistency")
+	pflag.Parse()
 
-	// Config
-	domainPaths := strings.Split(*trustDomainPath, ",")
-	trustDomains := make([]*common.TrustDomainConfig, len(domainPaths))
-	for i, path := range domainPaths {
-		tdString, err := ioutil.ReadFile(path)
+	var config *libtalek.ClientConfig
+	if *integrated {
+		//Common Config
+		conf := &common.Config{1024, 4, 256, 0.05, 0.95, 0.05}
+		//Trust domains
+		td1 := common.NewTrustDomainConfig("td1", "localhost:9001", true, false)
+		td2 := common.NewTrustDomainConfig("td2", "localhost:9002", true, false)
+		sc1 := server.Config{Config: conf, WriteInterval: time.Second, ReadBatch: 4, TrustDomain: td1}
+		sc2 := server.Config{Config: conf, ReadBatch: 4, TrustDomain: td2, TrustDomainIndex: 1}
+		//replicas
+		r1 := server.NewCentralized("r1", "cpu.0", sc1)
+		r2 := server.NewCentralized("r2", "cpu.0", sc2)
+		//client
+		config = &libtalek.ClientConfig{Config: conf, WriteInterval: time.Second, ReadInterval: time.Second, TrustDomains: []*common.TrustDomainConfig{td1, td2}, FrontendAddr: "localhost:9000"}
+		//frontend
+		f0 := server.NewFrontend("f0", &sc1, []common.ReplicaInterface{common.ReplicaInterface(r1), common.ReplicaInterface(r2)})
+		f0.Verbose = true
+		server.NewNetworkRPC(f0, 9000)
+	} else {
+		// Config
+		config = libtalek.ClientConfigFromFile(*configPath)
+		if config == nil {
+			fmt.Fprintln(os.Stderr, "Talek Client must be run with --config specifying where the server is.")
+			os.Exit(1)
+		}
+		if config.Config == nil {
+			fmt.Fprintln(os.Stderr, "Common configuration will be fetched from frontend.")
+		}
+	}
+
+	leaderRPC := common.NewFrontendRPC("RPC", config.FrontendAddr)
+
+	if config.Config == nil {
+		config.Config = new(common.Config)
+		err := leaderRPC.GetConfig(nil, config.Config)
 		if err != nil {
-			log.Printf("Could not read %s!\n", path)
-			return
-		}
-		trustDomains[i] = new(common.TrustDomainConfig)
-		if err := json.Unmarshal(tdString, trustDomains[i]); err != nil {
-			log.Printf("Could not parse %s: %v\n", path, err)
-			return
+			panic(err)
 		}
 	}
 
-	leaderRPC := common.NewFrontendRPC("RPC", trustDomains[0].Address)
-
-	clientConfig := libtalek.ClientConfig{
-		ReadInterval:  time.Second,
-		WriteInterval: time.Second,
-		TrustDomains:  trustDomains,
+	if !WritesPersisted(*config, *leaderRPC, *spotChecks) {
+		return
 	}
-	c0 := libtalek.NewClient("testClient", clientConfig, leaderRPC)
+
+	c0 := libtalek.NewClient("testClient", *config, leaderRPC)
 	log.Println("Created client")
 	//time.Sleep(time.Duration(rand.Int()%int(clientConfig.WriteInterval)) * time.Nanosecond)
 	//c1 := libtalek.NewClient("c1", clientConfig, leaderRpc)

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"log"
 	"os"
 	"sync/atomic"
@@ -22,6 +23,8 @@ type Frontend struct {
 
 	replicas []common.ReplicaInterface
 	dead     int32
+
+	Verbose bool
 }
 
 // readRequest is the grouped request and reply memory used for batching
@@ -77,6 +80,9 @@ func (fe *Frontend) Write(args *common.WriteArgs, reply *common.WriteReply) erro
 		WriteArgs: *args,
 	}
 	replicaReply := common.ReplicaWriteReply{}
+	if fe.Verbose {
+		fe.log.Printf("write to %d,%d serialized.\n", args.Bucket1, args.Bucket2)
+	}
 	//@todo writes in parallel
 	for i, r := range fe.replicas {
 		err := r.Write(replicaWrite, &replicaReply)
@@ -87,6 +93,7 @@ func (fe *Frontend) Write(args *common.WriteArgs, reply *common.WriteReply) erro
 			reply.Err = replicaReply.Err
 		}
 	}
+	reply.GlobalSeqNo = args.GlobalSeqNo
 
 	return nil
 }
@@ -117,6 +124,9 @@ func (fe *Frontend) periodicWrite() {
 				EpochFlag: true,
 			}
 			var rep common.ReplicaWriteReply
+			if fe.Verbose {
+				fe.log.Printf("Periodic update of database sent to replicas.\n")
+			}
 			for _, r := range fe.replicas {
 				r.Write(args, &rep)
 			}
@@ -135,7 +145,7 @@ func (fe *Frontend) batchReads() {
 			if len(batch) >= fe.Config.ReadBatch {
 				go fe.triggerBatchRead(batch)
 				batch = make([]*readRequest, 0, fe.Config.ReadBatch)
-			} else {
+			} else if fe.Verbose {
 				fe.log.Printf("Read: add to batch, size=%v\n", len(batch))
 			}
 			continue
@@ -159,6 +169,9 @@ func (fe *Frontend) triggerBatchRead(batch []*readRequest) error {
 			args.Args[i] = *val.Args
 		}
 	}
+	if fe.Verbose {
+		fe.log.Printf("Batch read with %d items sent to replicas.\n", len(batch))
+	}
 
 	// Choose a SeqNoRange
 	currSeqNo := atomic.LoadUint64(&fe.proposedSeqNo) + 1
@@ -172,22 +185,30 @@ func (fe *Frontend) triggerBatchRead(batch []*readRequest) error {
 
 	// Start computation
 	// @todo reads in parallel
+	var replicaErr error
 	replies := make([]common.BatchReadReply, len(fe.replicas))
 	for i, r := range fe.replicas {
 		err := r.BatchRead(args, &replies[i])
 		if err != nil || replies[i].Err != "" {
+			replicaErr = err
 			fe.log.Fatalf("Error making read to replica %d: %v%v", i, err, replies[i].Err)
 		}
 		if len(replies[i].Replies) != len(batch) {
+			replicaErr = errors.New("failure from Replica " + string(i))
 			fe.log.Fatalf("Replica %d gave the wrong number of replies (%d instead of %d)", i, len(replies[i].Replies), len(batch))
 		}
 	}
 
 	// Respond to clients
 	// @todo propagate errors back to clients.
+	replyLength := len(replies[0].Replies[0].Data)
 	for i, val := range batch {
+		val.Reply.Data = make([]byte, replyLength)
 		for _, rp := range replies {
 			val.Reply.Combine(rp.Replies[i].Data)
+		}
+		if replicaErr != nil {
+			val.Reply.Err = replicaErr.Error()
 		}
 		val.Reply.GlobalSeqNo = args.SeqNoRange
 		val.Done <- true

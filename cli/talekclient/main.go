@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
+	"os/signal"
 	"time"
 
 	"github.com/coreos/etcd/pkg/flags"
@@ -23,6 +25,8 @@ func main() {
 	handlePath := pflag.String("topic", "talek.handle", "The talek handle to use")
 	write := pflag.String("write", "", "A message to append to the log (If not specified, the next item will be read.)")
 	read := pflag.Bool("read", false, "Read from the provided topic")
+	follow := pflag.Bool("follow", false, "Keep reading until interrupt")
+	randSeed := pflag.Int("randSeed", 0, "Use a deterministic random seed. [Dangerous!]")
 	verbose := pflag.Bool("verbose", false, "Print diagnostic information")
 	err := flags.SetPflagsFromEnv(common.EnvPrefix, pflag.CommandLine)
 	if err != nil {
@@ -42,7 +46,7 @@ func main() {
 	}
 
 	topicdata, err := ioutil.ReadFile(*handlePath)
-	if err != nil {
+	if err != nil && !*create {
 		panic(err)
 	}
 	topic := libtalek.Topic{}
@@ -66,6 +70,7 @@ func main() {
 		}
 		ioutil.WriteFile(*share, handleBytes, 0640)
 		fmt.Fprintf(os.Stderr, "Read-only topic written to %s\n", *share)
+		return
 	}
 
 	// Client-connected activity below.
@@ -77,32 +82,56 @@ func main() {
 	} else if *verbose {
 		fmt.Fprintln(os.Stderr, "Connection to RPC established.")
 	}
+	if *randSeed != 0 {
+		fmt.Fprintln(os.Stderr, "Using deterministic random seed. This can cause replay of nonces, and should not be used in production.")
+		r := rand.New(rand.NewSource(int64(*randSeed)))
+		client.Rand = r
+	}
+	client.Verbose = *verbose
 
 	if *read == false && len(*write) > 0 {
 		if err = client.Publish(&topic, []byte(*write)); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to publish: %s", err)
+			fmt.Fprintf(os.Stderr, "Failed to publish: %s\n", err)
 			panic(err)
 		}
+		client.Flush()
 	} else if *read == false {
-		fmt.Fprintf(os.Stderr, "No Read or Write operation requested. Closing.")
+		fmt.Fprintf(os.Stderr, "No Read or Write operation requested. Closing.\n")
 	} else {
 		if len(*write) > 0 {
-			fmt.Fprintf(os.Stderr, "Cannot read and write at the same time. Ignoring write.")
+			fmt.Fprintf(os.Stderr, "Cannot read and write at the same time.\n")
+			return
 		}
 		msgs := client.Poll(&topic.Handle)
-		timeout := time.After(config.ReadInterval * readTimeoutMultiple)
-		select {
-		case next := <-msgs:
-			fmt.Println(next)
-			break
-		case <-timeout:
-			if *verbose {
-				fmt.Fprintln(os.Stderr, "Timed out waiting for new message.")
+
+		if *follow {
+			c := make(chan os.Signal, 1)
+			signal.Notify(c, os.Interrupt)
+		forever:
+			for {
+				select {
+				case next := <-msgs:
+					fmt.Fprintf(os.Stdout, "%s\n", next)
+				case <-c:
+					break forever
+				}
 			}
-			return
+		} else {
+			timeout := time.After(config.ReadInterval * readTimeoutMultiple)
+			select {
+			case next := <-msgs:
+				fmt.Fprintf(os.Stdout, "%s\n", next)
+				break
+			case <-timeout:
+				if *verbose {
+					fmt.Fprintln(os.Stderr, "Timed out waiting for new message.")
+				}
+				return
+			}
 		}
 		client.Done(&topic.Handle)
 	}
+
 	updatedTopic, err := json.Marshal(topic)
 	if err != nil {
 		panic(err)

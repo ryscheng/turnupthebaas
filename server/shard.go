@@ -2,22 +2,12 @@ package server
 
 import (
 	"fmt"
-	"math/rand"
-	"os"
 	"sync/atomic"
 
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/cuckoo"
 	"github.com/privacylab/talek/pir"
 )
-
-func getSocket() string {
-	if os.Getenv("PIR_SOCKET") != "" {
-		fmt.Printf("Testing against running pird at %s.\n", os.Getenv("PIR_SOCKET"))
-		return os.Getenv("PIR_SOCKET")
-	}
-	return fmt.Sprintf("pirtest%d.socket", rand.Int())
-}
 
 // Shard represents a single shard of the PIR database.
 // It runs a thread handling processing of incoming requests. It is
@@ -58,7 +48,7 @@ type DecodedBatchReadRequest struct {
 
 // NewShard creates an interface to a PIR daemon at socket, using a given
 // server configuration for sizing and locating data.
-func NewShard(name string, socket string, config Config) *Shard {
+func NewShard(name string, backing string, config Config) *Shard {
 	s := &Shard{}
 	s.log = common.NewLogger(name)
 	s.name = name
@@ -71,7 +61,7 @@ func NewShard(name string, socket string, config Config) *Shard {
 	s.readReplies = make(chan []byte)
 
 	// TODO: per-server config of where the local PIR socket is.
-	pirServer, err := pir.Connect(socket)
+	pirServer, err := pir.NewServer(backing)
 	if err != nil {
 		s.log.Error.Fatalf("Could not connect to pir back end: %v", err)
 		return nil
@@ -176,6 +166,12 @@ func (s *Shard) processReplies() {
 			outputChannel = <-s.outstandingReads
 
 			response := &common.BatchReadReply{Err: "", Replies: make([]common.ReadReply, conf.ReadBatch)}
+
+			if len(reply) < conf.ReadBatch*itemLength {
+				s.log.Error.Printf("PIR Response was of length %d, not %d * %d\n", len(reply), conf.ReadBatch, itemLength)
+				outputChannel <- response
+				continue
+			}
 			for i := 0; i < conf.ReadBatch; i++ {
 				response.Replies[i].Data = reply[i*itemLength : (i+1)*itemLength]
 				//TODO: reply.GlobalSeqNo
@@ -195,6 +191,7 @@ func (s *Shard) processWrites() {
 				return
 			} else if writeReq.EpochFlag {
 				s.applyWrites()
+				continue
 			}
 
 			itm := asCuckooItem(&writeReq.WriteArgs)

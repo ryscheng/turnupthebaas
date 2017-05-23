@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/privacylab/talek/common"
-	"github.com/privacylab/talek/pir"
+	_ "github.com/privacylab/talek/pir/pircpu"
 )
 
 import "testing"
@@ -41,13 +41,7 @@ func testConf() Config {
 }
 
 func TestShardSanity(t *testing.T) {
-	status := make(chan int)
-	sock := getSocket()
-	go pir.CreateMockServer(status, sock)
-	<-status
-
-	conf := testConf()
-	shard := NewShard("Test Shard", sock, conf)
+	shard := NewShard("Test Shard", "cpu.0", testConf())
 	if shard == nil {
 		t.Error("Failed to create shard.")
 		return
@@ -84,27 +78,19 @@ func TestShardSanity(t *testing.T) {
 
 	reply := <-replychan
 	if reply.Replies[0].Data[0] != bytes.NewBufferString("Magic").Bytes()[0] {
-		status <- 1
 		t.Error("Failed to round-trip a write.")
 		return
 	}
 
 	shard.Close()
-	status <- 1
-	<-status
 }
 
 func BenchmarkShard(b *testing.B) {
 	fmt.Printf("Benchmark began with N=%d\n", b.N)
 	readsPerWrite := fromEnvOrDefault("READS_PER_WRITE", 20)
 
-	status := make(chan int)
-	sock := getSocket()
-	go pir.CreateMockServer(status, sock)
-	<-status
-
 	conf := testConf()
-	shard := NewShard("Test Shard", sock, conf)
+	shard := NewShard("Test Shard", "cpu.0", conf)
 	if shard == nil {
 		b.Error("Failed to create shard.")
 		return
@@ -151,6 +137,4 @@ func BenchmarkShard(b *testing.B) {
 
 	fmt.Printf("Benchmark called close w N=%d\n", b.N)
 	shard.Close()
-	status <- 1
-	<-status
 }

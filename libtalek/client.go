@@ -3,6 +3,7 @@ package libtalek
 import (
 	"crypto/rand"
 	"errors"
+	"io"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -21,12 +22,20 @@ type Client struct {
 	dead   int32
 	leader common.FrontendInterface
 
-	handles       []Handle
+	handles       []*Handle
 	pendingWrites chan *common.WriteArgs
-	pendingReads  chan request
-	handleMutex   sync.Mutex
+	writeCount    int
+	writeMutex    sync.Mutex
+	writeWaiters  *sync.Cond
+
+	pendingReads chan request
+	handleMutex  sync.Mutex
 
 	lastSeqNo uint64
+
+	// for debugging / testing
+	Verbose bool
+	Rand    io.Reader
 }
 
 type request struct {
@@ -49,10 +58,12 @@ func NewClient(name string, config ClientConfig, leader common.FrontendInterface
 	c.pendingReads = make(chan request, 5)
 	c.pendingWrites = make(chan *common.WriteArgs, 5)
 
+	c.writeWaiters = sync.NewCond(&c.writeMutex)
+	c.Rand = rand.Reader
+
 	go c.readPeriodic()
 	go c.writePeriodic()
 
-	c.log.Info.Println("NewClient: starting new client - " + name)
 	return c
 }
 
@@ -70,6 +81,7 @@ func (c *Client) SetConfig(config ClientConfig) {
 // Kill stops client processing. This allows for graceful shutdown or suspension of requests.
 func (c *Client) Kill() {
 	atomic.StoreInt32(&c.dead, 1)
+	c.Flush()
 }
 
 // MaxLength returns the maximum allowed message the client can Publish.
@@ -92,17 +104,32 @@ func (c *Client) Publish(handle *Topic, data []byte) error {
 	}
 
 	writeArgs, err := handle.GeneratePublish(config.Config, data)
-	c.log.Info.Printf("Wrote %v(%d) to %d,%d.",
-		writeArgs.Data[0:4],
-		len(writeArgs.Data),
-		writeArgs.Bucket1,
-		writeArgs.Bucket2)
+	if c.Verbose {
+		c.log.Info.Printf("Wrote %v(%d) to %d,%d.",
+			writeArgs.Data[0:4],
+			len(writeArgs.Data),
+			writeArgs.Bucket1,
+			writeArgs.Bucket2)
+	}
 	if err != nil {
 		return err
 	}
 
+	c.writeMutex.Lock()
+	c.writeCount++
+	c.writeMutex.Unlock()
 	c.pendingWrites <- writeArgs
 	return nil
+}
+
+// Flush blocks until the the client has finished in-progress reads and writes.
+func (c *Client) Flush() {
+	c.writeMutex.Lock()
+	for c.writeCount > 0 {
+		c.writeWaiters.Wait()
+	}
+	c.writeMutex.Unlock()
+	return
 }
 
 // Poll handles to updates on a given log.
@@ -112,17 +139,23 @@ func (c *Client) Poll(handle *Handle) chan []byte {
 	// Check if already polling.
 	c.handleMutex.Lock()
 	for x := range c.handles {
-		if &c.handles[x] == handle {
+		if c.handles[x] == handle {
 			c.handleMutex.Unlock()
+			if c.Verbose {
+				c.log.Info.Println("Ignoring request to poll, becuase already polling.")
+			}
 			return nil
 		}
+	}
+	if c.Verbose {
+		handle.log = c.log
 	}
 	if handle.updates == nil {
 		if err := initHandle(handle); err != nil {
 			return nil
 		}
 	}
-	c.handles = append(c.handles, *handle)
+	c.handles = append(c.handles, handle)
 	c.handleMutex.Unlock()
 
 	return handle.updates
@@ -132,7 +165,7 @@ func (c *Client) Poll(handle *Handle) chan []byte {
 func (c *Client) Done(handle *Handle) bool {
 	c.handleMutex.Lock()
 	for i := 0; i < len(c.handles); i++ {
-		if &c.handles[i] == handle {
+		if c.handles[i] == handle {
 			c.handles[i] = c.handles[len(c.handles)-1]
 			c.handles = c.handles[:len(c.handles)-1]
 			c.handleMutex.Unlock()
@@ -163,6 +196,12 @@ func (c *Client) writePeriodic() {
 		conf := c.config.Load().(ClientConfig)
 		select {
 		case req = <-c.pendingWrites:
+			c.writeMutex.Lock()
+			c.writeCount--
+			if c.writeCount == 0 {
+				c.writeWaiters.Broadcast()
+			}
+			c.writeMutex.Unlock()
 			break
 		default:
 			req = c.generateRandomWrite(conf)
@@ -194,6 +233,9 @@ func (c *Client) readPeriodic() {
 		default:
 			req = c.nextRequest(&conf)
 		}
+		if c.Verbose {
+			c.log.Info.Printf("Reading bucket %d\n", req.Bucket())
+		}
 		encreq, err := req.ReadArgs.Encode(conf.TrustDomains)
 		if err != nil {
 			reply.Err = err.Error()
@@ -216,12 +258,12 @@ func (c *Client) readPeriodic() {
 func (c *Client) generateRandomWrite(config ClientConfig) *common.WriteArgs {
 	args := &common.WriteArgs{}
 	var max big.Int
-	b1, _ := rand.Int(rand.Reader, max.SetUint64(config.NumBuckets))
-	b2, _ := rand.Int(rand.Reader, max.SetUint64(config.NumBuckets))
+	b1, _ := rand.Int(c.Rand, max.SetUint64(config.NumBuckets))
+	b2, _ := rand.Int(c.Rand, max.SetUint64(config.NumBuckets))
 	args.Bucket1 = b1.Uint64()
 	args.Bucket2 = b2.Uint64()
 	args.Data = make([]byte, config.Config.DataSize, config.Config.DataSize)
-	if _, err := rand.Read(args.Data); err != nil {
+	if _, err := c.Rand.Read(args.Data); err != nil {
 		return nil
 	}
 	return args
@@ -233,7 +275,7 @@ func (c *Client) generateRandomRead(config *ClientConfig) *common.ReadArgs {
 	args.TD = make([]common.PirArgs, len(config.TrustDomains), len(config.TrustDomains))
 	for i := 0; i < len(args.TD); i++ {
 		args.TD[i].RequestVector = make([]byte, vectorSize, vectorSize)
-		rand.Read(args.TD[i].RequestVector)
+		c.Rand.Read(args.TD[i].RequestVector)
 		seed, err := drbg.NewSeed()
 		if err != nil {
 			c.log.Error.Fatalf("Error creating random seed: %v\n", err)
@@ -254,15 +296,15 @@ func (c *Client) nextRequest(config *ClientConfig) request {
 		c.handles = c.handles[1:]
 		c.handles = append(c.handles, nextTopic)
 
-		ra1, ra2, err := nextTopic.generatePoll(config, c.lastSeqNo)
+		ra1, ra2, err := nextTopic.generatePoll(config, c.Rand)
 		if err != nil {
 			c.handleMutex.Unlock()
 			c.log.Error.Fatal(err)
 			return request{c.generateRandomRead(config), nil}
 		}
-		c.pendingReads <- request{ra2, &nextTopic}
+		c.pendingReads <- request{ra2, nextTopic}
 		c.handleMutex.Unlock()
-		return request{ra1, &nextTopic}
+		return request{ra1, nextTopic}
 	}
 	c.handleMutex.Unlock()
 

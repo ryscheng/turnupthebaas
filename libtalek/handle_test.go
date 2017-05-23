@@ -1,6 +1,7 @@
 package libtalek
 
 import (
+	"crypto/rand"
 	"fmt"
 	"testing"
 
@@ -17,14 +18,14 @@ func TestGeneratePoll(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating handle: %v\n", err)
 	}
-	_, _, err = h.generatePoll(config, 1)
+	_, _, err = h.generatePoll(config, rand.Reader)
 	if err == nil {
 		t.Fatalf("Could generate a poll from an un-configured subscription")
 	}
 
 	topic, _ := NewTopic()
 	h = &topic.Handle
-	args0, _, err := h.generatePoll(config, 1)
+	args0, _, err := h.generatePoll(config, rand.Reader)
 	if err != nil {
 		t.Fatalf("Error creating ReadArgs: %v\n", err)
 	}
@@ -61,7 +62,7 @@ func HelperBenchmarkGeneratePoll(b *testing.B, NumBuckets uint64) {
 	// Start timing
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _, _ = h.generatePoll(config, uint64(i))
+		_, _, _ = h.generatePoll(config, rand.Reader)
 	}
 
 }
@@ -76,7 +77,7 @@ func BenchmarkRetrieveResponse(b *testing.B) {
 	if err != nil {
 		b.Fatalf("Error creating topic handle: %v\n", err)
 	}
-	args, _, err := h.generatePoll(config, 0)
+	args, _, err := h.generatePoll(config, rand.Reader)
 	if err != nil {
 		b.Fatalf("Error creating ReadArgs: %v\n", err)
 	}
