@@ -174,6 +174,7 @@ func (s *Server) Close() {
 	s.log.Info.Printf("%v.Close: success", s.name)
 }
 
+// AddServer adds a server to the list that is notified on snapshot changes
 func (s *Server) AddServer(server NotifyInterface) {
 	s.lock.Lock()
 	s.servers = append(s.servers, server)
