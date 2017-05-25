@@ -161,7 +161,13 @@ func (s *Server) PushLayout(force bool) {
 	// Reset state
 	s.numNewCommits = 0
 	s.pushCount++
-
+	// Copy the layout
+	s.lastLayout = make([]uint64, len(s.cuckooData)/8)
+	for i := 0; i < len(s.lastLayout); i++ {
+		idx := i * 8
+		s.lastLayout[i], _ = binary.Uvarint(s.cuckooData[idx:(idx + 8)])
+	}
+	go sendLayout(s.pushCount, s.lastLayout[:], s.commitLog[:])
 	s.lock.Unlock()
 }
 
@@ -199,12 +205,15 @@ func asCuckooItem(args *CommitArgs) *cuckoo.Item {
 }
 
 func buildGlobalInterestVector() {
+	// @todo
 }
 
-func sendLayout(pushID uint64, config common.Config, commitLog []*CommitArgs) {
-	// Construct global interest vector
+func sendLayout(pushID uint64, layout []uint64, commitLog []*CommitArgs) {
 	// @todo
+	// Push layout to replicas
 
+	// Construct global interest vector
+	// intVec := buildGlobalInterestVector(commitLog)
 	// Push global interest vector to global frontends
 	// @todo
 
