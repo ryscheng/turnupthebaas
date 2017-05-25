@@ -146,7 +146,7 @@ func (s *Server) Close() {
 	s.log.Info.Printf("%v.Close: success", s.name)
 }
 
-// Pushes the current cuckoo layout out
+// PushLayout pushes the current cuckoo layout out
 // If `force` is false, ignore when under a threshold
 func (s *Server) PushLayout(force bool) {
 	s.lock.Lock()
