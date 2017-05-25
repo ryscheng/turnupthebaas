@@ -1,8 +1,10 @@
 package coordinator
 
 import (
+	"crypto/rand"
 	"encoding/binary"
-	"sync/atomic"
+	"fmt"
+	"sync"
 	"time"
 
 	"github.com/privacylab/talek/common"
@@ -14,42 +16,58 @@ import (
 type Server struct {
 	/** Private State **/
 	// Static
-	log            *common.Logger
-	name           string
-	buildThreshold int64
-	buildInterval  time.Duration
+	log           *common.Logger
+	name          string
+	pushThreshold uint64
+	pushInterval  time.Duration
 
 	// Thread-safe
-	config        atomic.Value  // Config
+	lock          sync.Mutex
+	config        common.Config // Config
 	commitLog     []*CommitArgs // Append and read only
-	numNewCommits int64
-	timeLastBuild time.Time
-	buildCount    int64
+	numNewCommits uint64
+	pushCount     uint64
+	lastLayout    []uint64
+	cuckooData    []byte
+	cuckooTable   *cuckoo.Table
 
 	// Channels
-	//   public
-	LayoutChan chan []byte
+	// - public
+	//LayoutChan chan []byte
 	//InterestVecChan chan
-	//   private
-	commitChan chan *CommitArgs
+	// - private
 }
 
 // NewServer creates a new Centralized talek server.
-func NewServer(name string, config common.Config, buildThreshold int64, buildInterval time.Duration) *Server {
+func NewServer(name string, config common.Config, pushThreshold uint64, pushInterval time.Duration) (*Server, error) {
 	s := &Server{}
 	s.log = common.NewLogger(name)
 	s.name = name
-	s.buildThreshold = buildThreshold
-	s.buildInterval = buildInterval
+	s.pushThreshold = pushThreshold
+	s.pushInterval = pushInterval
 
-	s.config.Store(config)
+	s.lock = sync.Mutex{}
+	s.config = config
 	s.commitLog = make([]*CommitArgs, 0)
 	s.numNewCommits = 0
-	s.timeLastBuild = time.Now()
-	s.buildCount = 0
+	s.pushCount = 0
+	s.lastLayout = nil
+	s.cuckooData = make([]byte, config.NumBuckets*config.BucketDepth*uint64(common.IDSize))
+
+	// Choose a random seed for the cuckoo table
+	seedBytes := make([]byte, 8)
+	_, err := rand.Read(seedBytes)
+	if err != nil {
+		s.log.Error.Printf("coordinator.NewServer(%v) error: %v", name, err)
+		return nil, err
+	}
+	seed, _ := binary.Varint(seedBytes)
+	s.cuckooTable = cuckoo.NewTable(name, config.NumBuckets, config.BucketDepth, config.DataSize, s.cuckooData, seed)
 
 	go s.loop()
-	return s
+
+	s.log.Info.Printf("coordinator.NewServer(%v) success\n", name)
+	return s, nil
 }
 
 /**********************************
@@ -60,8 +78,12 @@ func NewServer(name string, config common.Config, buildThreshold int64, buildInt
 func (s *Server) GetInfo(args *interface{}, reply *GetInfoReply) error {
 	tr := trace.New("Coordinator", "GetInfo")
 	defer tr.Finish()
+	s.lock.Lock()
+
 	reply.Err = ""
 	reply.Name = s.name
+
+	s.lock.Unlock()
 	return nil
 }
 
@@ -69,8 +91,11 @@ func (s *Server) GetInfo(args *interface{}, reply *GetInfoReply) error {
 func (s *Server) GetCommonConfig(args *interface{}, reply *common.Config) error {
 	tr := trace.New("Coordinator", "GetCommonConfig")
 	defer tr.Finish()
-	config := s.config.Load().(common.Config)
-	*reply = config
+	s.lock.Lock()
+
+	*reply = s.config
+
+	s.lock.Unlock()
 	return nil
 }
 
@@ -78,8 +103,30 @@ func (s *Server) GetCommonConfig(args *interface{}, reply *common.Config) error 
 func (s *Server) Commit(args *CommitArgs, reply *CommitReply) error {
 	tr := trace.New("Coordinator", "Commit")
 	defer tr.Finish()
-	s.commitChan <- args
 	reply.Err = ""
+
+	s.lock.Lock()
+
+	windowSize := s.config.WindowSize()
+	// Garbage Collect old elements
+	for uint64(len(s.commitLog)) >= windowSize {
+		_ = s.cuckooTable.Remove(asCuckooItem(s.commitLog[0]))
+		s.commitLog = s.commitLog[1:]
+	}
+
+	// Insert new item
+	s.numNewCommits++
+	s.commitLog = append(s.commitLog, args)
+	ok, _ := s.cuckooTable.Insert(asCuckooItem(args))
+	if !ok {
+		s.log.Error.Fatalf("%v.processCommit failed to insert new element", s.name)
+		return fmt.Errorf("Error inserting into cuckoo table")
+	}
+	//s.log.Info.Printf("%v\n", data)
+
+	s.lock.Unlock()
+
+	s.PushLayout(false)
 	return nil
 }
 
@@ -96,87 +143,65 @@ func (s *Server) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdate
 
 // Close shuts down the server
 func (s *Server) Close() {
-	close(s.commitChan)
+	s.log.Info.Printf("%v.Close: success", s.name)
+}
+
+// Pushes the current cuckoo layout out
+// If `force` is false, ignore when under a threshold
+func (s *Server) PushLayout(force bool) {
+	s.lock.Lock()
+
+	// Ignore if under threshold and not forcing
+	if !force {
+		if s.numNewCommits < s.pushThreshold {
+			return
+		}
+	}
+
+	// Reset state
+	s.numNewCommits = 0
+	s.pushCount++
+
+	s.lock.Unlock()
 }
 
 /**********************************
  * PRIVATE METHODS (single-threaded)
  **********************************/
-
+// Periodically call PushLayout
 func (s *Server) loop() {
-	var commit *CommitArgs
-	conf := s.config.Load().(common.Config)
-	windowSize := conf.WindowSize()
-	tick := time.After(s.buildInterval)
-
-	triggerBuild := func() {
-		// Garbage collect old items
-		logLength := uint64(len(s.commitLog))
-		idx := uint64(0)
-		if logLength > windowSize {
-			idx = logLength - windowSize
-		}
-		s.commitLog = s.commitLog[idx:]
-		// Spawn build goroutine
-		go s.buildLayout(s.buildCount, conf, s.commitLog[:])
-		go s.buildInterestVec(s.buildCount, conf, s.commitLog[:])
-		// Reset state
-		s.numNewCommits = 0
-		s.buildCount++
-	}
-
+	tick := time.After(s.pushInterval)
 	for {
 		select {
-		// Handle new commits
-		case commit = <-s.commitChan:
-			s.commitLog = append(s.commitLog, commit)
-			s.numNewCommits++
-			// Trigger build if over threshold
-			if s.numNewCommits > s.buildThreshold {
-				triggerBuild()
-			}
-			continue
-		// Periodically trigger a build
+		// Periodically trigger a config push
 		case <-tick:
-			triggerBuild()
-			tick = time.After(s.buildInterval) // Re-up timer
+			s.PushLayout(true)
+			tick = time.After(s.pushInterval) // Re-up timer
 			continue
 		}
 	}
 }
 
-func (s *Server) buildLayout(buildID int64, config common.Config, commitLog []*CommitArgs) {
-	tr := trace.New("Coordinator", "buildLayout")
-	defer tr.Finish()
+/**********************************
+ * HELPER FUNCTIONS
+ **********************************/
 
-	// Construct cuckoo table layout
-	var item *cuckoo.Item
-	var ok bool
+// Converts a CommitArgs to a cuckoo.Item
+func asCuckooItem(args *CommitArgs) *cuckoo.Item {
 	itemData := make([]byte, common.IDSize)
-	data := make([]byte, config.NumBuckets*config.BucketDepth*uint64(common.IDSize))
-	table := cuckoo.NewTable(string(buildID), config.NumBuckets, config.BucketDepth, config.DataSize, data, 0)
-	for _, elt := range commitLog {
-		binary.PutUvarint(itemData, elt.ID)
-		item = &cuckoo.Item{
-			ID:      elt.ID,
-			Data:    itemData,
-			Bucket1: elt.Bucket1,
-			Bucket2: elt.Bucket2,
-		}
-		ok, _ = table.Insert(item)
-		if !ok {
-			s.log.Error.Fatalf("%v.buildLayout failed to construct cuckoo layout", s.name)
-		}
+	binary.PutUvarint(itemData, args.ID)
+	return &cuckoo.Item{
+		ID:      args.ID,
+		Data:    itemData,
+		Bucket1: args.Bucket1,
+		Bucket2: args.Bucket2,
 	}
-	s.log.Info.Printf("%v\n", data)
-	//s.LayoutChan <- data
-
-	// Push layout to replicas
-	// @todo
-
 }
 
-func (s *Server) buildInterestVec(buildID int64, config common.Config, commitLog []*CommitArgs) {
+func buildGlobalInterestVector() {
+}
+
+func sendLayout(pushID uint64, config common.Config, commitLog []*CommitArgs) {
 	// Construct global interest vector
 	// @todo
 
