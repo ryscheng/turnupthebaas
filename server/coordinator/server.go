@@ -150,7 +150,6 @@ func (s *Server) Commit(args *CommitArgs, reply *CommitReply) error {
 		s.log.Error.Fatalf("%v.processCommit failed to insert new element", s.name)
 		return fmt.Errorf("Error inserting into cuckoo table")
 	}
-	//s.log.Info.Printf("%v\n", data)
 
 	s.lock.Unlock()
 
