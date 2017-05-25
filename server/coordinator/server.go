@@ -191,7 +191,7 @@ func (s *Server) NotifySnapshot(force bool) bool {
 	// @todo
 
 	// Send notifications
-	go sendNotification(s.servers[:], s.snapshotCount)
+	go sendNotification(s.log, s.servers[:], s.snapshotCount)
 	s.lock.Unlock()
 
 	return true
@@ -241,12 +241,17 @@ func buildGlobalInterestVector() {
 	// @todo
 }
 
-func sendNotification(servers []NotifyInterface, snapshotID uint64) {
+func sendNotification(log *common.Logger, servers []NotifyInterface, snapshotID uint64) {
 	args := &NotifyArgs{
 		SnapshotID: snapshotID,
 	}
-	for _, server := range servers {
-		// Ignoring errors and replies
-		go server.Notify(args, &NotifyReply{})
+	doNotify := func(s NotifyInterface, args *NotifyArgs) {
+		err := s.Notify(args, &NotifyReply{})
+		if err != nil {
+			log.Error.Printf("sendNotification failed: %v", err)
+		}
+	}
+	for _, s := range servers {
+		go doNotify(s, args)
 	}
 }
