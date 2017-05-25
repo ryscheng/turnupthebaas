@@ -104,6 +104,29 @@ func (s *Server) GetCommonConfig(args *interface{}, reply *common.Config) error 
 	return nil
 }
 
+// GetLayout returns the layout for a shard
+func (s *Server) GetLayout(args *GetLayoutArgs, reply *GetLayoutReply) error {
+	tr := trace.New("Coordinator", "GetLayout")
+	defer tr.Finish()
+	s.lock.Lock()
+
+	// Check for correct snapshot ID
+	reply.SnapshotID = s.snapshotCount
+	if args.SnapshotID != s.snapshotCount {
+		reply.Err = "Invalid SnapshotID"
+		s.lock.Unlock()
+		return nil
+	}
+
+	shardSize := uint64(len(s.lastLayout)) / args.NumShards
+	reply.Err = ""
+	idx := args.ShardID * shardSize
+	reply.Layout = s.lastLayout[idx:(idx + shardSize)]
+
+	s.lock.Unlock()
+	return nil
+}
+
 // Commit accepts a single Write to commit. The
 func (s *Server) Commit(args *CommitArgs, reply *CommitReply) error {
 	tr := trace.New("Coordinator", "Commit")
