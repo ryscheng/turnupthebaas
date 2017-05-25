@@ -16,41 +16,44 @@ import (
 type Server struct {
 	/** Private State **/
 	// Static
-	log           *common.Logger
-	name          string
-	pushThreshold uint64
-	pushInterval  time.Duration
+	log               *common.Logger
+	name              string
+	snapshotThreshold uint64
+	snapshotInterval  time.Duration
 
-	// Thread-safe
+	// Thread-safe (locked)
 	lock          sync.Mutex
 	config        common.Config // Config
+	servers       []NotifyInterface
 	commitLog     []*CommitArgs // Append and read only
 	numNewCommits uint64
-	pushCount     uint64
+	snapshotCount uint64
 	lastLayout    []uint64
 	cuckooData    []byte
 	cuckooTable   *cuckoo.Table
 
 	// Channels
-	// - public
-	//LayoutChan chan []byte
-	//InterestVecChan chan
-	// - private
+	notifyChan chan bool
 }
 
 // NewServer creates a new Centralized talek server.
-func NewServer(name string, config common.Config, pushThreshold uint64, pushInterval time.Duration) (*Server, error) {
+func NewServer(name string, config common.Config, servers []NotifyInterface, snapshotThreshold uint64, snapshotInterval time.Duration) (*Server, error) {
 	s := &Server{}
 	s.log = common.NewLogger(name)
 	s.name = name
-	s.pushThreshold = pushThreshold
-	s.pushInterval = pushInterval
+	s.snapshotThreshold = snapshotThreshold
+	s.snapshotInterval = snapshotInterval
 
 	s.lock = sync.Mutex{}
 	s.config = config
+	if servers == nil {
+		s.servers = make([]NotifyInterface, 0)
+	} else {
+		s.servers = servers
+	}
 	s.commitLog = make([]*CommitArgs, 0)
 	s.numNewCommits = 0
-	s.pushCount = 0
+	s.snapshotCount = 0
 	s.lastLayout = nil
 	s.cuckooData = make([]byte, config.NumBuckets*config.BucketDepth*uint64(common.IDSize))
 
@@ -63,6 +66,7 @@ func NewServer(name string, config common.Config, pushThreshold uint64, pushInte
 	}
 	seed, _ := binary.Varint(seedBytes)
 	s.cuckooTable = cuckoo.NewTable(name, config.NumBuckets, config.BucketDepth, config.DataSize, s.cuckooData, seed)
+	s.notifyChan = make(chan bool)
 
 	go s.loop()
 
@@ -82,6 +86,7 @@ func (s *Server) GetInfo(args *interface{}, reply *GetInfoReply) error {
 
 	reply.Err = ""
 	reply.Name = s.name
+	reply.SnapshotID = s.snapshotCount
 
 	s.lock.Unlock()
 	return nil
@@ -126,7 +131,8 @@ func (s *Server) Commit(args *CommitArgs, reply *CommitReply) error {
 
 	s.lock.Unlock()
 
-	s.PushLayout(false)
+	// Do notifications in loop()
+	s.notifyChan <- false
 	return nil
 }
 
@@ -146,43 +152,70 @@ func (s *Server) Close() {
 	s.log.Info.Printf("%v.Close: success", s.name)
 }
 
-// PushLayout pushes the current cuckoo layout out
+func (s *Server) AddServer(server NotifyInterface) {
+	s.lock.Lock()
+	s.servers = append(s.servers, server)
+	s.lock.Unlock()
+}
+
+// NotifySnapshot notifies the current cuckoo layout out
 // If `force` is false, ignore when under a threshold
-func (s *Server) PushLayout(force bool) {
+// Returns: true if snapshot was built, false if ignored
+func (s *Server) NotifySnapshot(force bool) bool {
 	s.lock.Lock()
 
 	// Ignore if under threshold and not forcing
 	if !force {
-		if s.numNewCommits < s.pushThreshold {
-			return
+		if s.numNewCommits < s.snapshotThreshold {
+			s.lock.Unlock()
+			return false
 		}
 	}
 
 	// Reset state
 	s.numNewCommits = 0
-	s.pushCount++
+	s.snapshotCount++
+
+	// Construct global interest vector
+	// intVec := buildGlobalInterestVector(commitLog)
+	// @todo
+
 	// Copy the layout
 	s.lastLayout = make([]uint64, len(s.cuckooData)/8)
 	for i := 0; i < len(s.lastLayout); i++ {
 		idx := i * 8
 		s.lastLayout[i], _ = binary.Uvarint(s.cuckooData[idx:(idx + 8)])
 	}
-	go sendLayout(s.pushCount, s.lastLayout[:], s.commitLog[:])
+
+	// Sync with buildGlobalInterestVector goroutine
+	// @todo
+
+	// Send notifications
+	go sendNotification(s.servers[:], s.snapshotCount)
 	s.lock.Unlock()
+
+	return true
 }
 
 /**********************************
  * PRIVATE METHODS (single-threaded)
  **********************************/
-// Periodically call PushLayout
+// Periodically call NotifySnapshot
 func (s *Server) loop() {
-	tick := time.After(s.pushInterval)
+	tick := time.After(s.snapshotInterval)
 	for {
 		select {
-		// Periodically trigger a config push
+		// Called after Commit
+		case <-s.notifyChan:
+			ok := s.NotifySnapshot(false)
+			if ok { // Re-up timer if snapshot built
+				tick = time.After(s.snapshotInterval)
+			}
+			continue
+		// Periodically trigger a snapshot
 		case <-tick:
-			s.PushLayout(true)
-			tick = time.After(s.pushInterval) // Re-up timer
+			s.NotifySnapshot(true)
+			tick = time.After(s.snapshotInterval) // Re-up timer
 			continue
 		}
 	}
@@ -208,13 +241,12 @@ func buildGlobalInterestVector() {
 	// @todo
 }
 
-func sendLayout(pushID uint64, layout []uint64, commitLog []*CommitArgs) {
-	// @todo
-	// Push layout to replicas
-
-	// Construct global interest vector
-	// intVec := buildGlobalInterestVector(commitLog)
-	// Push global interest vector to global frontends
-	// @todo
-
+func sendNotification(servers []NotifyInterface, snapshotID uint64) {
+	args := &NotifyArgs{
+		SnapshotID: snapshotID,
+	}
+	for _, server := range servers {
+		// Ignoring errors and replies
+		go server.Notify(args, &NotifyReply{})
+	}
 }

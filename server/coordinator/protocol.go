@@ -6,8 +6,9 @@ package coordinator
 
 // GetInfoReply contains general state about the server
 type GetInfoReply struct {
-	Err  string
-	Name string
+	Err        string
+	Name       string
+	SnapshotID uint64
 }
 
 // CommitArgs contains a set of Writes to be committed
