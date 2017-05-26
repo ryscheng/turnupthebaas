@@ -28,8 +28,9 @@ func RPCCall(client *rpc.Client, addr string, methodName string, args interface{
 	err = client.Call(methodName, args, reply)
 	if err != nil {
 		//c.log.Error.Printf("rpc error: %v", err)
-		// @todo should we close the client and return a nil client?
-		return client, err
+		// Close the client and retry a new connection next time
+		client.Close()
+		return nil, err
 	}
 
 	//l.log.Printf("%s.Call(): %v, %v, %v\n", addr, args, reply)
