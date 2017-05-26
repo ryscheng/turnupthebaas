@@ -203,7 +203,7 @@ func (h *Handle) MarshalText() ([]byte, error) {
 // UnmarshalText restores a handle from its compact textual representation
 func (h *Handle) UnmarshalText(text []byte) error {
 	var s1, s2, ss, pk []byte
-	if n, err := fmt.Sscanf(string(text), "%x.%x.%x.%x.%d", &s1, &s2, &ss, &pk, &h.Seqno); n < 4 || err != nil {
+	if n, err := fmt.Sscanf(string(text), "%x.%x.%x.%x.%d", &s1, &s2, &ss, &pk, &h.Seqno); n < 5 || err != nil {
 		if err != nil {
 			return err
 		}

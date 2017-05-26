@@ -55,8 +55,8 @@ func TestSerialization(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not deserialize: %v\n", err)
 	}
-	if !bytes.Equal(h.SharedSecret[:], h2.SharedSecret[:]) {
-		t.Fatalf("serialization log info!")
+	if !bytes.Equal(h.SharedSecret[:], h2.SharedSecret[:]) || !bytes.Equal(h.SigningPublicKey[:], h2.SigningPublicKey[:]) {
+		t.Fatalf("serialization lost info!")
 	}
 }
 
