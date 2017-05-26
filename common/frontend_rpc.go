@@ -47,6 +47,7 @@ func (f *FrontendRPC) Call(methodName string, args interface{}, reply interface{
 	err = f.client.Call(methodName, args, reply)
 	if err != nil {
 		f.log.Printf("rpc error: %v", err)
+		f.client = nil
 		return err
 	}
 
