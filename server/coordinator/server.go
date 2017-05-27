@@ -224,7 +224,7 @@ func (s *Server) NotifySnapshot(force bool) bool {
 	s.snapshotCount++
 
 	// Construct global interest vector
-	s.intVec = buildGlobalInterestVector(s.commitLog[:])
+	s.intVec = buildInterestVector(s.config.WindowSize(), s.config.BloomFalsePositive, s.commitLog[:])
 
 	// Copy the layout
 	s.lastLayout = make([]uint64, len(s.cuckooData)/8)
