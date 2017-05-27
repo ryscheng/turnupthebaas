@@ -48,6 +48,8 @@ func TestSerializeRestore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating topic: %v\n", err)
 	}
+
+	// test binary encoder
 	var network bytes.Buffer
 	enc := gob.NewEncoder(&network)
 	err = enc.Encode(topic)
@@ -59,6 +61,22 @@ func TestSerializeRestore(t *testing.T) {
 	err = dec.Decode(&clone)
 	if err != nil {
 		t.Fatalf("Unable to restore topic: %v\n", err)
+	}
+
+	// test text encoder
+	txt, err := topic.MarshalText()
+	if err != nil {
+		t.Fatalf("Error serializing: %v\n", err)
+	}
+	fmt.Printf("Serialized topic looks like %s\n", txt)
+
+	clone = Topic{}
+	err = clone.UnmarshalText(txt)
+	if err != nil {
+		t.Fatalf("Could not deserialize: %v\n", err)
+	}
+	if !bytes.Equal(topic.SigningPrivateKey[:], clone.SigningPrivateKey[:]) || !Equal(&topic.Handle, &clone.Handle) {
+		t.Fatalf("serialization lost info!")
 	}
 }
 

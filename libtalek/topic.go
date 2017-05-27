@@ -1,8 +1,11 @@
 package libtalek
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/binary"
+	"errors"
+	"fmt"
 
 	"github.com/agl/ed25519"
 	"github.com/privacylab/talek/common"
@@ -110,4 +113,30 @@ func (t *Topic) encrypt(plaintext []byte, nonce *[24]byte) ([]byte, error) {
 	buf = buf[0:cap(buf)]
 	digest := ed25519.Sign(t.SigningPrivateKey, buf)
 	return append(buf, digest[:]...), nil
+}
+
+// MarshalText is a compact textual representation of a topic
+func (t *Topic) MarshalText() ([]byte, error) {
+	handle, err := t.Handle.MarshalText()
+	if err != nil {
+		return nil, err
+	}
+	txt := fmt.Sprintf("%x.", *t.SigningPrivateKey)
+	return append([]byte(txt), handle...), nil
+}
+
+// UnmarshalText restores a topic from its compact textual representation
+func (t *Topic) UnmarshalText(text []byte) error {
+	parts := bytes.SplitN(text, []byte("."), 2)
+	if len(parts) != 2 {
+		return errors.New("unparsable topic representation")
+	}
+	t.SigningPrivateKey = new([64]byte)
+	var spk []byte
+	_, err := fmt.Sscanf(string(parts[0]), "%x", &spk)
+	if err != nil {
+		return err
+	}
+	copy(t.SigningPrivateKey[:], spk)
+	return t.Handle.UnmarshalText(parts[1])
 }

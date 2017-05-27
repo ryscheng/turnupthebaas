@@ -39,6 +39,26 @@ func TestGeneratePoll(t *testing.T) {
 	fmt.Printf("... done \n")
 }
 
+func TestSerialization(t *testing.T) {
+	topic, _ := NewTopic()
+	h := topic.Handle
+
+	txt, err := h.MarshalText()
+	if err != nil {
+		t.Fatalf("Error serializing: %v\n", err)
+	}
+	fmt.Printf("Serialized handle looks like %s\n", txt)
+
+	h2, _ := NewHandle()
+	err = h2.UnmarshalText(txt)
+	if err != nil {
+		t.Fatalf("Could not deserialize: %v\n", err)
+	}
+	if !Equal(&h, h2) {
+		t.Fatalf("Serialization lost info!")
+	}
+}
+
 func BenchmarkGeneratePollN10K(b *testing.B) {
 	HelperBenchmarkGeneratePoll(b, 10000/4)
 }
