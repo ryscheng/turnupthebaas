@@ -1,6 +1,7 @@
 package drbg
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/binary"
 	"encoding/json"
@@ -60,6 +61,11 @@ func (s *Seed) UnmarshalText(data []byte) error {
 		return errors.New("invalid drbg seed length")
 	}
 	return nil
+}
+
+// Equal is used to test equality of two drbg seeds.
+func Equal(a, b *Seed) bool {
+	return bytes.Equal(a.value, b.value)
 }
 
 // Key provides the byte representation of the underlying key for the Seed

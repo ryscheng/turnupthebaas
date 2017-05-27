@@ -1,6 +1,7 @@
 package libtalek
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -222,4 +223,19 @@ func (h *Handle) UnmarshalText(text []byte) error {
 		return err
 	}
 	return nil
+}
+
+// Equal tests equality of two handles
+func Equal(a, b *Handle) bool {
+	if a.Seqno != b.Seqno {
+		return false
+	}
+	if !bytes.Equal(a.SharedSecret[:], b.SharedSecret[:]) ||
+		!bytes.Equal(a.SigningPublicKey[:], b.SigningPublicKey[:]) {
+		return false
+	}
+	if (drbg.Equal(a.Seed1, b.Seed1) && drbg.Equal(a.Seed2, b.Seed2)) || (drbg.Equal(a.Seed1, b.Seed2) && drbg.Equal(a.Seed2, b.Seed1)) {
+		return true
+	}
+	return false
 }

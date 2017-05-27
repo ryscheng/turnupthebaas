@@ -75,7 +75,7 @@ func TestSerializeRestore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not deserialize: %v\n", err)
 	}
-	if !bytes.Equal(topic.SigningPrivateKey[:], clone.SigningPrivateKey[:]) || !bytes.Equal(topic.Handle.SharedSecret[:], clone.Handle.SharedSecret[:]) {
+	if !bytes.Equal(topic.SigningPrivateKey[:], clone.SigningPrivateKey[:]) || !Equal(&topic.Handle, &clone.Handle) {
 		t.Fatalf("serialization lost info!")
 	}
 }

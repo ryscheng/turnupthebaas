@@ -1,7 +1,6 @@
 package libtalek
 
 import (
-	"bytes"
 	"crypto/rand"
 	"fmt"
 	"testing"
@@ -55,8 +54,8 @@ func TestSerialization(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not deserialize: %v\n", err)
 	}
-	if !bytes.Equal(h.SharedSecret[:], h2.SharedSecret[:]) || !bytes.Equal(h.SigningPublicKey[:], h2.SigningPublicKey[:]) {
-		t.Fatalf("serialization lost info!")
+	if !Equal(&h, h2) {
+		t.Fatalf("Serialization lost info!")
 	}
 }
 
