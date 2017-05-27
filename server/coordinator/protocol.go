@@ -25,12 +25,24 @@ type GetLayoutReply struct {
 	Layout     []uint64
 }
 
+// GetIntVecArgs requests the global interest vector
+type GetIntVecArgs struct {
+	SnapshotID uint64
+}
+
+// GetIntVecReply returns the global interest vector
+type GetIntVecReply struct {
+	Err        string
+	SnapshotID uint64
+	IntVec     []uint64
+}
+
 // CommitArgs contains a set of Writes to be committed
 type CommitArgs struct {
 	ID      uint64
 	Bucket1 uint64
 	Bucket2 uint64
-	// InterestVector
+	IntVec  []uint64
 }
 
 // CommitReply acknowledges commits

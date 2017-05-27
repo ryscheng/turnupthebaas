@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/privacylab/bloom"
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/cuckoo"
 	"golang.org/x/net/trace"
@@ -29,6 +30,7 @@ type Server struct {
 	numNewCommits uint64
 	snapshotCount uint64
 	lastLayout    []uint64
+	intVec        []uint64
 	cuckooData    []byte
 	cuckooTable   *cuckoo.Table
 
@@ -55,6 +57,7 @@ func NewServer(name string, config common.Config, servers []NotifyInterface, sna
 	s.numNewCommits = 0
 	s.snapshotCount = 0
 	s.lastLayout = nil
+	s.intVec = nil
 	s.cuckooData = make([]byte, config.NumBuckets*config.BucketDepth*uint64(common.IDSize))
 
 	// Choose a random seed for the cuckoo table
@@ -122,6 +125,27 @@ func (s *Server) GetLayout(args *GetLayoutArgs, reply *GetLayoutReply) error {
 	reply.Err = ""
 	idx := args.ShardID * shardSize
 	reply.Layout = s.lastLayout[idx:(idx + shardSize)]
+
+	s.lock.Unlock()
+	return nil
+}
+
+// GetIntVec returns the global interest vector
+func (s *Server) GetIntVec(args *GetIntVecArgs, reply *GetIntVecReply) error {
+	tr := trace.New("Coordinator", "GetIntVec")
+	defer tr.Finish()
+	s.lock.Lock()
+
+	// Check for correct snapshot ID
+	reply.SnapshotID = s.snapshotCount
+	if args.SnapshotID != s.snapshotCount {
+		reply.Err = "Invalid SnapshotID"
+		s.lock.Unlock()
+		return nil
+	}
+
+	reply.Err = ""
+	reply.IntVec = s.intVec[:]
 
 	s.lock.Unlock()
 	return nil
@@ -200,8 +224,7 @@ func (s *Server) NotifySnapshot(force bool) bool {
 	s.snapshotCount++
 
 	// Construct global interest vector
-	// intVec := buildGlobalInterestVector(commitLog)
-	// @todo
+	s.intVector = buildGlobalInterestVector(s.commitLog[:])
 
 	// Copy the layout
 	s.lastLayout = make([]uint64, len(s.cuckooData)/8)
@@ -260,8 +283,13 @@ func asCuckooItem(args *CommitArgs) *cuckoo.Item {
 	}
 }
 
-func buildGlobalInterestVector() {
-	// @todo
+// buildInterestVector traverses the commitLog and creates a global interest vector
+// representing the elements
+func buildInterestVector(commitLog []*CommitArgs) []uint64 {
+
+	for _, c := range commitLog {
+
+	}
 }
 
 func sendNotification(log *common.Logger, servers []NotifyInterface, snapshotID uint64) {
