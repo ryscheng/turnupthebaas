@@ -1,8 +1,10 @@
 package libtalek
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/agl/ed25519"
@@ -183,4 +185,57 @@ func (h *Handle) retrieveResponse(args *common.ReadArgs, reply *common.ReadReply
 		}
 	}
 	return nil
+}
+
+// MarshalText is a compact textual representation of a handle
+func (h *Handle) MarshalText() ([]byte, error) {
+	s1, err := h.Seed1.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	s2, err := h.Seed2.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	txt := fmt.Sprintf("%x.%x.%x.%x.%d", s1, s2, *h.SharedSecret, *h.SigningPublicKey, h.Seqno)
+	return []byte(txt), nil
+}
+
+// UnmarshalText restores a handle from its compact textual representation
+func (h *Handle) UnmarshalText(text []byte) error {
+	var s1, s2, ss, pk []byte
+	if n, err := fmt.Sscanf(string(text), "%x.%x.%x.%x.%d", &s1, &s2, &ss, &pk, &h.Seqno); n < 5 || err != nil {
+		if err != nil {
+			return err
+		}
+		return errors.New("invalid handle")
+	}
+	h.SharedSecret = new([32]byte)
+	copy(h.SharedSecret[:], ss)
+	h.SigningPublicKey = new([32]byte)
+	copy(h.SigningPublicKey[:], pk)
+	h.Seed1 = &drbg.Seed{}
+	h.Seed2 = &drbg.Seed{}
+	if err := h.Seed1.UnmarshalBinary(s1); err != nil {
+		return err
+	}
+	if err := h.Seed2.UnmarshalBinary(s2); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Equal tests equality of two handles
+func Equal(a, b *Handle) bool {
+	if a.Seqno != b.Seqno {
+		return false
+	}
+	if !bytes.Equal(a.SharedSecret[:], b.SharedSecret[:]) ||
+		!bytes.Equal(a.SigningPublicKey[:], b.SigningPublicKey[:]) {
+		return false
+	}
+	if (drbg.Equal(a.Seed1, b.Seed1) && drbg.Equal(a.Seed2, b.Seed2)) || (drbg.Equal(a.Seed1, b.Seed2) && drbg.Equal(a.Seed2, b.Seed1)) {
+		return true
+	}
+	return false
 }
