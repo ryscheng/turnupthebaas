@@ -1,7 +1,10 @@
 package bloom
 
 import (
+	"encoding/binary"
 	"math"
+
+	"github.com/dchest/siphash"
 )
 
 // EstimateParameters estimates requirements for the number of bits and hash functions,
@@ -13,9 +16,23 @@ func EstimateParameters(numItems uint64, fpRate float64) (numBits uint64, numHas
 	return l, h
 }
 
-func GetLocations(k0 uint64, k1 uint64, numHash uint64, data []byte) []uint64 {
-	// @todo
-	return []uint64{}
+// GetLocations will generate a list of numHash bit locations
+// using a cryptographic hash function keyed on a 16-byte key
+// and the specified data
+func GetLocations(key []byte, numHash uint64, data []byte) []uint64 {
+	var loc uint64
+	buf := make([]byte, 8)
+	result := make([]uint64, 0)
+
+	h := siphash.New(key)
+	h.Write(data)
+	for i := uint64(0); i < numHash; i++ {
+		binary.PutUvarint(buf, i)
+		h.Write(buf)
+		loc = h.Sum64()
+		result = append(result, loc)
+	}
+	return result
 }
 
 // TestLocations returns true if all locations are set in the BitSet,
@@ -29,6 +46,7 @@ func TestLocations(b *BitSet, locations []uint64) bool {
 	return true
 }
 
+// SetLocations will set all specified bits to 1 in the bitset
 func SetLocations(b *BitSet, locations []uint64) *BitSet {
 	for _, loc := range locations {
 		b.Set(loc)
