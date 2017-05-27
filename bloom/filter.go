@@ -39,7 +39,7 @@ func GetLocations(key []byte, numHash uint64, data []byte) []uint64 {
 // false otherwise.
 func TestLocations(b *BitSet, locations []uint64) bool {
 	for i := 0; i < len(locations); i++ {
-		if !b.Test(locations[i]) {
+		if !b.Test(locations[i] % b.Length()) {
 			return false
 		}
 	}
@@ -49,7 +49,7 @@ func TestLocations(b *BitSet, locations []uint64) bool {
 // SetLocations will set all specified bits to 1 in the bitset
 func SetLocations(b *BitSet, locations []uint64) *BitSet {
 	for _, loc := range locations {
-		b.Set(loc)
+		b.Set(loc % b.Length())
 	}
 	return b
 }
