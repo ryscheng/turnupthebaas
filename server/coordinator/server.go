@@ -288,9 +288,10 @@ func asCuckooItem(args *CommitArgs) *cuckoo.Item {
 // Bloom filter stores n elements with fp false positive rate
 func buildInterestVector(n uint64, fp float64, commitLog []*CommitArgs) []uint64 {
 	bits, numHash := bloom.EstimateParameters(n, fp)
-	intVec := bloom.New(bits, numHash)
+	intVec := bloom.NewBitSet(bits)
 	for _, c := range commitLog {
-		intVec.AddLocations(c.IntVecLoc)
+		// Truncate interest vectors to first numHash bits
+		intVec = bloom.SetLocations(intVec, c.IntVecLoc[:numHash])
 	}
 	return intVec.Bytes()
 }

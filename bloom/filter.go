@@ -13,26 +13,25 @@ func EstimateParameters(numItems uint64, fpRate float64) (numBits uint64, numHas
 	return l, h
 }
 
-// Filter is a Bloom filter of n items
-type Filter struct {
-	numBits uint64
-	numHash uint64
-	data    []uint64
+func GetLocations(k0 uint64, k1 uint64, numHash uint64, data []byte) []uint64 {
+	// @todo
+	return []uint64{}
 }
 
-// NewFilter creates a new Bloom filter with numBits bits and numHash hashing functions
-// Parameters are forced to be at least 1
-func NewFilter(numBits uint64, numHash uint64) *Filter {
-	return &Filter{
-		numBits: max(1, numBits), 
-		numHash: max(1, numHash), 
-		data: bitset.New(m)
+// TestLocations returns true if all locations are set in the BitSet,
+// false otherwise.
+func TestLocations(b *BitSet, locations []uint64) bool {
+	for i := 0; i < len(locations); i++ {
+		if !b.Test(locations[i]) {
+			return false
+		}
 	}
+	return true
 }
 
-func max(x, y uint) uint {
-	if x > y {
-		return x
+func SetLocations(b *BitSet, locations []uint64) *BitSet {
+	for _, loc := range locations {
+		b.Set(loc)
 	}
-	return y
+	return b
 }
