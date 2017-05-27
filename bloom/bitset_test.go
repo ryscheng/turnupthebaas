@@ -31,7 +31,7 @@ func TestTestTooLong(t *testing.T) {
 func TestNewPanic(t *testing.T) {
 	b := NewBitSet(Cap())
 	if b != nil {
-		t.Error("Unexpected value: %v", b)
+		t.Errorf("Unexpected value: %v", b)
 	}
 }
 
