@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/privacylab/bloom"
+	"github.com/privacylab/talek/bloom"
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/cuckoo"
 	"golang.org/x/net/trace"
@@ -224,7 +224,7 @@ func (s *Server) NotifySnapshot(force bool) bool {
 	s.snapshotCount++
 
 	// Construct global interest vector
-	s.intVector = buildGlobalInterestVector(s.commitLog[:])
+	s.intVec = buildGlobalInterestVector(s.commitLog[:])
 
 	// Copy the layout
 	s.lastLayout = make([]uint64, len(s.cuckooData)/8)
@@ -284,12 +284,15 @@ func asCuckooItem(args *CommitArgs) *cuckoo.Item {
 }
 
 // buildInterestVector traverses the commitLog and creates a global interest vector
-// representing the elements
-func buildInterestVector(commitLog []*CommitArgs) []uint64 {
-
+// representing the elements.
+// Bloom filter stores n elements with fp false positive rate
+func buildInterestVector(n uint64, fp float64, commitLog []*CommitArgs) []uint64 {
+	bits, numHash := bloom.EstimateParameters(n, fp)
+	intVec := bloom.New(bits, numHash)
 	for _, c := range commitLog {
-
+		intVec.AddLocations(c.IntVecLoc)
 	}
+	return intVec.Bytes()
 }
 
 func sendNotification(log *common.Logger, servers []NotifyInterface, snapshotID uint64) {

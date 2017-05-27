@@ -34,15 +34,15 @@ type GetIntVecArgs struct {
 type GetIntVecReply struct {
 	Err        string
 	SnapshotID uint64
-	IntVec     []uint64
+	IntVec     []uint64 // Serialization of bloom filter
 }
 
 // CommitArgs contains a set of Writes to be committed
 type CommitArgs struct {
-	ID      uint64
-	Bucket1 uint64
-	Bucket2 uint64
-	IntVec  []uint64
+	ID        uint64
+	Bucket1   uint64
+	Bucket2   uint64
+	IntVecLoc []uint64 // Represents the hash locations
 }
 
 // CommitReply acknowledges commits
