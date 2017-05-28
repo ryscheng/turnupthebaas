@@ -215,6 +215,7 @@ func (s *Server) Close() {
 func (s *Server) AddServer(server NotifyInterface) {
 	s.lock.Lock()
 	s.servers = append(s.servers, server)
+	s.log.Info.Printf("%v.AddServer() success\n", s.name)
 	s.lock.Unlock()
 }
 
@@ -252,8 +253,9 @@ func (s *Server) NotifySnapshot(force bool) bool {
 	if s.servers != nil && len(s.servers) > 0 {
 		go sendNotification(s.log, s.servers[:], s.snapshotCount)
 	}
-	s.lock.Unlock()
 
+	s.log.Info.Printf("%v.NotifySnapshot() success\n", s.name)
+	s.lock.Unlock()
 	return true
 }
 
