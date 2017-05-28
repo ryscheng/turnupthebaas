@@ -290,6 +290,7 @@ func (s *Server) loop() {
 
 // Converts a CommitArgs to a cuckoo.Item
 func asCuckooItem(numBuckets uint64, args *CommitArgs) *cuckoo.Item {
+	fmt.Printf("i=%v\n", args)
 	itemData := make([]byte, common.IDSize)
 	binary.PutUvarint(itemData, args.ID)
 	return &cuckoo.Item{

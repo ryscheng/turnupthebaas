@@ -117,6 +117,7 @@ func TestSendNotification(t *testing.T) {
 	mocks, channels := setupMocks(numServers)
 	log := common.NewLogger("test")
 	sendNotification(log, mocks, 10)
+	// Wait for all notifications
 	for i := 0; i < numServers; i++ {
 		select {
 		case <-channels[i]:
@@ -292,13 +293,87 @@ func TestGetIntVecEmpty(t *testing.T) {
 }
 
 func TestCommit(t *testing.T) {
+	s, err := NewServer("test", testConfig(), nil, 5, time.Hour)
+	if err != nil {
+		t.Errorf("Error creating new server")
+	}
+	args := newCommit()
+	reply := &CommitReply{}
+	if s.Commit(args, reply) != nil {
+		t.Errorf("Error calling Commit: %v", err)
+	}
+	if reply.Err != "" {
+		t.Errorf("Commit should have succeeded: %v", reply)
+	}
+	afterEach(s, nil)
+}
+
+func TestAddServer(t *testing.T) {
+	numServers := 3
+	mocks, channels := setupMocks(numServers)
+	s, err := NewServer("test", testConfig(), mocks, 5, time.Hour)
+	if err != nil {
+		t.Errorf("Error creating new server")
+	}
+	for _, m := range mocks {
+		s.AddServer(m)
+	}
+	afterEach(s, channels)
 }
 
 func TestSnapshot(t *testing.T) {
-}
-
-func TestSnapshotTimer(t *testing.T) {
+	numServers := 3
+	mocks, channels := setupMocks(numServers)
+	s, err := NewServer("test", testConfig(), mocks, 5, time.Hour)
+	if err != nil {
+		t.Errorf("Error creating new server")
+	}
+	// Add a commit
+	if s.Commit(newCommit(), &CommitReply{}) != nil {
+		t.Errorf("Error calling Commit: %v", err)
+	}
+	// Force a snapshot
+	s.NotifySnapshot(true)
+	// Wait for all notifications
+	for i := 0; i < numServers; i++ {
+		select {
+		case <-channels[i]:
+			continue
+		case <-time.After(time.Second):
+			t.Errorf("Timed out before every server got a notification")
+			break
+		}
+	}
+	afterEach(s, channels)
 }
 
 func TestSnapshotThreshold(t *testing.T) {
+	numServers := 3
+	snapshotThreshold := 5
+	mocks, channels := setupMocks(numServers)
+	s, err := NewServer("test", testConfig(), mocks, uint64(snapshotThreshold), time.Hour)
+	if err != nil {
+		t.Errorf("Error creating new server")
+	}
+	// Add commits
+	for i := 0; i < snapshotThreshold; i++ {
+		if s.Commit(newCommit(), &CommitReply{}) != nil {
+			t.Errorf("Error calling Commit: %v", err)
+		}
+	}
+	// Wait for all notifications
+	for i := 0; i < numServers; i++ {
+		select {
+		case <-channels[i]:
+			continue
+		case <-time.After(time.Second):
+			t.Errorf("Timed out before every server got a notification")
+			break
+		}
+	}
+	afterEach(s, channels)
+
+}
+
+func TestSnapshotTimer(t *testing.T) {
 }
