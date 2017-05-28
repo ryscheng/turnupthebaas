@@ -18,13 +18,13 @@ import (
 
 func testConfig() common.Config {
 	return common.Config{
-		NumBuckets:         1024,
-		BucketDepth:        4,
+		NumBuckets:         8,
+		BucketDepth:        2,
 		DataSize:           256,
 		BloomFalsePositive: 0.01,
 		WriteInterval:      time.Minute,
 		ReadInterval:       time.Minute,
-		MaxLoadFactor:      0.90,
+		MaxLoadFactor:      0.50,
 	}
 }
 
@@ -349,7 +349,7 @@ func TestSnapshot(t *testing.T) {
 
 func TestSnapshotThreshold(t *testing.T) {
 	numServers := 3
-	snapshotThreshold := 5
+	snapshotThreshold := 32
 	mocks, channels := setupMocks(numServers)
 	s, err := NewServer("test", testConfig(), mocks, uint64(snapshotThreshold), time.Hour)
 	if err != nil {
