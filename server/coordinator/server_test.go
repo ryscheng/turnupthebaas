@@ -3,6 +3,7 @@ package coordinator
 import (
 	"encoding/binary"
 	"fmt"
+	"math/rand"
 	"reflect"
 	"testing"
 	"time"
@@ -10,6 +11,10 @@ import (
 	"github.com/privacylab/talek/bloom"
 	"github.com/privacylab/talek/common"
 )
+
+/********************************
+ *** HELPER FUNCTIONS
+ ********************************/
 
 func testConfig() common.Config {
 	return common.Config{
@@ -60,18 +65,27 @@ func setupMocks(n int) ([]NotifyInterface, []chan bool) {
 	return servers, channels
 }
 
-func TestAsCuckooItem(t *testing.T) {
-	args := &CommitArgs{
-		ID:        32,
-		Bucket1:   5,
-		Bucket2:   7,
-		IntVecLoc: []uint64{9, 11},
+func newCommit() *CommitArgs {
+	return &CommitArgs{
+		ID:        rand.Uint64(),
+		Bucket1:   rand.Uint64(),
+		Bucket2:   rand.Uint64(),
+		IntVecLoc: []uint64{rand.Uint64(), rand.Uint64()},
 	}
-	item := asCuckooItem(args)
+}
+
+/********************************
+ *** TESTS
+ ********************************/
+
+func TestAsCuckooItem(t *testing.T) {
+	numBuckets := uint64(10)
+	args := newCommit()
+	item := asCuckooItem(numBuckets, args)
 	data, _ := binary.Uvarint(item.Data)
 	if item.ID != args.ID ||
-		item.Bucket1 != args.Bucket1 ||
-		item.Bucket2 != args.Bucket2 ||
+		item.Bucket1 != args.Bucket1%numBuckets ||
+		item.Bucket2 != args.Bucket2%numBuckets ||
 		len(item.Data) != common.IDSize ||
 		data != args.ID {
 		t.Errorf("Improper conversion: from CommitArgs=%v to cuckoo.Item=%v", args, item)

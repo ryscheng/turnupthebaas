@@ -7,7 +7,8 @@ import (
 )
 
 // IDSize is the size of unique IDs in bytes
-const IDSize = 8
+// @todo for some reason uint64's can't fit in an 8 byte array?
+const IDSize = 9
 
 // Config is a shared configuration needed by both libtalek and server
 type Config struct {

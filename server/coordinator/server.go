@@ -181,14 +181,14 @@ func (s *Server) Commit(args *CommitArgs, reply *CommitReply) error {
 	windowSize := s.config.WindowSize()
 	// Garbage Collect old elements
 	for uint64(len(s.commitLog)) >= windowSize {
-		_ = s.cuckooTable.Remove(asCuckooItem(s.commitLog[0]))
+		_ = s.cuckooTable.Remove(asCuckooItem(s.config.NumBuckets, s.commitLog[0]))
 		s.commitLog = s.commitLog[1:]
 	}
 
 	// Insert new item
 	s.numNewCommits++
 	s.commitLog = append(s.commitLog, args)
-	ok, _ := s.cuckooTable.Insert(asCuckooItem(args))
+	ok, _ := s.cuckooTable.Insert(asCuckooItem(s.config.NumBuckets, args))
 	if !ok {
 		s.log.Error.Fatalf("%v.processCommit failed to insert new element", s.name)
 		return fmt.Errorf("Error inserting into cuckoo table")
@@ -246,10 +246,10 @@ func (s *Server) NotifySnapshot(force bool) bool {
 	}
 
 	// Sync with buildGlobalInterestVector goroutine
-	// @todo
+	// @todo when this happens in parallel
 
 	// Send notifications only if there are servers
-	if s.servers != nil && len(s.servers) < 1 {
+	if s.servers != nil && len(s.servers) > 0 {
 		go sendNotification(s.log, s.servers[:], s.snapshotCount)
 	}
 	s.lock.Unlock()
@@ -289,14 +289,14 @@ func (s *Server) loop() {
  **********************************/
 
 // Converts a CommitArgs to a cuckoo.Item
-func asCuckooItem(args *CommitArgs) *cuckoo.Item {
+func asCuckooItem(numBuckets uint64, args *CommitArgs) *cuckoo.Item {
 	itemData := make([]byte, common.IDSize)
 	binary.PutUvarint(itemData, args.ID)
 	return &cuckoo.Item{
 		ID:      args.ID,
 		Data:    itemData,
-		Bucket1: args.Bucket1,
-		Bucket2: args.Bucket2,
+		Bucket1: args.Bucket1 % numBuckets,
+		Bucket2: args.Bucket2 % numBuckets,
 	}
 }
 
