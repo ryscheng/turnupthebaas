@@ -372,8 +372,28 @@ func TestSnapshotThreshold(t *testing.T) {
 		}
 	}
 	afterEach(s, channels)
-
 }
 
 func TestSnapshotTimer(t *testing.T) {
+	numServers := 3
+	mocks, channels := setupMocks(numServers)
+	s, err := NewServer("test", testConfig(), mocks, 5, 10*time.Millisecond)
+	if err != nil {
+		t.Errorf("Error creating new server")
+	}
+	if s.Commit(newCommit(), &CommitReply{}) != nil {
+		t.Errorf("Error calling Commit: %v", err)
+	}
+	// Wait for all notifications
+	for i := 0; i < numServers; i++ {
+		select {
+		case <-channels[i]:
+			continue
+		case <-time.After(time.Second):
+			t.Errorf("Timed out before every server got a notification")
+			break
+		}
+	}
+	afterEach(s, channels)
+
 }
