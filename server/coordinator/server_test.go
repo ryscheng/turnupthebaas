@@ -241,9 +241,40 @@ func TestGetLayoutEmpty(t *testing.T) {
 }
 
 func TestGetIntVecInvalidSnapshotID(t *testing.T) {
+	s, err := NewServer("test", testConfig(), nil, 5, time.Hour)
+	if err != nil {
+		t.Errorf("Error creating new server")
+	}
+	args := &GetIntVecArgs{SnapshotID: 100}
+	reply := &GetIntVecReply{}
+	if s.GetIntVec(args, reply) != nil {
+		t.Errorf("Error calling GetIntVec: %v", err)
+	}
+	if reply.Err == "" {
+		t.Errorf("GetIntVec should have returned an error for invalid SnapshotID: %v", reply)
+	}
+	afterEach(s, nil)
 }
 
 func TestGetIntVecEmpty(t *testing.T) {
+	s, err := NewServer("test", testConfig(), nil, 5, time.Hour)
+	if err != nil {
+		t.Errorf("Error creating new server")
+	}
+	args := &GetIntVecArgs{SnapshotID: 0}
+	reply := &GetIntVecReply{}
+	if s.GetIntVec(args, reply) != nil {
+		t.Errorf("Error calling GetIntVec: %v", err)
+	}
+	if reply.Err != "" || reply.SnapshotID != 0 {
+		t.Errorf("GetIntVec should have succeeded: %v", reply)
+	}
+	for _, v := range reply.IntVec {
+		if v != 0 {
+			t.Errorf("GetIntVec should have returned an empty interest vector, %v", reply)
+		}
+	}
+	afterEach(s, nil)
 }
 
 func TestCommit(t *testing.T) {

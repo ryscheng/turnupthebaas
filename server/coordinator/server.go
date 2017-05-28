@@ -23,7 +23,7 @@ type Server struct {
 	snapshotInterval  time.Duration
 
 	// Thread-safe (locked)
-	lock          sync.Mutex
+	lock          *sync.Mutex
 	config        common.Config // Config
 	servers       []NotifyInterface
 	commitLog     []*CommitArgs // Append and read only
@@ -47,7 +47,7 @@ func NewServer(name string, config common.Config, servers []NotifyInterface, sna
 	s.snapshotThreshold = snapshotThreshold
 	s.snapshotInterval = snapshotInterval
 
-	s.lock = sync.Mutex{}
+	s.lock = &sync.Mutex{}
 	s.config = config
 	if servers == nil {
 		s.servers = make([]NotifyInterface, 0)
