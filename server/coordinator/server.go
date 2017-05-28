@@ -57,8 +57,8 @@ func NewServer(name string, config common.Config, servers []NotifyInterface, sna
 	s.commitLog = make([]*CommitArgs, 0)
 	s.numNewCommits = 0
 	s.snapshotCount = 0
-	s.lastLayout = nil
-	s.intVec = nil
+	s.lastLayout = make([]uint64, config.NumBuckets*config.BucketDepth)
+	s.intVec = buildInterestVector(config.WindowSize(), config.BloomFalsePositive, s.commitLog[:]).Bytes()
 	s.cuckooData = make([]byte, config.NumBuckets*config.BucketDepth*uint64(common.IDSize))
 
 	// Choose a random seed for the cuckoo table
@@ -70,6 +70,7 @@ func NewServer(name string, config common.Config, servers []NotifyInterface, sna
 	}
 	seed, _ := binary.Varint(seedBytes)
 	s.cuckooTable = cuckoo.NewTable(name, config.NumBuckets, config.BucketDepth, uint64(common.IDSize), s.cuckooData, seed)
+	// Should not be possible
 	if s.cuckooTable == nil {
 		err := fmt.Errorf("Invalid cuckoo table parameters")
 		s.log.Error.Printf("coordinator.NewServer(%v) error: %v", name, err)
@@ -128,10 +129,21 @@ func (s *Server) GetLayout(args *GetLayoutArgs, reply *GetLayoutReply) error {
 		return nil
 	}
 
+	// Check non-zero NumShards
+	if args.NumShards < 1 {
+		reply.Err = "NumShards must be > 0"
+		s.lock.Unlock()
+		return nil
+	}
+
 	shardSize := uint64(len(s.lastLayout)) / args.NumShards
-	reply.Err = ""
 	idx := args.ShardID * shardSize
-	reply.Layout = s.lastLayout[idx:(idx + shardSize)]
+	if idx < 0 || (idx+shardSize) > uint64(len(s.lastLayout)) {
+		reply.Err = "Out of bounds ShardID"
+	} else {
+		reply.Err = ""
+		reply.Layout = s.lastLayout[idx:(idx + shardSize)]
+	}
 
 	s.lock.Unlock()
 	return nil
@@ -189,13 +201,6 @@ func (s *Server) Commit(args *CommitArgs, reply *CommitReply) error {
 	return nil
 }
 
-/**
-func (s *Server) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdatesReply) error {
-	tr := trace.New("Coordinator", "GetUpdates")
-	defer tr.Finish()
-}
-**/
-
 /**********************************
  * PUBLIC LOCAL METHODS (threadsafe)
  **********************************/
@@ -235,7 +240,6 @@ func (s *Server) NotifySnapshot(force bool) bool {
 	s.intVec = buildInterestVector(s.config.WindowSize(), s.config.BloomFalsePositive, s.commitLog[:]).Bytes()
 
 	// Copy the layout
-	s.lastLayout = make([]uint64, len(s.cuckooData)/8)
 	for i := 0; i < len(s.lastLayout); i++ {
 		idx := i * 8
 		s.lastLayout[i], _ = binary.Uvarint(s.cuckooData[idx:(idx + 8)])
@@ -244,8 +248,8 @@ func (s *Server) NotifySnapshot(force bool) bool {
 	// Sync with buildGlobalInterestVector goroutine
 	// @todo
 
-	// Send notifications
-	if s.servers != nil {
+	// Send notifications only if there are servers
+	if s.servers != nil && len(s.servers) < 1 {
 		go sendNotification(s.log, s.servers[:], s.snapshotCount)
 	}
 	s.lock.Unlock()

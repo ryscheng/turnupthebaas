@@ -3,6 +3,7 @@ package coordinator
 import (
 	"encoding/binary"
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
@@ -122,6 +123,137 @@ func TestNewServer(t *testing.T) {
 	afterEach(s, nil)
 }
 
-func TestGetters(t *testing.T) {
+func TestGetInfo(t *testing.T) {
+	s, err := NewServer("test", testConfig(), nil, 5, time.Hour)
+	if err != nil {
+		t.Errorf("Error creating new server")
+	}
+	reply := &GetInfoReply{}
+	err = s.GetInfo(nil, reply)
+	if err != nil {
+		t.Errorf("Error calling GetInfo: %v", err)
+	}
+	if reply.Err != "" || reply.Name != "test" || reply.SnapshotID != 0 {
+		t.Errorf("Malformed reply from GetInfo: %v", reply)
+	}
+	afterEach(s, nil)
+}
 
+func TestGetCommonConfig(t *testing.T) {
+	s, err := NewServer("test", testConfig(), nil, 5, time.Hour)
+	if err != nil {
+		t.Errorf("Error creating new server")
+	}
+	reply := &common.Config{}
+	err = s.GetCommonConfig(nil, reply)
+	if err != nil {
+		t.Errorf("Error calling GetCommonConfig: %v", err)
+	}
+	if !reflect.DeepEqual(testConfig(), *reply) {
+		t.Errorf("Malformed reply from GetCommonConfig: %v vs %v", reply, testConfig())
+	}
+	afterEach(s, nil)
+}
+
+func TestGetLayoutInvalidSnapshotID(t *testing.T) {
+	s, err := NewServer("test", testConfig(), nil, 5, time.Hour)
+	if err != nil {
+		t.Errorf("Error creating new server")
+	}
+	args := &GetLayoutArgs{
+		SnapshotID: 100,
+		ShardID:    0,
+		NumShards:  1,
+	}
+	reply := &GetLayoutReply{}
+	if s.GetLayout(args, reply) != nil {
+		t.Errorf("Error calling GetLayout: %v", err)
+	}
+	if reply.Err == "" {
+		t.Errorf("GetLayout should have returned an error for invalid SnapshotID: %v", reply)
+	}
+	afterEach(s, nil)
+}
+
+func TestGetLayoutInvalidNumShards(t *testing.T) {
+	s, err := NewServer("test", testConfig(), nil, 5, time.Hour)
+	if err != nil {
+		t.Errorf("Error creating new server")
+	}
+	args := &GetLayoutArgs{
+		SnapshotID: 0,
+		ShardID:    0,
+		NumShards:  0,
+	}
+	reply := &GetLayoutReply{}
+	if s.GetLayout(args, reply) != nil {
+		t.Errorf("Error calling GetLayout: %v", err)
+	}
+	if reply.Err == "" {
+		t.Errorf("GetLayout should have returned an error for invalid NumShards: %v", reply)
+	}
+	afterEach(s, nil)
+}
+
+func TestGetLayoutInvalidShardID(t *testing.T) {
+	s, err := NewServer("test", testConfig(), nil, 5, time.Hour)
+	if err != nil {
+		t.Errorf("Error creating new server")
+	}
+	args := &GetLayoutArgs{
+		SnapshotID: 0,
+		ShardID:    4,
+		NumShards:  4,
+	}
+	reply := &GetLayoutReply{}
+	if s.GetLayout(args, reply) != nil {
+		t.Errorf("Error calling GetLayout: %v", err)
+	}
+	if reply.Err == "" {
+		t.Errorf("GetLayout should have returned an error for invalid ShardID: %v", reply)
+	}
+	afterEach(s, nil)
+}
+
+func TestGetLayoutEmpty(t *testing.T) {
+	s, err := NewServer("test", testConfig(), nil, 5, time.Hour)
+	if err != nil {
+		t.Errorf("Error creating new server")
+	}
+	args := &GetLayoutArgs{
+		SnapshotID: 0,
+		ShardID:    0,
+		NumShards:  1,
+	}
+	reply := &GetLayoutReply{}
+	if s.GetLayout(args, reply) != nil {
+		t.Errorf("Error calling GetLayout: %v", err)
+	}
+	if reply.Err != "" {
+		t.Errorf("GetLayout should not return an error: %v", reply)
+	}
+	for _, v := range reply.Layout {
+		if v != 0 {
+			t.Errorf("GetLayout should return empty layout: %v", reply)
+		}
+	}
+	afterEach(s, nil)
+}
+
+func TestGetIntVecInvalidSnapshotID(t *testing.T) {
+}
+
+func TestGetIntVecEmpty(t *testing.T) {
+}
+
+func TestCommit(t *testing.T) {
+}
+
+func TestSnapshot(t *testing.T) {
+}
+
+func TestSnapshotTimer(t *testing.T) {
+}
+
+func TestSnapshotThreshold(t *testing.T) {
 }
