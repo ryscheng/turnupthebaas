@@ -69,7 +69,12 @@ func NewServer(name string, config common.Config, servers []NotifyInterface, sna
 		return nil, err
 	}
 	seed, _ := binary.Varint(seedBytes)
-	s.cuckooTable = cuckoo.NewTable(name, config.NumBuckets, config.BucketDepth, config.DataSize, s.cuckooData, seed)
+	s.cuckooTable = cuckoo.NewTable(name, config.NumBuckets, config.BucketDepth, uint64(common.IDSize), s.cuckooData, seed)
+	if s.cuckooTable == nil {
+		err := fmt.Errorf("Invalid cuckoo table parameters")
+		s.log.Error.Printf("coordinator.NewServer(%v) error: %v", name, err)
+		return nil, err
+	}
 	s.notifyChan = make(chan bool)
 	s.closeChan = make(chan bool)
 

@@ -10,6 +10,29 @@ import (
 	"github.com/privacylab/talek/common"
 )
 
+func testConfig() common.Config {
+	return common.Config{
+		NumBuckets:         1024,
+		BucketDepth:        4,
+		DataSize:           256,
+		BloomFalsePositive: 0.01,
+		WriteInterval:      time.Minute,
+		ReadInterval:       time.Minute,
+		MaxLoadFactor:      0.90,
+	}
+}
+
+func afterEach(server *Server, mockChan []chan bool) {
+	if server != nil {
+		server.Close()
+	}
+	if mockChan != nil {
+		for _, c := range mockChan {
+			close(c)
+		}
+	}
+}
+
 type MockServer struct {
 	Done chan bool
 }
@@ -22,11 +45,10 @@ func NewMockServer() *MockServer {
 
 func (s *MockServer) Notify(args *NotifyArgs, reply *NotifyReply) error {
 	s.Done <- true
-	close(s.Done)
 	return fmt.Errorf("test")
 }
 
-func setupServers(n int) ([]NotifyInterface, []chan bool) {
+func setupMocks(n int) ([]NotifyInterface, []chan bool) {
 	servers := make([]NotifyInterface, n)
 	channels := make([]chan bool, n)
 	for i := 0; i < n; i++ {
@@ -77,9 +99,9 @@ func TestBuildInterestVector(t *testing.T) {
 
 func TestSendNotification(t *testing.T) {
 	numServers := 3
-	servers, channels := setupServers(numServers)
+	mocks, channels := setupMocks(numServers)
 	log := common.NewLogger("test")
-	sendNotification(log, servers, 10)
+	sendNotification(log, mocks, 10)
 	for i := 0; i < numServers; i++ {
 		select {
 		case <-channels[i]:
@@ -89,4 +111,14 @@ func TestSendNotification(t *testing.T) {
 			break
 		}
 	}
+	afterEach(nil, channels)
+}
+
+func TestNewServer(t *testing.T) {
+	mocks, mockChan := setupMocks(3)
+	s, err := NewServer("test", testConfig(), mocks, 5, time.Hour)
+	if err != nil {
+		t.Errorf("Error creating new server")
+	}
+	afterEach(s, mockChan)
 }
