@@ -42,7 +42,7 @@ func (c *RPCStub) GetInfo(_ *interface{}, reply *GetInfoReply) error {
 	return c.lastErr
 }
 
-// GetConfig returns the current config.
+// GetCommonConfig returns the current config.
 func (c *RPCStub) GetCommonConfig(_ *interface{}, reply *common.Config) error {
 	var args interface{}
 	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.GetCommonConfig", &args, reply)
