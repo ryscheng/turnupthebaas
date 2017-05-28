@@ -245,7 +245,9 @@ func (s *Server) NotifySnapshot(force bool) bool {
 	// @todo
 
 	// Send notifications
-	go sendNotification(s.log, s.servers[:], s.snapshotCount)
+	if s.servers != nil {
+		go sendNotification(s.log, s.servers[:], s.snapshotCount)
+	}
 	s.lock.Unlock()
 
 	return true

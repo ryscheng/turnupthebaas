@@ -115,10 +115,13 @@ func TestSendNotification(t *testing.T) {
 }
 
 func TestNewServer(t *testing.T) {
-	mocks, mockChan := setupMocks(3)
-	s, err := NewServer("test", testConfig(), mocks, 5, time.Hour)
+	s, err := NewServer("test", testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	afterEach(s, mockChan)
+	afterEach(s, nil)
+}
+
+func TestGetters(t *testing.T) {
+
 }
