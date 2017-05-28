@@ -23,8 +23,7 @@ func TestZeroValueBitSet(t *testing.T) {
 func TestTestTooLong(t *testing.T) {
 	b := new(BitSet)
 	if b.Test(1) {
-		t.Error("Unexpected value: true")
-		return
+		t.Errorf("Unexpected value: true")
 	}
 }
 

@@ -35,9 +35,9 @@ func GetLocations(key []byte, numHash uint64, data []byte) []uint64 {
 	return result
 }
 
-// TestLocations returns true if all locations are set in the BitSet,
+// CheckLocations returns true if all locations are set in the BitSet,
 // false otherwise.
-func TestLocations(b *BitSet, locations []uint64) bool {
+func CheckLocations(b *BitSet, locations []uint64) bool {
 	for i := 0; i < len(locations); i++ {
 		if !b.Test(locations[i] % b.Length()) {
 			return false
