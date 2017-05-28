@@ -8,6 +8,7 @@ import (
 type Interface interface {
 	GetInfo(args *interface{}, reply *GetInfoReply) error
 	GetCommonConfig(args *interface{}, reply *common.Config) error
+	GetLayout(args *GetLayoutArgs, reply *GetLayoutReply) error
+	GetIntVec(args *GetIntVecArgs, reply *GetIntVecReply) error
 	Commit(args *CommitArgs, reply *CommitReply) error
-	GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdatesReply) error
 }

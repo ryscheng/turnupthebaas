@@ -37,24 +37,30 @@ func (c *RPCStub) Close() error {
 
 // GetInfo returns info about this server
 func (c *RPCStub) GetInfo(_ *interface{}, reply *GetInfoReply) error {
-	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Coordinator.GetInfo", nil, reply)
+	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.GetInfo", nil, reply)
 	return c.lastErr
 }
 
 // GetConfig returns the current config.
-func (c *RPCStub) GetConfig(_ *interface{}, reply *common.Config) error {
-	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Coordinator.GetConfig", nil, reply)
+func (c *RPCStub) GetCommonConfig(_ *interface{}, reply *common.Config) error {
+	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.GetCommonConfig", nil, reply)
+	return c.lastErr
+}
+
+// GetLayout provides the layout for a shard
+func (c *RPCStub) GetLayout(args *GetLayoutArgs, reply *GetLayoutReply) error {
+	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.GetLayout", args, reply)
+	return c.lastErr
+}
+
+// GetIntVec provides the global interest vector
+func (c *RPCStub) GetIntVec(args *GetIntVecArgs, reply *GetIntVecReply) error {
+	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.GetIntVec", args, reply)
 	return c.lastErr
 }
 
 // Commit a set of Writes
 func (c *RPCStub) Commit(args *CommitArgs, reply *CommitReply) error {
-	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Coordinator.Commit", args, reply)
-	return c.lastErr
-}
-
-// GetUpdates provides the global interest vector.
-func (c *RPCStub) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdatesReply) error {
-	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Coordinator.GetUpdates", args, reply)
+	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.Commit", args, reply)
 	return c.lastErr
 }
