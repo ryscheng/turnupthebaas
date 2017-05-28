@@ -37,13 +37,15 @@ func (c *RPCStub) Close() error {
 
 // GetInfo returns info about this server
 func (c *RPCStub) GetInfo(_ *interface{}, reply *GetInfoReply) error {
-	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.GetInfo", nil, reply)
+	var args interface{}
+	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.GetInfo", &args, reply)
 	return c.lastErr
 }
 
 // GetConfig returns the current config.
 func (c *RPCStub) GetCommonConfig(_ *interface{}, reply *common.Config) error {
-	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.GetCommonConfig", nil, reply)
+	var args interface{}
+	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.GetCommonConfig", &args, reply)
 	return c.lastErr
 }
 
