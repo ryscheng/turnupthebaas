@@ -36,6 +36,7 @@ type Server struct {
 
 	// Channels
 	notifyChan chan bool
+	closeChan  chan bool
 }
 
 // NewServer creates a new Centralized talek server.
@@ -70,6 +71,7 @@ func NewServer(name string, config common.Config, servers []NotifyInterface, sna
 	seed, _ := binary.Varint(seedBytes)
 	s.cuckooTable = cuckoo.NewTable(name, config.NumBuckets, config.BucketDepth, config.DataSize, s.cuckooData, seed)
 	s.notifyChan = make(chan bool)
+	s.closeChan = make(chan bool)
 
 	go s.loop()
 
@@ -196,6 +198,7 @@ func (s *Server) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdate
 // Close shuts down the server
 func (s *Server) Close() {
 	s.log.Info.Printf("%v.Close: success", s.name)
+	s.closeChan <- true
 }
 
 // AddServer adds a server to the list that is notified on snapshot changes
@@ -224,7 +227,7 @@ func (s *Server) NotifySnapshot(force bool) bool {
 	s.snapshotCount++
 
 	// Construct global interest vector
-	s.intVec = buildInterestVector(s.config.WindowSize(), s.config.BloomFalsePositive, s.commitLog[:])
+	s.intVec = buildInterestVector(s.config.WindowSize(), s.config.BloomFalsePositive, s.commitLog[:]).Bytes()
 
 	// Copy the layout
 	s.lastLayout = make([]uint64, len(s.cuckooData)/8)
@@ -263,6 +266,9 @@ func (s *Server) loop() {
 			s.NotifySnapshot(true)
 			tick = time.After(s.snapshotInterval) // Re-up timer
 			continue
+		// Stop the loop
+		case <-s.closeChan:
+			return
 		}
 	}
 }
@@ -286,27 +292,31 @@ func asCuckooItem(args *CommitArgs) *cuckoo.Item {
 // buildInterestVector traverses the commitLog and creates a global interest vector
 // representing the elements.
 // Bloom filter stores n elements with fp false positive rate
-func buildInterestVector(n uint64, fp float64, commitLog []*CommitArgs) []uint64 {
+func buildInterestVector(n uint64, fp float64, commitLog []*CommitArgs) *bloom.BitSet {
 	bits, numHash := bloom.EstimateParameters(n, fp)
 	intVec := bloom.NewBitSet(bits)
 	for _, c := range commitLog {
 		// Truncate interest vectors to first numHash bits
-		intVec = bloom.SetLocations(intVec, c.IntVecLoc[:numHash])
+		if uint64(len(c.IntVecLoc)) > numHash {
+			intVec = bloom.SetLocations(intVec, c.IntVecLoc[:numHash])
+		} else {
+			intVec = bloom.SetLocations(intVec, c.IntVecLoc[:])
+		}
 	}
-	return intVec.Bytes()
+	return intVec
 }
 
 func sendNotification(log *common.Logger, servers []NotifyInterface, snapshotID uint64) {
 	args := &NotifyArgs{
 		SnapshotID: snapshotID,
 	}
-	doNotify := func(s NotifyInterface, args *NotifyArgs) {
+	doNotify := func(l *common.Logger, s NotifyInterface, args *NotifyArgs) {
 		err := s.Notify(args, &NotifyReply{})
 		if err != nil {
-			log.Error.Printf("sendNotification failed: %v", err)
+			l.Error.Printf("sendNotification failed: %v", err)
 		}
 	}
 	for _, s := range servers {
-		go doNotify(s, args)
+		go doNotify(log, s, args)
 	}
 }
