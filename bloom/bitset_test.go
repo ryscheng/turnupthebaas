@@ -91,7 +91,14 @@ func TestOutOfBoundsLong(t *testing.T) {
 			t.Error("Long distance out of index error should not have caused a panic")
 		}
 	}()
-	b.Set(1000)
+	ok := b.Set(1000)
+	if ok {
+		t.Errorf("Improperly set out of bounds bit")
+	}
+	ok = b.Clear(1000)
+	if ok {
+		t.Errorf("Improperly clear out of bounds bit")
+	}
 }
 
 func TestOutOfBoundsClose(t *testing.T) {
@@ -101,7 +108,14 @@ func TestOutOfBoundsClose(t *testing.T) {
 			t.Error("Local out of index error should not have caused a panic")
 		}
 	}()
-	b.Set(66)
+	ok := b.Set(66)
+	if ok {
+		t.Errorf("Improperly set out of bounds bit")
+	}
+	ok = b.Clear(66)
+	if ok {
+		t.Errorf("Improperly clear out of bounds bit")
+	}
 }
 
 // nil tests

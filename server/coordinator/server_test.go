@@ -6,4 +6,7 @@ import (
 
 	"github.com/privacylab/talek/common"
 )
+
+func TestBasic(t *testing.T) {
+}
 **/
