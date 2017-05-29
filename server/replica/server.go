@@ -15,10 +15,12 @@ type Server struct {
 	log  *common.Logger
 	name string
 
-	// Thread-safe (locked)
+	// Thread-safe (organized by lock scope)
 	lock       *sync.Mutex
 	config     common.Config // Config
 	snapshotID uint64
+
+
 
 	// Channels
 }
@@ -61,6 +63,7 @@ func (s *Server) Notify(args *coordinator.NotifyArgs, reply *coordinator.NotifyR
 	defer tr.Finish()
 	s.lock.Lock()
 
+  // @todo
 	reply.Err = ""
 
 	s.lock.Unlock()
@@ -85,6 +88,7 @@ func (s *Server) Read(args *ReadArgs, reply *ReadReply) error {
 	defer tr.Finish()
 	s.lock.Lock()
 
+  // @todo
 	reply.Err = ""
 
 	s.lock.Unlock()

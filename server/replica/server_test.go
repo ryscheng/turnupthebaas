@@ -21,3 +21,9 @@ func testConfig() common.Config {
 		MaxLoadFactor:      0.50,
 	}
 }
+
+/********************************
+ *** TESTS
+ ********************************/
+
+
