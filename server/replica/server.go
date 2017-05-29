@@ -1,8 +1,6 @@
 package replica
 
 import (
-	"net"
-	"strconv"
 	"sync"
 
 	"github.com/privacylab/talek/common"
@@ -36,12 +34,9 @@ func NewServer(name string, addr string, listenRPC bool, config common.Config) (
 	s.log = common.NewLogger(name)
 	s.name = name
 	s.addr = addr
+	s.networkRPC = nil
 	if listenRPC {
-		_, port, _ := net.SplitHostPort(addr)
-		pnum, _ := strconv.Atoi(port)
-		s.networkRPC = server.NewNetworkRPC(s, pnum)
-	} else {
-		s.networkRPC = nil
+		s.networkRPC = server.NewNetworkRPC(s, addr)
 	}
 
 	s.lock = &sync.Mutex{}

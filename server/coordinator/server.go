@@ -4,8 +4,6 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"fmt"
-	"net"
-	"strconv"
 	"sync"
 	"time"
 
@@ -52,12 +50,9 @@ func NewServer(name string, addr string, listenRPC bool, config common.Config, s
 	s.log = common.NewLogger(name)
 	s.name = name
 	s.addr = addr
+	s.networkRPC = nil
 	if listenRPC {
-		_, port, _ := net.SplitHostPort(addr)
-		pnum, _ := strconv.Atoi(port)
-		s.networkRPC = server.NewNetworkRPC(s, pnum)
-	} else {
-		s.networkRPC = nil
+		s.networkRPC = server.NewNetworkRPC(s, addr)
 	}
 	s.snapshotThreshold = snapshotThreshold
 	s.snapshotInterval = snapshotInterval

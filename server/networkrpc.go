@@ -22,6 +22,13 @@ type NetworkRPC struct {
 	listener net.Listener
 }
 
+// NewNetworkRPC creates a NetworkRPC at a given address (e.g. "127.0.0.1:9000")
+func NewNetworkRPC(handler interface{}, addr string) *NetworkRPC {
+	_, port, _ := net.SplitHostPort(addr)
+	pnum, _ := strconv.Atoi(port)
+	return NewNetworkRPC(handler, pnum)
+}
+
 // NewNetworkRPC creates a NetworkRPC on a given port.
 func NewNetworkRPC(handler interface{}, port int) *NetworkRPC {
 	n := &NetworkRPC{}
