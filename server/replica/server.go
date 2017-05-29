@@ -63,10 +63,7 @@ func (s *Server) Notify(args *coordinator.NotifyArgs, reply *coordinator.NotifyR
 	defer tr.Finish()
 	s.lock.Lock()
 
-	// @todo + gc s.messages
-	snapshotID := args.SnapshotID
-	go s.GetLayout(snapshotID)
-
+	go s.GetLayout(args.SnapshotID)
 	reply.Err = ""
 
 	s.lock.Unlock()
@@ -92,7 +89,15 @@ func (s *Server) Read(args *ReadArgs, reply *ReadReply) error {
 	defer tr.Finish()
 	s.lock.Lock()
 
+	if s.snapshotID < args.SnapshotID {
+		go s.GetLayout(args.SnapshotID)
+		reply.Err = "Need updated layout. Try again later."
+		s.lock.Unlock()
+		return nil
+	}
+
 	// @todo
+
 	reply.Err = ""
 
 	s.lock.Unlock()
@@ -113,6 +118,8 @@ func (s *Server) GetLayout(snapshotID uint64) {
 	tr := trace.New("Replica", "GetLayout")
 	defer tr.Finish()
 	s.lock.Lock()
+
+	// @todo + gc s.messages
 
 	s.lock.Unlock()
 }
