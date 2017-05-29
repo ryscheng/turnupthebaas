@@ -13,18 +13,21 @@ type Error string
 
 // WriteArgs are passed in writes.
 type WriteArgs struct {
+	ID             uint64
 	Bucket1        uint64
 	Bucket2        uint64
 	Data           []byte
 	InterestVector []uint64
-	//Internal
+	// deprecated - Internal
 	GlobalSeqNo uint64
 	ReplyChan   chan *WriteReply
 }
 
 // WriteReply contain return status of writes
 type WriteReply struct {
-	Err         string
+	Err string
+	ID  uint64
+	// deprecated
 	GlobalSeqNo uint64
 }
 
