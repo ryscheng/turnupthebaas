@@ -36,7 +36,7 @@ func NewServer(name string, addr string, listenRPC bool, config common.Config) (
 	s.addr = addr
 	s.networkRPC = nil
 	if listenRPC {
-		s.networkRPC = server.NewNetworkRPC(s, addr)
+		s.networkRPC = server.NewNetworkRPCAddr(s, addr)
 	}
 
 	s.lock = &sync.Mutex{}

@@ -120,7 +120,7 @@ func TestSendNotification(t *testing.T) {
 	numServers := 3
 	mocks, channels := setupMocks(numServers)
 	log := common.NewLogger("test")
-	sendNotification(log, mocks, 10)
+	sendNotification(log, mocks, 10, "")
 	// Wait for all notifications
 	for i := 0; i < numServers; i++ {
 		select {

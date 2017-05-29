@@ -23,7 +23,7 @@ type NetworkRPC struct {
 }
 
 // NewNetworkRPC creates a NetworkRPC at a given address (e.g. "127.0.0.1:9000")
-func NewNetworkRPC(handler interface{}, addr string) *NetworkRPC {
+func NewNetworkRPCAddr(handler interface{}, addr string) *NetworkRPC {
 	_, port, _ := net.SplitHostPort(addr)
 	pnum, _ := strconv.Atoi(port)
 	return NewNetworkRPC(handler, pnum)

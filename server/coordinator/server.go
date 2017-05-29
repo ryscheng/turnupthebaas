@@ -52,7 +52,7 @@ func NewServer(name string, addr string, listenRPC bool, config common.Config, s
 	s.addr = addr
 	s.networkRPC = nil
 	if listenRPC {
-		s.networkRPC = server.NewNetworkRPC(s, addr)
+		s.networkRPC = server.NewNetworkRPCAddr(s, addr)
 	}
 	s.snapshotThreshold = snapshotThreshold
 	s.snapshotInterval = snapshotInterval
