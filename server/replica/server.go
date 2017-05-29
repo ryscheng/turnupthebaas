@@ -19,8 +19,7 @@ type Server struct {
 	lock       *sync.Mutex
 	config     common.Config // Config
 	snapshotID uint64
-
-
+	messages   map[uint64]*common.WriteArgs
 
 	// Channels
 }
@@ -34,6 +33,7 @@ func NewServer(name string, config common.Config) (*Server, error) {
 	s.lock = &sync.Mutex{}
 	s.config = config
 	s.snapshotID = 0
+	s.messages = make(map[uint64]*common.WriteArgs)
 
 	s.log.Info.Printf("replica.NewServer(%v) success\n", name)
 	return s, nil
@@ -63,7 +63,10 @@ func (s *Server) Notify(args *coordinator.NotifyArgs, reply *coordinator.NotifyR
 	defer tr.Finish()
 	s.lock.Lock()
 
-  // @todo
+	// @todo + gc s.messages
+	snapshotID := args.SnapshotID
+	go s.GetLayout(snapshotID)
+
 	reply.Err = ""
 
 	s.lock.Unlock()
@@ -76,6 +79,7 @@ func (s *Server) Write(args *common.WriteArgs, reply *common.WriteReply) error {
 	defer tr.Finish()
 	s.lock.Lock()
 
+	s.messages[args.ID] = args
 	reply.Err = ""
 
 	s.lock.Unlock()
@@ -88,7 +92,7 @@ func (s *Server) Read(args *ReadArgs, reply *ReadReply) error {
 	defer tr.Finish()
 	s.lock.Lock()
 
-  // @todo
+	// @todo
 	reply.Err = ""
 
 	s.lock.Unlock()
@@ -102,6 +106,15 @@ func (s *Server) Read(args *ReadArgs, reply *ReadReply) error {
 // Close shuts down the server
 func (s *Server) Close() {
 	s.log.Info.Printf("%v.Close: success", s.name)
+}
+
+// GetLayout will fetch the layout for a snapshotID and apply it locally
+func (s *Server) GetLayout(snapshotID uint64) {
+	tr := trace.New("Replica", "GetLayout")
+	defer tr.Finish()
+	s.lock.Lock()
+
+	s.lock.Unlock()
 }
 
 /**********************************

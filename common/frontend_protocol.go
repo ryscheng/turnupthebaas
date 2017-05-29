@@ -26,7 +26,6 @@ type WriteArgs struct {
 // WriteReply contain return status of writes
 type WriteReply struct {
 	Err string
-	ID  uint64
 	// deprecated
 	GlobalSeqNo uint64
 }
