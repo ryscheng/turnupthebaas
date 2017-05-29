@@ -23,7 +23,7 @@ type Server struct {
 	snapshotInterval  time.Duration
 
 	// Thread-safe (locked)
-	lock          *sync.Mutex
+	lock          *sync.RWMutex
 	config        common.Config // Config
 	servers       []NotifyInterface
 	commitLog     []*CommitArgs // Append and read only
@@ -39,7 +39,7 @@ type Server struct {
 	closeChan  chan bool
 }
 
-// NewServer creates a new Centralized talek server.
+// NewServer creates a new Talek centralized coordinator server
 func NewServer(name string, config common.Config, servers []NotifyInterface, snapshotThreshold uint64, snapshotInterval time.Duration) (*Server, error) {
 	s := &Server{}
 	s.log = common.NewLogger(name)
@@ -47,7 +47,7 @@ func NewServer(name string, config common.Config, servers []NotifyInterface, sna
 	s.snapshotThreshold = snapshotThreshold
 	s.snapshotInterval = snapshotInterval
 
-	s.lock = &sync.Mutex{}
+	s.lock = &sync.RWMutex{}
 	s.config = config
 	if servers == nil {
 		s.servers = make([]NotifyInterface, 0)
@@ -59,7 +59,7 @@ func NewServer(name string, config common.Config, servers []NotifyInterface, sna
 	s.snapshotCount = 0
 	s.lastLayout = make([]uint64, config.NumBuckets*config.BucketDepth)
 	s.intVec = buildInterestVector(config.WindowSize(), config.BloomFalsePositive, s.commitLog[:]).Bytes()
-	s.cuckooData = make([]byte, config.NumBuckets*config.BucketDepth*uint64(common.IDSize))
+	s.cuckooData = make([]byte, config.NumBuckets*config.BucketDepth*uint64(IDSize))
 
 	// Choose a random seed for the cuckoo table
 	seedBytes := make([]byte, 8)
@@ -69,7 +69,7 @@ func NewServer(name string, config common.Config, servers []NotifyInterface, sna
 		return nil, err
 	}
 	seed, _ := binary.Varint(seedBytes)
-	s.cuckooTable = cuckoo.NewTable(name, config.NumBuckets, config.BucketDepth, uint64(common.IDSize), s.cuckooData, seed)
+	s.cuckooTable = cuckoo.NewTable(name, config.NumBuckets, config.BucketDepth, uint64(IDSize), s.cuckooData, seed)
 	// Should not be possible
 	if s.cuckooTable == nil {
 		err := fmt.Errorf("Invalid cuckoo table parameters")
@@ -93,13 +93,13 @@ func NewServer(name string, config common.Config, servers []NotifyInterface, sna
 func (s *Server) GetInfo(args *interface{}, reply *GetInfoReply) error {
 	tr := trace.New("Coordinator", "GetInfo")
 	defer tr.Finish()
-	s.lock.Lock()
+	s.lock.RLock()
 
 	reply.Err = ""
 	reply.Name = s.name
 	reply.SnapshotID = s.snapshotCount
 
-	s.lock.Unlock()
+	s.lock.RUnlock()
 	return nil
 }
 
@@ -107,11 +107,11 @@ func (s *Server) GetInfo(args *interface{}, reply *GetInfoReply) error {
 func (s *Server) GetCommonConfig(args *interface{}, reply *common.Config) error {
 	tr := trace.New("Coordinator", "GetCommonConfig")
 	defer tr.Finish()
-	s.lock.Lock()
+	s.lock.RLock()
 
 	*reply = s.config
 
-	s.lock.Unlock()
+	s.lock.RUnlock()
 	return nil
 }
 
@@ -119,20 +119,20 @@ func (s *Server) GetCommonConfig(args *interface{}, reply *common.Config) error 
 func (s *Server) GetLayout(args *GetLayoutArgs, reply *GetLayoutReply) error {
 	tr := trace.New("Coordinator", "GetLayout")
 	defer tr.Finish()
-	s.lock.Lock()
+	s.lock.RLock()
 
 	// Check for correct snapshot ID
 	reply.SnapshotID = s.snapshotCount
 	if args.SnapshotID != s.snapshotCount {
 		reply.Err = "Invalid SnapshotID"
-		s.lock.Unlock()
+		s.lock.RUnlock()
 		return nil
 	}
 
 	// Check non-zero NumShards
 	if args.NumShards < 1 {
 		reply.Err = "NumShards must be > 0"
-		s.lock.Unlock()
+		s.lock.RUnlock()
 		return nil
 	}
 
@@ -145,7 +145,7 @@ func (s *Server) GetLayout(args *GetLayoutArgs, reply *GetLayoutReply) error {
 		reply.Layout = s.lastLayout[idx:(idx + shardSize)]
 	}
 
-	s.lock.Unlock()
+	s.lock.RUnlock()
 	return nil
 }
 
@@ -153,24 +153,24 @@ func (s *Server) GetLayout(args *GetLayoutArgs, reply *GetLayoutReply) error {
 func (s *Server) GetIntVec(args *GetIntVecArgs, reply *GetIntVecReply) error {
 	tr := trace.New("Coordinator", "GetIntVec")
 	defer tr.Finish()
-	s.lock.Lock()
+	s.lock.RLock()
 
 	// Check for correct snapshot ID
 	reply.SnapshotID = s.snapshotCount
 	if args.SnapshotID != s.snapshotCount {
 		reply.Err = "Invalid SnapshotID"
-		s.lock.Unlock()
+		s.lock.RUnlock()
 		return nil
 	}
 
 	reply.Err = ""
 	reply.IntVec = s.intVec[:]
 
-	s.lock.Unlock()
+	s.lock.RUnlock()
 	return nil
 }
 
-// Commit accepts a single Write to commit. The
+// Commit accepts a single Write to commit without data. Used to maintain the cuckoo table
 func (s *Server) Commit(args *CommitArgs, reply *CommitReply) error {
 	tr := trace.New("Coordinator", "Commit")
 	defer tr.Finish()
@@ -292,7 +292,7 @@ func (s *Server) loop() {
 
 // Converts a CommitArgs to a cuckoo.Item
 func asCuckooItem(numBuckets uint64, args *CommitArgs) *cuckoo.Item {
-	itemData := make([]byte, common.IDSize)
+	itemData := make([]byte, IDSize)
 	binary.PutUvarint(itemData, args.ID)
 	return &cuckoo.Item{
 		ID:      args.ID,

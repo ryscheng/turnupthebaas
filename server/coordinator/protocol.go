@@ -4,6 +4,10 @@ package coordinator
  * PROTOCOL
  *************/
 
+// IDSize is the size of unique IDs in bytes
+// @todo for some reason uint64's require 10 bytes?
+const IDSize = 10
+
 // GetInfoReply contains general state about the server
 type GetInfoReply struct {
 	Err        string

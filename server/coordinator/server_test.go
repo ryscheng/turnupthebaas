@@ -86,7 +86,7 @@ func TestAsCuckooItem(t *testing.T) {
 	if item.ID != args.ID ||
 		item.Bucket1 != args.Bucket1%numBuckets ||
 		item.Bucket2 != args.Bucket2%numBuckets ||
-		len(item.Data) != common.IDSize ||
+		len(item.Data) != IDSize ||
 		data != args.ID {
 		t.Errorf("Improper conversion: from CommitArgs=%v to cuckoo.Item=%v", args, item)
 	}

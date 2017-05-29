@@ -67,8 +67,8 @@ func (h *Handle) nextBuckets(conf *common.Config) (uint64, uint64) {
 	b1 := siphash.Hash(k0, k1, seqNoBytes)
 	k0, k1 = h.Seed2.KeyUint128()
 	b2 := siphash.Hash(k0, k1, seqNoBytes)
-	b1 = b1 % uint64(conf.NumBuckets)
-	b2 = b2 % uint64(conf.NumBuckets)
+	b1 = b1 % conf.NumBuckets
+	b2 = b2 % conf.NumBuckets
 
 	return b1, b2
 }
