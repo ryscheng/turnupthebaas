@@ -1,8 +1,8 @@
 package coordinator
 
-/*************
+/**********************
  * PROTOCOL
- *************/
+ **********************/
 
 // IDSize is the size of unique IDs in bytes
 // @todo for some reason uint64's require 10 bytes?

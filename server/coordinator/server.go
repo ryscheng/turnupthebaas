@@ -4,12 +4,17 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"fmt"
+	"net"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/privacylab/talek/bloom"
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/cuckoo"
+	"github.com/privacylab/talek/protocol/coordinator"
+	"github.com/privacylab/talek/protocol/notify"
+	"github.com/privacylab/talek/server"
 	"golang.org/x/net/trace"
 )
 
@@ -19,14 +24,16 @@ type Server struct {
 	// Static
 	log               *common.Logger
 	name              string
+	addr              string
+	networkRPC        *server.NetworkRPC
 	snapshotThreshold uint64
 	snapshotInterval  time.Duration
 
 	// Thread-safe (locked)
 	lock          *sync.RWMutex
 	config        common.Config // Config
-	servers       []NotifyInterface
-	commitLog     []*CommitArgs // Append and read only
+	servers       []notify.Interface
+	commitLog     []*coordinator.CommitArgs // Append and read only
 	numNewCommits uint64
 	snapshotCount uint64
 	lastLayout    []uint64
@@ -40,26 +47,30 @@ type Server struct {
 }
 
 // NewServer creates a new Talek centralized coordinator server
-func NewServer(name string, config common.Config, servers []NotifyInterface, snapshotThreshold uint64, snapshotInterval time.Duration) (*Server, error) {
+func NewServer(name string, addr string, config common.Config, servers []notify.Interface, snapshotThreshold uint64, snapshotInterval time.Duration) (*Server, error) {
 	s := &Server{}
 	s.log = common.NewLogger(name)
 	s.name = name
+	s.addr = addr
+	_, port, _ := net.SplitHostPort(addr)
+	pnum, _ := strconv.Atoi(port)
+	s.networkRPC = server.NewNetworkRPC(s, pnum)
 	s.snapshotThreshold = snapshotThreshold
 	s.snapshotInterval = snapshotInterval
 
 	s.lock = &sync.RWMutex{}
 	s.config = config
 	if servers == nil {
-		s.servers = make([]NotifyInterface, 0)
+		s.servers = make([]notify.Interface, 0)
 	} else {
 		s.servers = servers
 	}
-	s.commitLog = make([]*CommitArgs, 0)
+	s.commitLog = make([]*coordinator.CommitArgs, 0)
 	s.numNewCommits = 0
 	s.snapshotCount = 0
 	s.lastLayout = make([]uint64, config.NumBuckets*config.BucketDepth)
 	s.intVec = buildInterestVector(config.WindowSize(), config.BloomFalsePositive, s.commitLog[:]).Bytes()
-	s.cuckooData = make([]byte, config.NumBuckets*config.BucketDepth*uint64(IDSize))
+	s.cuckooData = make([]byte, config.NumBuckets*config.BucketDepth*uint64(coordinator.IDSize))
 
 	// Choose a random seed for the cuckoo table
 	seedBytes := make([]byte, 8)
@@ -69,7 +80,7 @@ func NewServer(name string, config common.Config, servers []NotifyInterface, sna
 		return nil, err
 	}
 	seed, _ := binary.Varint(seedBytes)
-	s.cuckooTable = cuckoo.NewTable(name, config.NumBuckets, config.BucketDepth, uint64(IDSize), s.cuckooData, seed)
+	s.cuckooTable = cuckoo.NewTable(name, config.NumBuckets, config.BucketDepth, uint64(coordinator.IDSize), s.cuckooData, seed)
 	// Should not be possible
 	if s.cuckooTable == nil {
 		err := fmt.Errorf("Invalid cuckoo table parameters")
@@ -90,7 +101,7 @@ func NewServer(name string, config common.Config, servers []NotifyInterface, sna
  **********************************/
 
 // GetInfo returns information about this server
-func (s *Server) GetInfo(args *interface{}, reply *GetInfoReply) error {
+func (s *Server) GetInfo(args *interface{}, reply *coordinator.GetInfoReply) error {
 	tr := trace.New("Coordinator", "GetInfo")
 	defer tr.Finish()
 	s.lock.RLock()
@@ -116,7 +127,7 @@ func (s *Server) GetCommonConfig(args *interface{}, reply *common.Config) error 
 }
 
 // GetLayout returns the layout for a shard
-func (s *Server) GetLayout(args *GetLayoutArgs, reply *GetLayoutReply) error {
+func (s *Server) GetLayout(args *coordinator.GetLayoutArgs, reply *coordinator.GetLayoutReply) error {
 	tr := trace.New("Coordinator", "GetLayout")
 	defer tr.Finish()
 	s.lock.RLock()
@@ -150,7 +161,7 @@ func (s *Server) GetLayout(args *GetLayoutArgs, reply *GetLayoutReply) error {
 }
 
 // GetIntVec returns the global interest vector
-func (s *Server) GetIntVec(args *GetIntVecArgs, reply *GetIntVecReply) error {
+func (s *Server) GetIntVec(args *coordinator.GetIntVecArgs, reply *coordinator.GetIntVecReply) error {
 	tr := trace.New("Coordinator", "GetIntVec")
 	defer tr.Finish()
 	s.lock.RLock()
@@ -171,7 +182,7 @@ func (s *Server) GetIntVec(args *GetIntVecArgs, reply *GetIntVecReply) error {
 }
 
 // Commit accepts a single Write to commit without data. Used to maintain the cuckoo table
-func (s *Server) Commit(args *CommitArgs, reply *CommitReply) error {
+func (s *Server) Commit(args *coordinator.CommitArgs, reply *coordinator.CommitReply) error {
 	tr := trace.New("Coordinator", "Commit")
 	defer tr.Finish()
 	reply.Err = ""
@@ -209,10 +220,11 @@ func (s *Server) Commit(args *CommitArgs, reply *CommitReply) error {
 func (s *Server) Close() {
 	s.log.Info.Printf("%v.Close: success", s.name)
 	s.closeChan <- true
+	s.networkRPC.Kill()
 }
 
 // AddServer adds a server to the list that is notified on snapshot changes
-func (s *Server) AddServer(server NotifyInterface) {
+func (s *Server) AddServer(server notify.Interface) {
 	s.lock.Lock()
 	s.servers = append(s.servers, server)
 	s.log.Info.Printf("%v.AddServer() success\n", s.name)
@@ -291,8 +303,8 @@ func (s *Server) loop() {
  **********************************/
 
 // Converts a CommitArgs to a cuckoo.Item
-func asCuckooItem(numBuckets uint64, args *CommitArgs) *cuckoo.Item {
-	itemData := make([]byte, IDSize)
+func asCuckooItem(numBuckets uint64, args *coordinator.CommitArgs) *cuckoo.Item {
+	itemData := make([]byte, coordinator.IDSize)
 	binary.PutUvarint(itemData, args.ID)
 	return &cuckoo.Item{
 		ID:      args.ID,
@@ -305,7 +317,7 @@ func asCuckooItem(numBuckets uint64, args *CommitArgs) *cuckoo.Item {
 // buildInterestVector traverses the commitLog and creates a global interest vector
 // representing the elements.
 // Bloom filter stores n elements with fp false positive rate
-func buildInterestVector(n uint64, fp float64, commitLog []*CommitArgs) *bloom.BitSet {
+func buildInterestVector(n uint64, fp float64, commitLog []*coordinator.CommitArgs) *bloom.BitSet {
 	bits, numHash := bloom.EstimateParameters(n, fp)
 	intVec := bloom.NewBitSet(bits)
 	for _, c := range commitLog {
@@ -319,12 +331,12 @@ func buildInterestVector(n uint64, fp float64, commitLog []*CommitArgs) *bloom.B
 	return intVec
 }
 
-func sendNotification(log *common.Logger, servers []NotifyInterface, snapshotID uint64) {
-	args := &NotifyArgs{
+func sendNotification(log *common.Logger, servers []notify.Interface, snapshotID uint64) {
+	args := &notify.Args{
 		SnapshotID: snapshotID,
 	}
-	doNotify := func(l *common.Logger, s NotifyInterface, args *NotifyArgs) {
-		err := s.Notify(args, &NotifyReply{})
+	doNotify := func(l *common.Logger, s notify.Interface, args *notify.Args) {
+		err := s.Notify(args, &notify.Reply{})
 		if err != nil {
 			l.Error.Printf("sendNotification failed: %v", err)
 		}
