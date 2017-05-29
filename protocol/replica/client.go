@@ -4,11 +4,11 @@ import (
 	"net/rpc"
 
 	"github.com/privacylab/talek/common"
-	"github.com/privacylab/talek/server/coordinator"
+	"github.com/privacylab/talek/protocol/notify"
 )
 
-// RPCStub is a stub for RPCs to the central coordinator server.
-type RPCStub struct {
+// Client is a stub for RPCs to the central coordinator server.
+type Client struct {
 	log     *common.Logger
 	name    string
 	address string
@@ -16,9 +16,9 @@ type RPCStub struct {
 	lastErr error
 }
 
-// NewRPCStub instantiates a client stub
-func NewRPCStub(name string, address string) *RPCStub {
-	c := &RPCStub{}
+// NewClient instantiates a client stub
+func NewClient(name string, address string) *Client {
+	c := &Client{}
 	c.log = common.NewLogger(name)
 	c.name = name
 	c.address = address
@@ -27,7 +27,7 @@ func NewRPCStub(name string, address string) *RPCStub {
 }
 
 // Close will close the RPC client
-func (c *RPCStub) Close() error {
+func (c *Client) Close() error {
 	if c.client != nil {
 		c.lastErr = c.client.Close()
 		c.client = nil
@@ -37,26 +37,26 @@ func (c *RPCStub) Close() error {
 }
 
 // GetInfo returns info about this server
-func (c *RPCStub) GetInfo(_ *interface{}, reply *GetInfoReply) error {
+func (c *Client) GetInfo(_ *interface{}, reply *GetInfoReply) error {
 	var args interface{}
 	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.GetInfo", &args, reply)
 	return c.lastErr
 }
 
 // Notify the server of a new shapshot
-func (c *RPCStub) Notify(args *coordinator.NotifyArgs, reply *coordinator.NotifyReply) error {
+func (c *Client) Notify(args *notify.Args, reply *notify.Reply) error {
 	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.Notify", args, reply)
 	return c.lastErr
 }
 
 // Write a single message
-func (c *RPCStub) Write(args *common.WriteArgs, reply *common.WriteReply) error {
+func (c *Client) Write(args *common.WriteArgs, reply *common.WriteReply) error {
 	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.Write", args, reply)
 	return c.lastErr
 }
 
 // Read a batch of requests for a shard range
-func (c *RPCStub) Read(args *ReadArgs, reply *ReadReply) error {
+func (c *Client) Read(args *ReadArgs, reply *ReadReply) error {
 	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.Read", args, reply)
 	return c.lastErr
 }

@@ -9,21 +9,7 @@ import (
 	server "github.com/privacylab/talek/server/coordinator"
 )
 
-const testAddr = "localhost:9876"
-
-func testConfig() common.Config {
-	return common.Config{
-		NumBuckets:         8,
-		BucketDepth:        2,
-		DataSize:           256,
-		BloomFalsePositive: 0.01,
-		WriteInterval:      time.Minute,
-		ReadInterval:       time.Minute,
-		MaxLoadFactor:      0.50,
-	}
-}
-
-func TestRPCBasic(t *testing.T) {
+func TestCoordinator(t *testing.T) {
 	s, err := server.NewServer("test", testAddr, true, testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
