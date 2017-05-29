@@ -47,14 +47,18 @@ type Server struct {
 }
 
 // NewServer creates a new Talek centralized coordinator server
-func NewServer(name string, addr string, config common.Config, servers []notify.Interface, snapshotThreshold uint64, snapshotInterval time.Duration) (*Server, error) {
+func NewServer(name string, addr string, listenRPC bool, config common.Config, servers []notify.Interface, snapshotThreshold uint64, snapshotInterval time.Duration) (*Server, error) {
 	s := &Server{}
 	s.log = common.NewLogger(name)
 	s.name = name
 	s.addr = addr
-	_, port, _ := net.SplitHostPort(addr)
-	pnum, _ := strconv.Atoi(port)
-	s.networkRPC = server.NewNetworkRPC(s, pnum)
+	if listenRPC {
+		_, port, _ := net.SplitHostPort(addr)
+		pnum, _ := strconv.Atoi(port)
+		s.networkRPC = server.NewNetworkRPC(s, pnum)
+	} else {
+		s.networkRPC = nil
+	}
 	s.snapshotThreshold = snapshotThreshold
 	s.snapshotInterval = snapshotInterval
 
@@ -220,7 +224,9 @@ func (s *Server) Commit(args *coordinator.CommitArgs, reply *coordinator.CommitR
 func (s *Server) Close() {
 	s.log.Info.Printf("%v.Close: success", s.name)
 	s.closeChan <- true
-	s.networkRPC.Kill()
+	if s.networkRPC != nil {
+		s.networkRPC.Kill()
+	}
 }
 
 // AddServer adds a server to the list that is notified on snapshot changes

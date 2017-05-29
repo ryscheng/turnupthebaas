@@ -24,7 +24,7 @@ func testConfig() common.Config {
 }
 
 func TestRPCBasic(t *testing.T) {
-	s, err := server.NewServer("test", testAddr, testConfig(), nil, 5, time.Hour)
+	s, err := server.NewServer("test", testAddr, true, testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
