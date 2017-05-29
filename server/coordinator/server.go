@@ -264,7 +264,7 @@ func (s *Server) NotifySnapshot(force bool) bool {
 
 	// Send notifications only if there are servers
 	if s.servers != nil && len(s.servers) > 0 {
-		go sendNotification(s.log, s.servers[:], s.snapshotCount)
+		go sendNotification(s.log, s.servers[:], s.snapshotCount, s.addr)
 	}
 
 	s.log.Info.Printf("%v.NotifySnapshot() success\n", s.name)
@@ -332,9 +332,10 @@ func buildInterestVector(n uint64, fp float64, commitLog []*coordinator.CommitAr
 	return intVec
 }
 
-func sendNotification(log *common.Logger, servers []notify.Interface, snapshotID uint64) {
+func sendNotification(log *common.Logger, servers []notify.Interface, snapshotID uint64, addr string) {
 	args := &notify.Args{
 		SnapshotID: snapshotID,
+		Addr:       addr,
 	}
 	doNotify := func(l *common.Logger, s notify.Interface, args *notify.Args) {
 		err := s.Notify(args, &notify.Reply{})
