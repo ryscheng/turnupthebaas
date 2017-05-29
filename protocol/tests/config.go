@@ -1,12 +1,19 @@
 package tests
 
 import (
+	"math/rand"
+	"strconv"
 	"time"
 
 	"github.com/privacylab/talek/common"
 )
 
-const testAddr = "localhost:9876"
+func randAddr() string {
+	num := rand.Int()
+	num %= 100
+	num += 9800
+	return "localhost:" + strconv.Itoa(num)
+}
 
 func testConfig() common.Config {
 	return common.Config{

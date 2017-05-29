@@ -10,7 +10,7 @@ import (
 )
 
 func TestReplica(t *testing.T) {
-	s, err := server.NewServer("test", testAddr, true, testConfig())
+	s, err := server.NewServer("test", randAddr(), true, testConfig())
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}

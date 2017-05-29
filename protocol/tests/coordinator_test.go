@@ -10,7 +10,7 @@ import (
 )
 
 func TestCoordinator(t *testing.T) {
-	s, err := server.NewServer("test", testAddr, true, testConfig(), nil, 5, time.Hour)
+	s, err := server.NewServer("test", randAddr(), true, testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
