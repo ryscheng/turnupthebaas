@@ -10,7 +10,11 @@ import (
 
 	"github.com/privacylab/talek/bloom"
 	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/protocol/coordinator"
+	"github.com/privacylab/talek/protocol/notify"
 )
+
+const testAddr = "localhost:9876"
 
 /********************************
  *** HELPER FUNCTIONS
@@ -49,13 +53,13 @@ func NewMockServer() *MockServer {
 	return s
 }
 
-func (s *MockServer) Notify(args *NotifyArgs, reply *NotifyReply) error {
+func (s *MockServer) Notify(args *notify.Args, reply *notify.Reply) error {
 	s.Done <- true
 	return fmt.Errorf("test")
 }
 
-func setupMocks(n int) ([]NotifyInterface, []chan bool) {
-	servers := make([]NotifyInterface, n)
+func setupMocks(n int) ([]notify.Interface, []chan bool) {
+	servers := make([]notify.Interface, n)
 	channels := make([]chan bool, n)
 	for i := 0; i < n; i++ {
 		s := NewMockServer()
@@ -65,8 +69,8 @@ func setupMocks(n int) ([]NotifyInterface, []chan bool) {
 	return servers, channels
 }
 
-func newCommit() *CommitArgs {
-	return &CommitArgs{
+func newCommit() *coordinator.CommitArgs {
+	return &coordinator.CommitArgs{
 		ID:        rand.Uint64(),
 		Bucket1:   rand.Uint64(),
 		Bucket2:   rand.Uint64(),
@@ -86,17 +90,17 @@ func TestAsCuckooItem(t *testing.T) {
 	if item.ID != args.ID ||
 		item.Bucket1 != args.Bucket1%numBuckets ||
 		item.Bucket2 != args.Bucket2%numBuckets ||
-		len(item.Data) != common.IDSize ||
+		len(item.Data) != coordinator.IDSize ||
 		data != args.ID {
 		t.Errorf("Improper conversion: from CommitArgs=%v to cuckoo.Item=%v", args, item)
 	}
 }
 
 func TestBuildInterestVector(t *testing.T) {
-	commits := make([]*CommitArgs, 0)
-	commits = append(commits, &CommitArgs{IntVecLoc: []uint64{15, 17}})
-	commits = append(commits, &CommitArgs{IntVecLoc: []uint64{25, 27}})
-	commits = append(commits, &CommitArgs{IntVecLoc: []uint64{35, 37, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65}})
+	commits := make([]*coordinator.CommitArgs, 0)
+	commits = append(commits, &coordinator.CommitArgs{IntVecLoc: []uint64{15, 17}})
+	commits = append(commits, &coordinator.CommitArgs{IntVecLoc: []uint64{25, 27}})
+	commits = append(commits, &coordinator.CommitArgs{IntVecLoc: []uint64{35, 37, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65}})
 	expectedLocs := []uint64{15, 17, 25, 27, 35, 37}
 	intVec := buildInterestVector(1000, 0.01, commits)
 	if !bloom.CheckLocations(intVec, expectedLocs) {
@@ -131,7 +135,7 @@ func TestSendNotification(t *testing.T) {
 }
 
 func TestNewServer(t *testing.T) {
-	s, err := NewServer("test", testConfig(), nil, 5, time.Hour)
+	s, err := NewServer("test", testAddr, false, testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
@@ -139,11 +143,11 @@ func TestNewServer(t *testing.T) {
 }
 
 func TestGetInfo(t *testing.T) {
-	s, err := NewServer("test", testConfig(), nil, 5, time.Hour)
+	s, err := NewServer("test", testAddr, false, testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	reply := &GetInfoReply{}
+	reply := &coordinator.GetInfoReply{}
 	err = s.GetInfo(nil, reply)
 	if err != nil {
 		t.Errorf("Error calling GetInfo: %v", err)
@@ -155,7 +159,7 @@ func TestGetInfo(t *testing.T) {
 }
 
 func TestGetCommonConfig(t *testing.T) {
-	s, err := NewServer("test", testConfig(), nil, 5, time.Hour)
+	s, err := NewServer("test", testAddr, false, testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
@@ -171,16 +175,16 @@ func TestGetCommonConfig(t *testing.T) {
 }
 
 func TestGetLayoutInvalidSnapshotID(t *testing.T) {
-	s, err := NewServer("test", testConfig(), nil, 5, time.Hour)
+	s, err := NewServer("test", testAddr, false, testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	args := &GetLayoutArgs{
+	args := &coordinator.GetLayoutArgs{
 		SnapshotID: 100,
 		ShardID:    0,
 		NumShards:  1,
 	}
-	reply := &GetLayoutReply{}
+	reply := &coordinator.GetLayoutReply{}
 	if s.GetLayout(args, reply) != nil {
 		t.Errorf("Error calling GetLayout: %v", err)
 	}
@@ -191,16 +195,16 @@ func TestGetLayoutInvalidSnapshotID(t *testing.T) {
 }
 
 func TestGetLayoutInvalidNumShards(t *testing.T) {
-	s, err := NewServer("test", testConfig(), nil, 5, time.Hour)
+	s, err := NewServer("test", testAddr, false, testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	args := &GetLayoutArgs{
+	args := &coordinator.GetLayoutArgs{
 		SnapshotID: 0,
 		ShardID:    0,
 		NumShards:  0,
 	}
-	reply := &GetLayoutReply{}
+	reply := &coordinator.GetLayoutReply{}
 	if s.GetLayout(args, reply) != nil {
 		t.Errorf("Error calling GetLayout: %v", err)
 	}
@@ -211,16 +215,16 @@ func TestGetLayoutInvalidNumShards(t *testing.T) {
 }
 
 func TestGetLayoutInvalidShardID(t *testing.T) {
-	s, err := NewServer("test", testConfig(), nil, 5, time.Hour)
+	s, err := NewServer("test", testAddr, false, testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	args := &GetLayoutArgs{
+	args := &coordinator.GetLayoutArgs{
 		SnapshotID: 0,
 		ShardID:    4,
 		NumShards:  4,
 	}
-	reply := &GetLayoutReply{}
+	reply := &coordinator.GetLayoutReply{}
 	if s.GetLayout(args, reply) != nil {
 		t.Errorf("Error calling GetLayout: %v", err)
 	}
@@ -231,16 +235,16 @@ func TestGetLayoutInvalidShardID(t *testing.T) {
 }
 
 func TestGetLayoutEmpty(t *testing.T) {
-	s, err := NewServer("test", testConfig(), nil, 5, time.Hour)
+	s, err := NewServer("test", testAddr, false, testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	args := &GetLayoutArgs{
+	args := &coordinator.GetLayoutArgs{
 		SnapshotID: 0,
 		ShardID:    0,
 		NumShards:  1,
 	}
-	reply := &GetLayoutReply{}
+	reply := &coordinator.GetLayoutReply{}
 	if s.GetLayout(args, reply) != nil {
 		t.Errorf("Error calling GetLayout: %v", err)
 	}
@@ -256,12 +260,12 @@ func TestGetLayoutEmpty(t *testing.T) {
 }
 
 func TestGetIntVecInvalidSnapshotID(t *testing.T) {
-	s, err := NewServer("test", testConfig(), nil, 5, time.Hour)
+	s, err := NewServer("test", testAddr, false, testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	args := &GetIntVecArgs{SnapshotID: 100}
-	reply := &GetIntVecReply{}
+	args := &coordinator.GetIntVecArgs{SnapshotID: 100}
+	reply := &coordinator.GetIntVecReply{}
 	if s.GetIntVec(args, reply) != nil {
 		t.Errorf("Error calling GetIntVec: %v", err)
 	}
@@ -272,12 +276,12 @@ func TestGetIntVecInvalidSnapshotID(t *testing.T) {
 }
 
 func TestGetIntVecEmpty(t *testing.T) {
-	s, err := NewServer("test", testConfig(), nil, 5, time.Hour)
+	s, err := NewServer("test", testAddr, false, testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	args := &GetIntVecArgs{SnapshotID: 0}
-	reply := &GetIntVecReply{}
+	args := &coordinator.GetIntVecArgs{SnapshotID: 0}
+	reply := &coordinator.GetIntVecReply{}
 	if s.GetIntVec(args, reply) != nil {
 		t.Errorf("Error calling GetIntVec: %v", err)
 	}
@@ -293,12 +297,12 @@ func TestGetIntVecEmpty(t *testing.T) {
 }
 
 func TestCommit(t *testing.T) {
-	s, err := NewServer("test", testConfig(), nil, 5, time.Hour)
+	s, err := NewServer("test", testAddr, false, testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
 	args := newCommit()
-	reply := &CommitReply{}
+	reply := &coordinator.CommitReply{}
 	if s.Commit(args, reply) != nil {
 		t.Errorf("Error calling Commit: %v", err)
 	}
@@ -311,7 +315,7 @@ func TestCommit(t *testing.T) {
 func TestAddServer(t *testing.T) {
 	numServers := 3
 	mocks, channels := setupMocks(numServers)
-	s, err := NewServer("test", testConfig(), mocks, 5, time.Hour)
+	s, err := NewServer("test", testAddr, false, testConfig(), mocks, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
@@ -324,12 +328,12 @@ func TestAddServer(t *testing.T) {
 func TestSnapshot(t *testing.T) {
 	numServers := 3
 	mocks, channels := setupMocks(numServers)
-	s, err := NewServer("test", testConfig(), mocks, 5, time.Hour)
+	s, err := NewServer("test", testAddr, false, testConfig(), mocks, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
 	// Add a commit
-	if s.Commit(newCommit(), &CommitReply{}) != nil {
+	if s.Commit(newCommit(), &coordinator.CommitReply{}) != nil {
 		t.Errorf("Error calling Commit: %v", err)
 	}
 	// Force a snapshot
@@ -351,13 +355,13 @@ func TestSnapshotThreshold(t *testing.T) {
 	numServers := 3
 	snapshotThreshold := 32
 	mocks, channels := setupMocks(numServers)
-	s, err := NewServer("test", testConfig(), mocks, uint64(snapshotThreshold), time.Hour)
+	s, err := NewServer("test", testAddr, false, testConfig(), mocks, uint64(snapshotThreshold), time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
 	// Add commits
 	for i := 0; i < snapshotThreshold; i++ {
-		if s.Commit(newCommit(), &CommitReply{}) != nil {
+		if s.Commit(newCommit(), &coordinator.CommitReply{}) != nil {
 			t.Errorf("Error calling Commit: %v", err)
 		}
 	}
@@ -377,11 +381,11 @@ func TestSnapshotThreshold(t *testing.T) {
 func TestSnapshotTimer(t *testing.T) {
 	numServers := 3
 	mocks, channels := setupMocks(numServers)
-	s, err := NewServer("test", testConfig(), mocks, 5, 10*time.Millisecond)
+	s, err := NewServer("test", testAddr, false, testConfig(), mocks, 5, 10*time.Millisecond)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	if s.Commit(newCommit(), &CommitReply{}) != nil {
+	if s.Commit(newCommit(), &coordinator.CommitReply{}) != nil {
 		t.Errorf("Error calling Commit: %v", err)
 	}
 	// Wait for all notifications

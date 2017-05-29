@@ -19,16 +19,16 @@ type ItemLocation struct {
 	bucket2 uint64
 }
 
-// Table is a cuckoo table managing placement of Items.
+// Table is a cuckoo table managing placement of Items, where the data is a byte array.
 type Table struct {
 	name        string
 	numBuckets  uint64 // Number of buckets
 	bucketDepth uint64 // Items in each bucket
-	itemSize    uint64 // number of bytes in an item
-	data        []byte //
+	itemSize    uint64 // Number of bytes in an item. Must be fixed globally
+	data        []byte // Serialized cuckoo table data of all items {bucket1, bucket2, ...}
 	rand        *rand.Rand
 	log         *common.Logger
-	index       []ItemLocation
+	index       []ItemLocation // Meta data of each item's bucket locations and ID
 }
 
 // NewTable creates a new cuckoo table optionaly backed by a pre-allocated memory area.

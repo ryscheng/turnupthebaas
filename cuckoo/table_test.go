@@ -9,14 +9,14 @@ import (
 	"testing"
 )
 
-const ItemSize = uint64(64)
+const testItemSize = uint64(64)
 
 // Test identical state after operations
 // Test contains after insert/remove sequence
 // Test insert same value twice
 
 func GetBytes(val string) []byte {
-	buf := make([]byte, ItemSize)
+	buf := make([]byte, testItemSize)
 	copy(buf, bytes.NewBufferString(val).Bytes())
 	return buf
 }
@@ -29,17 +29,17 @@ func randBucket(numBuckets uint64) uint64 {
 func TestGetCapacity(t *testing.T) {
 	fmt.Printf("TestGetCapacity: ...\n")
 
-	table := NewTable("t", 10, 2, ItemSize, nil, 0)
+	table := NewTable("t", 10, 2, testItemSize, nil, 0)
 	if table.GetCapacity() != 20 {
 		t.Fatalf("table returned wrong value for GetCapacity=%v. Expecting 20\n", table.GetCapacity())
 	}
 
-	table = NewTable("t", 1, 1, ItemSize, nil, 0)
+	table = NewTable("t", 1, 1, testItemSize, nil, 0)
 	if table.GetCapacity() != 1 {
 		t.Fatalf("table returned wrong value for GetCapacity=%v. Expecting 1\n", table.GetCapacity())
 	}
 
-	table = NewTable("t", 0, 0, ItemSize, nil, 0)
+	table = NewTable("t", 0, 0, testItemSize, nil, 0)
 	if table.GetCapacity() != 0 {
 		t.Fatalf("table returned wrong value for GetCapacity=%v. Expecting 0\n", table.GetCapacity())
 	}
@@ -58,7 +58,7 @@ func TestInvalidConstruction(t *testing.T) {
 }
 
 func TestBasic(t *testing.T) {
-	table := NewTable("t", 10, 2, ItemSize, nil, 0)
+	table := NewTable("t", 10, 2, testItemSize, nil, 0)
 
 	fmt.Printf("TestBasic: check empty...\n")
 	if table.GetNumElements() != 0 {
@@ -137,7 +137,7 @@ func TestBasic(t *testing.T) {
 
 func TestBucket(t *testing.T) {
 	fmt.Printf("TestBucket ...\n")
-	table := NewTable("t", 10, 2, ItemSize, nil, 0)
+	table := NewTable("t", 10, 2, testItemSize, nil, 0)
 
 	items := []*Item{
 		{1, GetBytes("value1"), 5, 5},
@@ -174,7 +174,7 @@ func TestBucket(t *testing.T) {
 }
 
 func TestOutOfBounds(t *testing.T) {
-	table := NewTable("t", 10, 2, ItemSize, nil, 0)
+	table := NewTable("t", 10, 2, testItemSize, nil, 0)
 
 	fmt.Printf("TestOutOfBounds: Insert() out of bounds...\n")
 	ok, itm := table.Insert(&Item{1, GetBytes("value1"), 100, 100})
@@ -204,7 +204,7 @@ func TestFullTable(t *testing.T) {
 
 	capacity := numBuckets * depth
 	entries := make([]Item, 0, capacity)
-	table := NewTable("t", numBuckets, depth, ItemSize, nil, 0)
+	table := NewTable("t", numBuckets, depth, testItemSize, nil, 0)
 	ok := true
 	count := uint64(0)
 	var evic *Item
@@ -273,7 +273,7 @@ func TestFullTable(t *testing.T) {
 
 func TestDuplicateValues(t *testing.T) {
 	fmt.Printf("TestDuplicateValues: ...\n")
-	table := NewTable("t", 10, 2, ItemSize, nil, 0)
+	table := NewTable("t", 10, 2, testItemSize, nil, 0)
 
 	ok, itm := table.Insert(&Item{1, GetBytes("v"), 0, 1})
 	if itm != nil || !ok {
@@ -313,7 +313,7 @@ func TestLoadFactor(t *testing.T) {
 	for depth := uint64(1); depth < uint64(32); depth *= 2 {
 		count := -1
 		ok := true
-		table = NewTable("t", numBuckets, depth, ItemSize, nil, int64(depth))
+		table = NewTable("t", numBuckets, depth, testItemSize, nil, int64(depth))
 		for ok {
 			count++
 			val := GetBytes(strconv.Itoa(rand.Int()))
