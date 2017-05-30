@@ -14,6 +14,10 @@ type Config struct {
 	BucketDepth uint64
 	// How many bytes are in an item?
 	DataSize uint64 // Number of bytes
+	// Number of buckets in a shard
+	NumBucketsPerShard uint64
+	// Number of shards in a replica group
+	NumShardsPerGroup uint64
 	// False positive rate of interest vectors
 	BloomFalsePositive float64
 	// Minimum period between writes

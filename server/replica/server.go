@@ -159,13 +159,18 @@ func (s *Server) GetLayout(addr string, snapshotID uint64) {
 	s.SetLayoutAddr(addr)
 	s.lock.Lock()
 
-	var reply layout.GetLayoutReply
-	args := &layout.GetLayoutArgs{
-		SnapshotID: snapshotID,
-		//ShardID: ,
-		//NumShards: ,
-	}
+	//var reply layout.GetLayoutReply
+	//args := &layout.GetLayoutArgs{
+	//SnapshotID: snapshotID,
+	//ShardID: ,
+	//NumShards: ,
+	//}
 	// @todo + gc s.messages
+
+	// if wrong snapshotID
+	//go s.GetLayout(addr, reply.SnapshotID)
+
+	// reply.Layout
 
 	// Only set on success
 	s.snapshotID = snapshotID
