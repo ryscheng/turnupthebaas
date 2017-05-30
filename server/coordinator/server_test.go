@@ -106,16 +106,16 @@ func TestBuildInterestVector(t *testing.T) {
 	commits = append(commits, &coordinator.CommitArgs{IntVecLoc: []uint64{25, 27}})
 	commits = append(commits, &coordinator.CommitArgs{IntVecLoc: []uint64{35, 37, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65}})
 	expectedLocs := []uint64{15, 17, 25, 27, 35, 37}
-	intVec := buildInterestVector(1000, 0.01, commits)
-	if !bloom.CheckLocations(intVec, expectedLocs) {
+	v := buildInterestVector(1000, 0.01, commits)
+	if !bloom.CheckLocations(v, expectedLocs) {
 		t.Errorf("Interest Vector missing some bits")
 	}
 	// We never set this
-	if bloom.CheckLocations(intVec, []uint64{0}) {
+	if bloom.CheckLocations(v, []uint64{0}) {
 		t.Errorf("Interest Vector has extraneous bit")
 	}
 	// This should be outside of maximum number of bits allowed from the 3rd commit
-	if bloom.CheckLocations(intVec, []uint64{65}) {
+	if bloom.CheckLocations(v, []uint64{65}) {
 		t.Errorf("Interest Vector has extraneous bit")
 	}
 }
@@ -362,8 +362,8 @@ func TestSnapshot(t *testing.T) {
 		}
 	}
 	// Check layout
-	layoutArgs := &coordinator.GetLayoutArgs{SnapshotID: 1, ShardID: 0, NumShards: 1}
-	layoutReply := &coordinator.GetLayoutReply{}
+	layoutArgs := &layout.GetLayoutArgs{SnapshotID: 1, ShardID: 0, NumShards: 1}
+	layoutReply := &layout.GetLayoutReply{}
 	if s.GetLayout(layoutArgs, layoutReply) != nil {
 		t.Errorf("Error calling GetLayout: %v", err)
 	}
@@ -379,8 +379,8 @@ func TestSnapshot(t *testing.T) {
 		}
 	}
 	// Check interest vector
-	intVecArgs := &coordinator.GetIntVecArgs{SnapshotID: 1}
-	intVecReply := &coordinator.GetIntVecReply{}
+	intVecArgs := &intvec.GetIntVecArgs{SnapshotID: 1}
+	intVecReply := &intvec.GetIntVecReply{}
 	if s.GetIntVec(intVecArgs, intVecReply) != nil {
 		t.Errorf("Error calling GetIntVec: %v", err)
 	}
@@ -388,8 +388,8 @@ func TestSnapshot(t *testing.T) {
 		t.Errorf("GetIntVec error: %v", intVecReply)
 	}
 	numBits, _ := bloom.EstimateParameters(config.WindowSize(), config.BloomFalsePositive)
-	intVec := bloom.From(numBits, intVecReply.IntVec)
-	if !bloom.Equal(intVec, bloom.SetLocations(bloom.NewBitSet(numBits), commit.IntVecLoc)) {
+	v := bloom.From(numBits, intVecReply.IntVec)
+	if !bloom.Equal(v, bloom.SetLocations(bloom.NewBitSet(numBits), commit.IntVecLoc)) {
 		t.Errorf("Invalid interest vector. Commit not included")
 	}
 
