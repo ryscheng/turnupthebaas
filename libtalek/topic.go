@@ -10,7 +10,6 @@ import (
 	"github.com/agl/ed25519"
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/drbg"
-	"github.com/willf/bloom"
 	"golang.org/x/crypto/nacl/box"
 )
 
@@ -92,12 +91,14 @@ func (t *Topic) GeneratePublish(commonConfig *common.Config, message []byte) (*c
 	}
 	args.Data = ciphertext
 
-	// @todo - just send the k bit locations
+	// @todo - use new bloom/ implementation
+	/**
 	bloomFilter := bloom.NewWithEstimates(uint(commonConfig.WindowSize()), commonConfig.BloomFalsePositive)
 	idBytes := make([]byte, 8, 20)
 	_ = binary.PutUvarint(idBytes, t.ID)
 	idBytes = append(idBytes, seqNoBytes[:]...)
 	bloomFilter.Add(idBytes)
+	**/
 	//args.InterestVector, _ = bloomFilter.GobEncode()
 
 	return args, nil

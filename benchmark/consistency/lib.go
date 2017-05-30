@@ -71,7 +71,7 @@ func WritesPersisted(config libtalek.ClientConfig, leaderRPC common.FrontendRPC,
 
 			// Reply.data is bucket, and may have multiple items.
 			found := false
-			for i := 0; i < config.Config.BucketDepth; i++ {
+			for i := uint64(0); i < config.Config.BucketDepth; i++ {
 				if bytes.Equal(reply.Data[i*config.Config.DataSize:(i+1)*config.Config.DataSize], writeItem) {
 					found = true
 					break

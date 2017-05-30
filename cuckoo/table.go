@@ -1,9 +1,10 @@
 package cuckoo
 
 import (
-	"log"
+	"fmt"
 	"math/rand"
-	"os"
+
+	"github.com/privacylab/talek/common"
 )
 
 // MaxEvictions represents the number of chained evictions before an insert
@@ -12,62 +13,22 @@ const MaxEvictions int = 500
 
 // ItemLocation holds metadata for item placement in a cuckoo table.
 type ItemLocation struct {
-	id      int
+	id      uint64
 	filled  bool
-	bucket1 int
-	bucket2 int
+	bucket1 uint64
+	bucket2 uint64
 }
 
-// Item holds a full item data for cuckoo table placement.
-type Item struct {
-	ID      int
-	Data    []byte
-	Bucket1 int
-	Bucket2 int
-}
-
-// Copy duplicates an Item.
-func (i Item) Copy() *Item {
-	other := &Item{}
-	other.ID = i.ID
-	other.Data = make([]byte, len(i.Data))
-	other.Bucket1 = i.Bucket1
-	other.Bucket2 = i.Bucket2
-	copy(other.Data, i.Data)
-	return other
-}
-
-// Equals compares item equality.
-func (i *Item) Equals(other *Item) bool {
-	if other == nil {
-		return false
-	}
-	return i.Bucket1 == other.Bucket1 &&
-		i.Bucket2 == other.Bucket2 &&
-		i.ID == other.ID
-}
-
-// Bucket returns the bucket in a table that the Item is in, if it is in the table.
-func (i *Item) Bucket(table *Table) int {
-	if table.isInBucket(i.Bucket1, i) {
-		return i.Bucket1
-	} else if table.isInBucket(i.Bucket2, i) {
-		return i.Bucket2
-	}
-	return -1
-}
-
-// Table is a cuckoo table managing placement of Items.
+// Table is a cuckoo table managing placement of Items, where the data is a byte array.
 type Table struct {
 	name        string
-	numBuckets  int // Number of buckets
-	bucketDepth int // Items in each bucket
-	itemSize    int // number of bytes in an item
+	numBuckets  uint64 // Number of buckets
+	bucketDepth uint64 // Items in each bucket
+	itemSize    uint64 // Number of bytes in an item. Must be fixed globally
+	data        []byte // Serialized cuckoo table data of all items {bucket1, bucket2, ...}
 	rand        *rand.Rand
-
-	log   *log.Logger
-	index []ItemLocation
-	data  []byte
+	log         *common.Logger
+	index       []ItemLocation // Meta data of each item's bucket locations and ID
 }
 
 // NewTable creates a new cuckoo table optionaly backed by a pre-allocated memory area.
@@ -77,21 +38,21 @@ type Table struct {
 // numBuckets = number of buckets
 // depth = the number of entries per bucket
 // randSeed = seed for PRNG
-func NewTable(name string, numBuckets int, bucketDepth int, itemSize int,
+func NewTable(name string, numBuckets uint64, bucketDepth uint64, itemSize uint64,
 	data []byte, randSeed int64) *Table {
 	t := &Table{name, numBuckets, bucketDepth, itemSize, nil, nil, nil, nil}
-	t.log = log.New(os.Stderr, "[Cuckoo:"+name+"] ", log.Ldate|log.Ltime|log.Lshortfile)
-	t.rand = rand.New(rand.NewSource(randSeed))
-
 	if data == nil {
 		data = make([]byte, numBuckets*bucketDepth*itemSize)
 	}
-	if len(data) != numBuckets*bucketDepth*itemSize {
+	t.data = data
+	t.rand = rand.New(rand.NewSource(randSeed))
+	t.log = common.NewLogger(name)
+	t.index = make([]ItemLocation, numBuckets*bucketDepth)
+
+	if uint64(len(data)) != numBuckets*bucketDepth*itemSize {
+		t.log.Error.Printf("NewTable(%v) failed: len(data)=%v is not equal to numBuckets*bucketDepth*itemSize (%v,%v,%v)", name, len(data), numBuckets, bucketDepth, itemSize)
 		return nil
 	}
-	t.data = data
-
-	t.index = make([]ItemLocation, numBuckets*bucketDepth)
 
 	return t
 }
@@ -101,14 +62,14 @@ func NewTable(name string, numBuckets int, bucketDepth int, itemSize int,
  ********************/
 
 // GetCapacity returns the total capacity of the table (numBuckets * depth)
-func (t *Table) GetCapacity() int {
+func (t *Table) GetCapacity() uint64 {
 	return t.numBuckets * t.bucketDepth
 }
 
 // GetNumElements returns the number of elements stored in the table
 // Load factor = GetNumElements() / GetCapacity()
-func (t *Table) GetNumElements() int {
-	result := 0
+func (t *Table) GetNumElements() uint64 {
+	result := uint64(0)
 	for _, itemLocation := range t.index {
 		if itemLocation.filled {
 			result++
@@ -116,6 +77,17 @@ func (t *Table) GetNumElements() int {
 	}
 
 	return result
+}
+
+// Bucket returns the bucket in a table that the Item is in, if it is in the table.
+// an invalid bucket number and an error, otherwise
+func (t *Table) Bucket(item *Item) (uint64, error) {
+	if t.isInBucket(item.Bucket1, item) {
+		return item.Bucket1, nil
+	} else if t.isInBucket(item.Bucket2, item) {
+		return item.Bucket2, nil
+	}
+	return t.numBuckets + 1, fmt.Errorf("%v.Bucket(%v): item not in table", t.name, item)
 }
 
 // Contains checks if value exists in specified buckets
@@ -135,11 +107,19 @@ func (t *Table) Contains(item *Item) bool {
 // Insert adds item into the cuckoo table, even if a duplicate value already
 // exists in table. Returns:
 // - true on success, false on failure
+// - false if item.Data is not equal to t.itemSize
 // - false if either bucket is out of range
 // - false if insertion cannot complete because reached MAX_EVICTIONS
 func (t *Table) Insert(item *Item) (bool, *Item) {
-	var nextBucket int
+	var nextBucket uint64
 	if item.Bucket1 >= t.numBuckets || item.Bucket2 >= t.numBuckets {
+		t.log.Error.Printf("Insert: invalid buckets=(%v,%v)\n", item.Bucket1, item.Bucket2)
+		return false, nil
+	}
+
+	// Check item data size
+	if uint64(len(item.Data)) != t.itemSize {
+		t.log.Error.Printf("Insert: invalid data size=%v\n", len(item.Data))
 		return false, nil
 	}
 
@@ -161,7 +141,7 @@ func (t *Table) Insert(item *Item) (bool, *Item) {
 	var ok bool
 	for i := 0; i < MaxEvictions; i++ {
 		if ok, item = t.insertAndEvict(nextBucket, item); !ok {
-			t.log.Fatalf("Lost item. Evicted, but was unable to add.")
+			t.log.Error.Fatalf("Lost item. Evicted, but was unable to add.")
 			return false, item
 		} else if item == nil {
 			return true, nil
@@ -172,7 +152,7 @@ func (t *Table) Insert(item *Item) (bool, *Item) {
 		}
 	}
 
-	//t.log.Printf("Insert: MAX %v evictions\n", MAX_EVICTIONS)
+	t.log.Error.Printf("Insert: max %v evictions\n", MaxEvictions)
 	return false, item
 }
 
@@ -185,12 +165,12 @@ func (t *Table) Insert(item *Item) (bool, *Item) {
 // - fails if either bucket is out of range
 func (t *Table) Remove(item *Item) bool {
 	if item.Bucket1 >= t.numBuckets || item.Bucket2 >= t.numBuckets {
-		//t.log.Fatalf("Failed to remove item with invalid buckets.")
+		t.log.Error.Printf("Remove: invalid buckets (%v, %v)\n", item.Bucket1, item.Bucket2)
 		return false
 	}
 
 	var result bool
-	var nextBucket int
+	var nextBucket uint64
 	coin := t.rand.Int() % 2 // Coin can be 0 or 1
 	if coin == 0 {
 		result = t.removeFromBucket(item.Bucket1, item)
@@ -211,8 +191,8 @@ func (t *Table) Remove(item *Item) bool {
 // - bucket MUST be within bounds
 // Returns: the true if `value.Equals(...)`
 // returns true for any value in bucket, false if not present
-func (t *Table) isInBucket(bucketIndex int, item *Item) bool {
-	for i := 0; i < t.bucketDepth; i++ {
+func (t *Table) isInBucket(bucketIndex uint64, item *Item) bool {
+	for i := uint64(0); i < t.bucketDepth; i++ {
 		idx := t.bucketDepth*bucketIndex + i
 		if t.index[idx].filled &&
 			t.index[idx].bucket1 == item.Bucket1 &&
@@ -228,8 +208,9 @@ func (t *Table) isInBucket(bucketIndex int, item *Item) bool {
 // If the bucket is already full, no-op
 // Preconditions:
 // - bucket MUST be within bounds
+// - item MUST contain data of size t.itemSize
 // Returns: true if success, false if bucket already full
-func (t *Table) tryInsertToBucket(bucketIndex int, item *Item) bool {
+func (t *Table) tryInsertToBucket(bucketIndex uint64, item *Item) bool {
 	// Search for an empty slot
 	for i := bucketIndex * t.bucketDepth; i < (bucketIndex+1)*t.bucketDepth; i++ {
 		if !t.index[i].filled {
@@ -248,11 +229,12 @@ func (t *Table) tryInsertToBucket(bucketIndex int, item *Item) bool {
 // Tries to insert `bucketLoc, value` into specified bucket
 // Preconditions:
 // - bucket MUST be within bounds
+// - item MUST contain data of size t.itemSize
 // Returns:
 // - (-1, BucketLocation{}, nil, true) if there's empty space and succeeds
 // - false if insertion triggered an eviction
 //   other values contain the evicted item's alternate bucket, BucketLocation pair, and value
-func (t *Table) insertAndEvict(bucketIndex int, item *Item) (bool, *Item) {
+func (t *Table) insertAndEvict(bucketIndex uint64, item *Item) (bool, *Item) {
 	if item.Bucket1 != bucketIndex && item.Bucket2 != bucketIndex {
 		return false, item
 	}
@@ -261,12 +243,12 @@ func (t *Table) insertAndEvict(bucketIndex int, item *Item) (bool, *Item) {
 	}
 
 	// Eviction
-	itemIndex := bucketIndex*t.bucketDepth + (t.rand.Int() % t.bucketDepth)
+	itemIndex := bucketIndex*t.bucketDepth + (t.rand.Uint64() % t.bucketDepth)
 	removedItem := t.getItem(itemIndex).Copy()
 	t.index[itemIndex].filled = false
 
 	if !t.tryInsertToBucket(bucketIndex, item) {
-		t.log.Fatalf("insertAndEvict: no space in bucket after eviction!")
+		t.log.Error.Fatalf("insertAndEvict: no space in bucket after eviction!")
 		return false, removedItem
 	}
 	return true, removedItem
@@ -277,7 +259,7 @@ func (t *Table) insertAndEvict(bucketIndex int, item *Item) (bool, *Item) {
 // Preconditions:
 // - bucket MUST be within bounds
 // Returns: true if succeeds, false if value not in bucket
-func (t *Table) removeFromBucket(bucketIndex int, item *Item) bool {
+func (t *Table) removeFromBucket(bucketIndex uint64, item *Item) bool {
 	for i := bucketIndex * t.bucketDepth; i < (bucketIndex+1)*t.bucketDepth; i++ {
 		if item != nil && item.Equals(t.getItem(i)) {
 			t.index[i].filled = false
@@ -287,7 +269,7 @@ func (t *Table) removeFromBucket(bucketIndex int, item *Item) bool {
 	return false
 }
 
-func (t *Table) getItem(itemIndex int) *Item {
+func (t *Table) getItem(itemIndex uint64) *Item {
 	if !t.index[itemIndex].filled {
 		return nil
 	}

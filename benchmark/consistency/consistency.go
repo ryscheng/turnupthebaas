@@ -36,7 +36,16 @@ func main() {
 	var config *libtalek.ClientConfig
 	if *integrated {
 		//Common Config
-		conf := &common.Config{1024, 4, 256, 0.05, 0.95, 0.05}
+		conf := &common.Config{
+			NumBuckets:         uint64(1024),
+			BucketDepth:        uint64(4),
+			DataSize:           uint64(256),
+			BloomFalsePositive: float64(0.05),
+			WriteInterval:      time.Second * 5,
+			ReadInterval:       time.Second * 5,
+			MaxLoadFactor:      float64(0.95),
+			LoadFactorStep:     float64(0.05),
+		}
 		//Trust domains
 		td1 := common.NewTrustDomainConfig("td1", "localhost:9001", true, false)
 		td2 := common.NewTrustDomainConfig("td2", "localhost:9002", true, false)

@@ -26,8 +26,8 @@ func testConf() Config {
 	return Config{
 		Config: &common.Config{
 			NumBuckets:         uint64(fromEnvOrDefault("NUM_BUCKETS", 512)),
-			BucketDepth:        fromEnvOrDefault("BUCKET_DEPTH", 4),
-			DataSize:           fromEnvOrDefault("DATA_SIZE", 512),
+			BucketDepth:        uint64(fromEnvOrDefault("BUCKET_DEPTH", 4)),
+			DataSize:           uint64(fromEnvOrDefault("DATA_SIZE", 512)),
 			BloomFalsePositive: 0.95,
 			MaxLoadFactor:      0.95,
 			LoadFactorStep:     0.02,
@@ -41,19 +41,23 @@ func testConf() Config {
 }
 
 func TestShardSanity(t *testing.T) {
-	shard := NewShard("Test Shard", "cpu.0", testConf())
+	conf := testConf()
+	shard := NewShard("Test Shard", "cpu.0", conf)
 	if shard == nil {
 		t.Error("Failed to create shard.")
 		return
 	}
 
 	writeReplyChan := make(chan *common.WriteReply)
+
+	data := make([]byte, conf.Config.DataSize)
+	copy(data, bytes.NewBufferString("Magic").Bytes())
 	shard.Write(&common.ReplicaWriteArgs{
 		WriteArgs: common.WriteArgs{
 			Bucket1:        0,
 			Bucket2:        1,
-			Data:           bytes.NewBufferString("Magic").Bytes(),
-			InterestVector: []byte{},
+			Data:           data,
+			InterestVector: []uint64{},
 			ReplyChan:      writeReplyChan,
 		},
 		EpochFlag: false,
@@ -96,7 +100,12 @@ func BenchmarkShard(b *testing.B) {
 	replychan := make(chan *common.BatchReadReply)
 
 	//A default write request
-	stdWrite := common.WriteArgs{Bucket1: 0, Bucket2: 1, Data: bytes.NewBufferString("Magic").Bytes(), InterestVector: []byte{}}
+	stdWrite := common.WriteArgs{
+		Bucket1:        0,
+		Bucket2:        1,
+		Data:           bytes.NewBufferString("Magic").Bytes(),
+		InterestVector: []uint64{},
+	}
 	shardWrite := &common.ReplicaWriteArgs{
 		WriteArgs: stdWrite,
 		EpochFlag: false,

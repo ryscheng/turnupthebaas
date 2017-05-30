@@ -16,7 +16,7 @@ type WriteArgs struct {
 	Bucket1        uint64
 	Bucket2        uint64
 	Data           []byte
-	InterestVector []byte
+	InterestVector []uint64
 	//Internal
 	GlobalSeqNo uint64
 	ReplyChan   chan *WriteReply
