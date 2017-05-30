@@ -80,14 +80,14 @@ func (t *Table) GetNumElements() uint64 {
 }
 
 // Bucket returns the bucket in a table that the Item is in, if it is in the table.
-// -1 otherwise
+// an invalid bucket number and an error, otherwise
 func (t *Table) Bucket(item *Item) (uint64, error) {
 	if t.isInBucket(item.Bucket1, item) {
 		return item.Bucket1, nil
 	} else if t.isInBucket(item.Bucket2, item) {
 		return item.Bucket2, nil
 	}
-	return 0, fmt.Errorf("%v.Bucket(%v): item not in table", t.name, item)
+	return t.numBuckets + 1, fmt.Errorf("%v.Bucket(%v): item not in table", t.name, item)
 }
 
 // Contains checks if value exists in specified buckets
