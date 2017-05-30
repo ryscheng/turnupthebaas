@@ -24,6 +24,7 @@ func NewClient(name string, address string) *Client {
 	c.name = name
 	c.address = address
 	c.client = nil // Lazily dial as necessary
+	c.lastErr = nil
 	return c
 }
 

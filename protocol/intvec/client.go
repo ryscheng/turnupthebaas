@@ -22,6 +22,7 @@ func NewClient(name string, address string) *Client {
 	c.name = name
 	c.address = address
 	c.client = nil // Lazily dial as necessary
+	c.lastErr = nil
 	return c
 }
 
@@ -37,6 +38,6 @@ func (c *Client) Close() error {
 
 // GetIntVec retrieves the global interest vector
 func (c *Client) GetIntVec(args *GetIntVecArgs, reply *GetIntVecReply) error {
-	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.GetIntVec", &args, reply)
+	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.GetIntVec", args, reply)
 	return c.lastErr
 }

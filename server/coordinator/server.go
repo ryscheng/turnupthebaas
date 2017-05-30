@@ -136,14 +136,14 @@ func (s *Server) GetLayout(args *layout.GetLayoutArgs, reply *layout.GetLayoutRe
 	// Check for correct snapshot ID
 	reply.SnapshotID = s.snapshotCount
 	if args.SnapshotID != s.snapshotCount {
-		reply.Err = "Invalid SnapshotID"
+		reply.Err = layout.ErrorInvalidSnapshotID
 		s.lock.RUnlock()
 		return nil
 	}
 
 	// Check non-zero NumShards
 	if args.NumShards < 1 {
-		reply.Err = "NumShards must be > 0"
+		reply.Err = layout.ErrorInvalidNumShards
 		s.lock.RUnlock()
 		return nil
 	}
@@ -151,7 +151,7 @@ func (s *Server) GetLayout(args *layout.GetLayoutArgs, reply *layout.GetLayoutRe
 	shardSize := uint64(len(s.lastLayout)) / args.NumShards
 	idx := args.ShardID * shardSize
 	if idx < 0 || (idx+shardSize) > uint64(len(s.lastLayout)) {
-		reply.Err = "Out of bounds ShardID"
+		reply.Err = layout.ErrorInvalidShardID
 	} else {
 		reply.Err = ""
 		reply.Layout = s.lastLayout[idx:(idx + shardSize)]

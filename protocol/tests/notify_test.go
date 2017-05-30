@@ -9,7 +9,7 @@ import (
 
 func TestNotify(t *testing.T) {
 	testAddr := randAddr()
-	s, err := server.NewServer("test", testAddr, true, testConfig())
+	s, err := server.NewServer("test", testAddr, true, testConfig(), 0)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}

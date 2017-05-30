@@ -22,6 +22,7 @@ func NewClient(name string, address string) *Client {
 	c.name = name
 	c.address = address
 	c.client = nil // Lazily dial as necessary
+	c.lastErr = nil
 	return c
 }
 
@@ -37,6 +38,6 @@ func (c *Client) Close() error {
 
 // Notify tells the server of a new snapshot
 func (c *Client) Notify(args *Args, reply *Reply) error {
-	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.Notify", &args, reply)
+	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.Notify", args, reply)
 	return c.lastErr
 }

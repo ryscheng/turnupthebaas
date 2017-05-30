@@ -19,20 +19,23 @@ type Server struct {
 	name       string
 	addr       string
 	networkRPC *server.NetworkRPC
+	config     common.Config // Config
+	group      uint64
 
 	// Thread-safe (organized by lock scope)
-	lock         *sync.Mutex
-	config       common.Config // Config
+	lock         *sync.RWMutex
 	snapshotID   uint64
-	messages     map[uint64]*common.WriteArgs
 	layoutAddr   string
 	layoutClient *layout.Client
+
+	msgLock  *sync.Mutex
+	messages map[uint64]*common.WriteArgs
 
 	// Channels
 }
 
 // NewServer creates a new replica server
-func NewServer(name string, addr string, listenRPC bool, config common.Config) (*Server, error) {
+func NewServer(name string, addr string, listenRPC bool, config common.Config, group uint64) (*Server, error) {
 	s := &Server{}
 	s.log = common.NewLogger(name)
 	s.name = name
@@ -41,10 +44,15 @@ func NewServer(name string, addr string, listenRPC bool, config common.Config) (
 	if listenRPC {
 		s.networkRPC = server.NewNetworkRPCAddr(s, addr)
 	}
-
-	s.lock = &sync.Mutex{}
 	s.config = config
+	s.group = group
+
+	s.lock = &sync.RWMutex{}
 	s.snapshotID = 0
+	s.layoutAddr = ""
+	s.layoutClient = layout.NewClient(s.name, "")
+
+	s.msgLock = &sync.Mutex{}
 	s.messages = make(map[uint64]*common.WriteArgs)
 
 	s.log.Info.Printf("replica.NewServer(%v) success\n", name)
@@ -59,13 +67,13 @@ func NewServer(name string, addr string, listenRPC bool, config common.Config) (
 func (s *Server) GetInfo(args *interface{}, reply *replica.GetInfoReply) error {
 	tr := trace.New("Replica", "GetInfo")
 	defer tr.Finish()
-	s.lock.Lock()
+	s.lock.RLock()
 
 	reply.Err = ""
 	reply.Name = s.name
 	reply.SnapshotID = s.snapshotID
 
-	s.lock.Unlock()
+	s.lock.RUnlock()
 	return nil
 }
 
@@ -73,12 +81,12 @@ func (s *Server) GetInfo(args *interface{}, reply *replica.GetInfoReply) error {
 func (s *Server) Notify(args *notify.Args, reply *notify.Reply) error {
 	tr := trace.New("Replica", "Notify")
 	defer tr.Finish()
-	s.lock.Lock()
+	//s.lock.RLock()
 
 	go s.GetLayout(args.Addr, args.SnapshotID)
 	reply.Err = ""
 
-	s.lock.Unlock()
+	//s.lock.RUnlock()
 	return nil
 }
 
@@ -86,12 +94,12 @@ func (s *Server) Notify(args *notify.Args, reply *notify.Reply) error {
 func (s *Server) Write(args *common.WriteArgs, reply *common.WriteReply) error {
 	tr := trace.New("Replica", "Write")
 	defer tr.Finish()
-	s.lock.Lock()
+	s.msgLock.Lock()
 
 	s.messages[args.ID] = args
 	reply.Err = ""
 
-	s.lock.Unlock()
+	s.msgLock.Unlock()
 	return nil
 }
 
@@ -99,12 +107,12 @@ func (s *Server) Write(args *common.WriteArgs, reply *common.WriteReply) error {
 func (s *Server) Read(args *replica.ReadArgs, reply *replica.ReadReply) error {
 	tr := trace.New("Replica", "Read")
 	defer tr.Finish()
-	s.lock.Lock()
+	s.lock.RLock()
 
 	if s.snapshotID < args.SnapshotID {
 		go s.GetLayout(s.layoutAddr, args.SnapshotID)
 		reply.Err = "Need updated layout. Try again later."
-		s.lock.Unlock()
+		s.lock.RUnlock()
 		return nil
 	}
 
@@ -112,7 +120,7 @@ func (s *Server) Read(args *replica.ReadArgs, reply *replica.ReadReply) error {
 
 	reply.Err = ""
 
-	s.lock.Unlock()
+	s.lock.RUnlock()
 	return nil
 }
 
@@ -122,7 +130,7 @@ func (s *Server) Read(args *replica.ReadArgs, reply *replica.ReadReply) error {
 
 // Close shuts down the server
 func (s *Server) Close() {
-	s.log.Info.Printf("%v.Close: success", s.name)
+	s.log.Info.Printf("%v.Close: success\n", s.name)
 	//s.lock.Lock()
 
 	if s.networkRPC != nil {
@@ -136,17 +144,22 @@ func (s *Server) Close() {
 // SetLayoutAddr will set the address and RPC client towards the server from which we get layouts
 // Note: This will do nothing if addr is the same as we've seen before
 func (s *Server) SetLayoutAddr(addr string) {
-	s.lock.Lock()
-
-	if s.layoutAddr != addr {
-		if s.layoutClient != nil {
-			s.layoutClient.Close()
-			s.layoutClient = nil
-		}
-		s.layoutAddr = addr
-		s.layoutClient = layout.NewClient(s.name, addr)
+	// Check if layoutAddr has changed
+	s.lock.RLock()
+	if s.layoutAddr == addr {
+		s.lock.RUnlock()
+		return
 	}
+	s.lock.RUnlock()
 
+	// Setup a new RPC client
+	s.lock.Lock()
+	if s.layoutClient != nil {
+		s.layoutClient.Close()
+	}
+	s.layoutAddr = addr
+	s.layoutClient = layout.NewClient(s.name, addr)
+	s.log.Info.Printf("%v.SetLayoutAddr(%v): success\n", s.name, addr)
 	s.lock.Unlock()
 }
 
@@ -157,20 +170,46 @@ func (s *Server) GetLayout(addr string, snapshotID uint64) {
 
 	// Try to establish an RPC client to server. Does nothing if addr is seen before
 	s.SetLayoutAddr(addr)
+	// Locked region
 	s.lock.Lock()
 
-	//var reply layout.GetLayoutReply
-	//args := &layout.GetLayoutArgs{
-	//SnapshotID: snapshotID,
-	//ShardID: ,
-	//NumShards: ,
-	//}
-	// @todo + gc s.messages
+	// Do RPC
+	layoutSize := s.config.NumBucketsPerShard * s.config.NumShardsPerGroup
+	var reply layout.GetLayoutReply
+	args := &layout.GetLayoutArgs{
+		SnapshotID: snapshotID,
+		ShardID:    s.group,
+		NumShards:  s.config.NumBuckets / layoutSize,
+	}
+	err := s.layoutClient.GetLayout(args, &reply)
 
-	// if wrong snapshotID
-	//go s.GetLayout(addr, reply.SnapshotID)
+	// Error handling
+	if err != nil {
+		s.log.Error.Printf("%v.GetLayout(%v, %v) returns error: %v, giving up.\n", s.name, addr, snapshotID, err)
+		s.lock.Unlock()
+		return
+	} else if reply.Err == layout.ErrorInvalidSnapshotID {
+		s.log.Error.Printf("%v.GetLayout(%v, %v) failed with invalid SnapshotID=%v, should be %v. Trying again.\n", s.name, addr, snapshotID, args.SnapshotID, reply.SnapshotID)
+		go s.GetLayout(addr, reply.SnapshotID)
+		s.lock.Unlock()
+		return
+	} else if reply.Err == layout.ErrorInvalidShardID {
+		s.log.Error.Printf("%v.GetLayout(%v, %v) failed with invalid ShardID=%v, giving up.\n", s.name, addr, snapshotID, args.ShardID)
+		s.lock.Unlock()
+		return
+	} else if reply.Err == layout.ErrorInvalidNumShards {
+		s.log.Error.Printf("%v.GetLayout(%v, %v) failed with invalid NumShards=%v, giving up.\n", s.name, addr, snapshotID, args.NumShards)
+		s.lock.Unlock()
+		return
+	}
 
-	// reply.Layout
+	// Build shards
+	for i := uint64(0); i < s.config.NumShardsPerGroup; i++ {
+		// reply.Layout
+
+	}
+
+	// Garbage collect s.messages
 
 	// Only set on success
 	s.snapshotID = snapshotID
