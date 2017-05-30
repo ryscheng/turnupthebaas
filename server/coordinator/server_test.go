@@ -11,6 +11,8 @@ import (
 	"github.com/privacylab/talek/bloom"
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/protocol/coordinator"
+	"github.com/privacylab/talek/protocol/intvec"
+	"github.com/privacylab/talek/protocol/layout"
 	"github.com/privacylab/talek/protocol/notify"
 )
 
@@ -179,12 +181,12 @@ func TestGetLayoutInvalidSnapshotID(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	args := &coordinator.GetLayoutArgs{
+	args := &layout.GetLayoutArgs{
 		SnapshotID: 100,
 		ShardID:    0,
 		NumShards:  1,
 	}
-	reply := &coordinator.GetLayoutReply{}
+	reply := &layout.GetLayoutReply{}
 	if s.GetLayout(args, reply) != nil {
 		t.Errorf("Error calling GetLayout: %v", err)
 	}
@@ -199,12 +201,12 @@ func TestGetLayoutInvalidNumShards(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	args := &coordinator.GetLayoutArgs{
+	args := &layout.GetLayoutArgs{
 		SnapshotID: 0,
 		ShardID:    0,
 		NumShards:  0,
 	}
-	reply := &coordinator.GetLayoutReply{}
+	reply := &layout.GetLayoutReply{}
 	if s.GetLayout(args, reply) != nil {
 		t.Errorf("Error calling GetLayout: %v", err)
 	}
@@ -219,12 +221,12 @@ func TestGetLayoutInvalidShardID(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	args := &coordinator.GetLayoutArgs{
+	args := &layout.GetLayoutArgs{
 		SnapshotID: 0,
 		ShardID:    4,
 		NumShards:  4,
 	}
-	reply := &coordinator.GetLayoutReply{}
+	reply := &layout.GetLayoutReply{}
 	if s.GetLayout(args, reply) != nil {
 		t.Errorf("Error calling GetLayout: %v", err)
 	}
@@ -239,12 +241,12 @@ func TestGetLayoutEmpty(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	args := &coordinator.GetLayoutArgs{
+	args := &layout.GetLayoutArgs{
 		SnapshotID: 0,
 		ShardID:    0,
 		NumShards:  1,
 	}
-	reply := &coordinator.GetLayoutReply{}
+	reply := &layout.GetLayoutReply{}
 	if s.GetLayout(args, reply) != nil {
 		t.Errorf("Error calling GetLayout: %v", err)
 	}
@@ -264,8 +266,8 @@ func TestGetIntVecInvalidSnapshotID(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	args := &coordinator.GetIntVecArgs{SnapshotID: 100}
-	reply := &coordinator.GetIntVecReply{}
+	args := &intvec.GetIntVecArgs{SnapshotID: 100}
+	reply := &intvec.GetIntVecReply{}
 	if s.GetIntVec(args, reply) != nil {
 		t.Errorf("Error calling GetIntVec: %v", err)
 	}
@@ -280,8 +282,8 @@ func TestGetIntVecEmpty(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	args := &coordinator.GetIntVecArgs{SnapshotID: 0}
-	reply := &coordinator.GetIntVecReply{}
+	args := &intvec.GetIntVecArgs{SnapshotID: 0}
+	reply := &intvec.GetIntVecReply{}
 	if s.GetIntVec(args, reply) != nil {
 		t.Errorf("Error calling GetIntVec: %v", err)
 	}

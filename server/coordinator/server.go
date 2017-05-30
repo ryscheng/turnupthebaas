@@ -11,6 +11,8 @@ import (
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/cuckoo"
 	"github.com/privacylab/talek/protocol/coordinator"
+	"github.com/privacylab/talek/protocol/intvec"
+	"github.com/privacylab/talek/protocol/layout"
 	"github.com/privacylab/talek/protocol/notify"
 	"github.com/privacylab/talek/server"
 	"golang.org/x/net/trace"
@@ -126,7 +128,7 @@ func (s *Server) GetCommonConfig(args *interface{}, reply *common.Config) error 
 }
 
 // GetLayout returns the layout for a shard
-func (s *Server) GetLayout(args *coordinator.GetLayoutArgs, reply *coordinator.GetLayoutReply) error {
+func (s *Server) GetLayout(args *layout.GetLayoutArgs, reply *layout.GetLayoutReply) error {
 	tr := trace.New("Coordinator", "GetLayout")
 	defer tr.Finish()
 	s.lock.RLock()
@@ -160,7 +162,7 @@ func (s *Server) GetLayout(args *coordinator.GetLayoutArgs, reply *coordinator.G
 }
 
 // GetIntVec returns the global interest vector
-func (s *Server) GetIntVec(args *coordinator.GetIntVecArgs, reply *coordinator.GetIntVecReply) error {
+func (s *Server) GetIntVec(args *intvec.GetIntVecArgs, reply *intvec.GetIntVecReply) error {
 	tr := trace.New("Coordinator", "GetIntVec")
 	defer tr.Finish()
 	s.lock.RLock()

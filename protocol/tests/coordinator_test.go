@@ -6,6 +6,8 @@ import (
 
 	"github.com/privacylab/talek/common"
 	protocol "github.com/privacylab/talek/protocol/coordinator"
+	"github.com/privacylab/talek/protocol/intvec"
+	"github.com/privacylab/talek/protocol/layout"
 	server "github.com/privacylab/talek/server/coordinator"
 )
 
@@ -25,10 +27,10 @@ func TestCoordinator(t *testing.T) {
 	if err = cc.GetCommonConfig(nil, &common.Config{}); err != nil {
 		t.Errorf("Error calling GetCommonConfig: %v", err)
 	}
-	if err = cc.GetLayout(&protocol.GetLayoutArgs{}, &protocol.GetLayoutReply{}); err != nil {
+	if err = cc.GetLayout(&layout.GetLayoutArgs{}, &layout.GetLayoutReply{}); err != nil {
 		t.Errorf("Error calling GetLayout: %v", err)
 	}
-	if err = cc.GetIntVec(&protocol.GetIntVecArgs{}, &protocol.GetIntVecReply{}); err != nil {
+	if err = cc.GetIntVec(&intvec.GetIntVecArgs{}, &intvec.GetIntVecReply{}); err != nil {
 		t.Errorf("Error calling GetIntVec: %v", err)
 	}
 	if err = cc.Commit(&protocol.CommitArgs{}, &protocol.CommitReply{}); err != nil {

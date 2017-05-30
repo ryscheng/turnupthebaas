@@ -4,6 +4,8 @@ import (
 	"net/rpc"
 
 	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/protocol/intvec"
+	"github.com/privacylab/talek/protocol/layout"
 )
 
 // Client is a stub for RPCs to the central coordinator server.
@@ -50,13 +52,13 @@ func (c *Client) GetCommonConfig(_ *interface{}, reply *common.Config) error {
 }
 
 // GetLayout provides the layout for a shard
-func (c *Client) GetLayout(args *GetLayoutArgs, reply *GetLayoutReply) error {
+func (c *Client) GetLayout(args *layout.GetLayoutArgs, reply *layout.GetLayoutReply) error {
 	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.GetLayout", args, reply)
 	return c.lastErr
 }
 
 // GetIntVec provides the global interest vector
-func (c *Client) GetIntVec(args *GetIntVecArgs, reply *GetIntVecReply) error {
+func (c *Client) GetIntVec(args *intvec.GetIntVecArgs, reply *intvec.GetIntVecReply) error {
 	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.GetIntVec", args, reply)
 	return c.lastErr
 }
