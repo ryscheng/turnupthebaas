@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/protocol/layout"
 	"github.com/privacylab/talek/protocol/notify"
 	"github.com/privacylab/talek/protocol/replica"
 	"github.com/privacylab/talek/server"
@@ -20,10 +21,12 @@ type Server struct {
 	networkRPC *server.NetworkRPC
 
 	// Thread-safe (organized by lock scope)
-	lock       *sync.Mutex
-	config     common.Config // Config
-	snapshotID uint64
-	messages   map[uint64]*common.WriteArgs
+	lock         *sync.Mutex
+	config       common.Config // Config
+	snapshotID   uint64
+	messages     map[uint64]*common.WriteArgs
+	layoutAddr   string
+	layoutClient *layout.Client
 
 	// Channels
 }
@@ -72,7 +75,7 @@ func (s *Server) Notify(args *notify.Args, reply *notify.Reply) error {
 	defer tr.Finish()
 	s.lock.Lock()
 
-	go s.GetLayout(args.SnapshotID)
+	go s.GetLayout(args.Addr, args.SnapshotID)
 	reply.Err = ""
 
 	s.lock.Unlock()
@@ -99,7 +102,7 @@ func (s *Server) Read(args *replica.ReadArgs, reply *replica.ReadReply) error {
 	s.lock.Lock()
 
 	if s.snapshotID < args.SnapshotID {
-		go s.GetLayout(args.SnapshotID)
+		go s.GetLayout(s.layoutAddr, args.SnapshotID)
 		reply.Err = "Need updated layout. Try again later."
 		s.lock.Unlock()
 		return nil
@@ -120,18 +123,52 @@ func (s *Server) Read(args *replica.ReadArgs, reply *replica.ReadReply) error {
 // Close shuts down the server
 func (s *Server) Close() {
 	s.log.Info.Printf("%v.Close: success", s.name)
+	s.lock.Lock()
+
 	if s.networkRPC != nil {
 		s.networkRPC.Kill()
+		s.networkRPC = nil
 	}
+
+	s.lock.Unlock()
+}
+
+// SetLayoutAddr will set the address and RPC client towards the server from which we get layouts
+// Note: This will do nothing if addr is the same as we've seen before
+func (s *Server) SetLayoutAddr(addr string) {
+	s.lock.Lock()
+
+	if s.layoutAddr != addr {
+		if s.layoutClient != nil {
+			s.layoutClient.Close()
+			s.layoutClient = nil
+		}
+		s.layoutAddr = addr
+		s.layoutClient = layout.NewClient(s.name, addr)
+	}
+
+	s.lock.Unlock()
 }
 
 // GetLayout will fetch the layout for a snapshotID and apply it locally
-func (s *Server) GetLayout(snapshotID uint64) {
+func (s *Server) GetLayout(addr string, snapshotID uint64) {
 	tr := trace.New("Replica", "GetLayout")
 	defer tr.Finish()
+
+	// Try to establish an RPC client to server. Does nothing if addr is seen before
+	s.SetLayoutAddr(addr)
 	s.lock.Lock()
 
+	var reply layout.GetLayoutReply
+	args := &layout.GetLayoutArgs{
+		SnapshotID: snapshotID,
+		//ShardID: ,
+		//NumShards: ,
+	}
 	// @todo + gc s.messages
+
+	// Only set on success
+	s.snapshotID = snapshotID
 
 	s.lock.Unlock()
 }

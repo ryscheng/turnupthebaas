@@ -220,10 +220,15 @@ func (s *Server) Commit(args *coordinator.CommitArgs, reply *coordinator.CommitR
 // Close shuts down the server
 func (s *Server) Close() {
 	s.log.Info.Printf("%v.Close: success", s.name)
+	s.lock.Lock()
+
 	s.closeChan <- true
 	if s.networkRPC != nil {
 		s.networkRPC.Kill()
+		s.networkRPC = nil
 	}
+
+	s.lock.Unlock()
 }
 
 // AddServer adds a server to the list that is notified on snapshot changes
