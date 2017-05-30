@@ -123,14 +123,14 @@ func (s *Server) Read(args *replica.ReadArgs, reply *replica.ReadReply) error {
 // Close shuts down the server
 func (s *Server) Close() {
 	s.log.Info.Printf("%v.Close: success", s.name)
-	s.lock.Lock()
+	//s.lock.Lock()
 
 	if s.networkRPC != nil {
 		s.networkRPC.Kill()
 		s.networkRPC = nil
 	}
 
-	s.lock.Unlock()
+	//s.lock.Unlock()
 }
 
 // SetLayoutAddr will set the address and RPC client towards the server from which we get layouts
