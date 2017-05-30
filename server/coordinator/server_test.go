@@ -36,7 +36,7 @@ func testConfig() common.Config {
 	}
 }
 
-func afterEach(server *Server, mockChan []chan bool) {
+func afterEach(server *Server, mockChan []chan *notify.Args) {
 	if server != nil {
 		server.Close()
 	}
@@ -48,23 +48,23 @@ func afterEach(server *Server, mockChan []chan bool) {
 }
 
 type MockServer struct {
-	Done chan bool
+	Done chan *notify.Args
 }
 
 func NewMockServer() *MockServer {
 	s := &MockServer{}
-	s.Done = make(chan bool)
+	s.Done = make(chan *notify.Args)
 	return s
 }
 
 func (s *MockServer) Notify(args *notify.Args, reply *notify.Reply) error {
-	s.Done <- true
+	s.Done <- args
 	return fmt.Errorf("test")
 }
 
-func setupMocks(n int) ([]notify.Interface, []chan bool) {
+func setupMocks(n int) ([]notify.Interface, []chan *notify.Args) {
 	servers := make([]notify.Interface, n)
-	channels := make([]chan bool, n)
+	channels := make([]chan *notify.Args, n)
 	for i := 0; i < n; i++ {
 		s := NewMockServer()
 		servers[i] = s
@@ -126,9 +126,13 @@ func TestSendNotification(t *testing.T) {
 	log := common.NewLogger("test")
 	sendNotification(log, mocks, 10, "")
 	// Wait for all notifications
+
 	for i := 0; i < numServers; i++ {
 		select {
-		case <-channels[i]:
+		case args := <-channels[i]:
+			if args.SnapshotID != 10 {
+				t.Errorf("Wrong SnapshotID in notify")
+			}
 			continue
 		case <-time.After(time.Second):
 			t.Errorf("Timed out before every server got a notification")
@@ -331,13 +335,15 @@ func TestAddServer(t *testing.T) {
 
 func TestSnapshot(t *testing.T) {
 	numServers := 3
+	config := testConfig()
 	mocks, channels := setupMocks(numServers)
-	s, err := NewServer("test", testAddr, false, testConfig(), mocks, 5, time.Hour)
+	s, err := NewServer("test", testAddr, false, config, mocks, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
 	// Add a commit
-	if s.Commit(newCommit(), &coordinator.CommitReply{}) != nil {
+	commit := newCommit()
+	if s.Commit(commit, &coordinator.CommitReply{}) != nil {
 		t.Errorf("Error calling Commit: %v", err)
 	}
 	// Force a snapshot
@@ -345,13 +351,48 @@ func TestSnapshot(t *testing.T) {
 	// Wait for all notifications
 	for i := 0; i < numServers; i++ {
 		select {
-		case <-channels[i]:
+		case args := <-channels[i]:
+			if args.SnapshotID != 1 {
+				t.Errorf("Wrong SnapshotID in notify")
+			}
 			continue
 		case <-time.After(time.Second):
 			t.Errorf("Timed out before every server got a notification")
 			break
 		}
 	}
+	// Check layout
+	layoutArgs := &coordinator.GetLayoutArgs{SnapshotID: 1, ShardID: 0, NumShards: 1}
+	layoutReply := &coordinator.GetLayoutReply{}
+	if s.GetLayout(layoutArgs, layoutReply) != nil {
+		t.Errorf("Error calling GetLayout: %v", err)
+	}
+	if layoutReply.Err != "" || layoutReply.SnapshotID != 1 {
+		t.Errorf("GetLayout error: %v", layoutReply)
+	}
+	for i, id := range layoutReply.Layout {
+		if id == commit.ID {
+			bucket := uint64(i) / config.BucketDepth
+			if bucket != commit.Bucket1 && bucket != commit.Bucket2 {
+				t.Errorf("Invalid layout. Commit not in correct location")
+			}
+		}
+	}
+	// Check interest vector
+	intVecArgs := &coordinator.GetIntVecArgs{SnapshotID: 1}
+	intVecReply := &coordinator.GetIntVecReply{}
+	if s.GetIntVec(intVecArgs, intVecReply) != nil {
+		t.Errorf("Error calling GetIntVec: %v", err)
+	}
+	if intVecReply.Err != "" || intVecReply.SnapshotID != 1 {
+		t.Errorf("GetIntVec error: %v", intVecReply)
+	}
+	numBits, _ := bloom.EstimateParameters(config.WindowSize(), config.BloomFalsePositive)
+	intVec := bloom.From(numBits, intVecReply.IntVec)
+	if !bloom.Equal(intVec, bloom.SetLocations(bloom.NewBitSet(numBits), commit.IntVecLoc)) {
+		t.Errorf("Invalid interest vector. Commit not included")
+	}
+
 	afterEach(s, channels)
 }
 
@@ -372,7 +413,10 @@ func TestSnapshotThreshold(t *testing.T) {
 	// Wait for all notifications
 	for i := 0; i < numServers; i++ {
 		select {
-		case <-channels[i]:
+		case args := <-channels[i]:
+			if args.SnapshotID != 1 {
+				t.Errorf("Wrong SnapshotID in notify")
+			}
 			continue
 		case <-time.After(time.Second):
 			t.Errorf("Timed out before every server got a notification")
@@ -395,7 +439,10 @@ func TestSnapshotTimer(t *testing.T) {
 	// Wait for all notifications
 	for i := 0; i < numServers; i++ {
 		select {
-		case <-channels[i]:
+		case args := <-channels[i]:
+			if args.SnapshotID != 1 {
+				t.Errorf("Wrong SnapshotID in notify")
+			}
 			continue
 		case <-time.After(time.Second):
 			t.Errorf("Timed out before every server got a notification")
