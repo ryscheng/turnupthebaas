@@ -55,3 +55,27 @@ func TestGetInfo(t *testing.T) {
 	}
 	s.Close()
 }
+
+func TestNotify(t *testing.T) {
+}
+
+func TestWrite(t *testing.T) {
+}
+
+func TestRead(t *testing.T) {
+}
+
+func TestSetLayoutAddr(t *testing.T) {
+}
+
+func TestGetLayout(t *testing.T) {
+}
+
+func TestApplyLayout(t *testing.T) {
+}
+
+func TestSetShards(t *testing.T) {
+}
+
+func TestNewLayout(t *testing.T) {
+}

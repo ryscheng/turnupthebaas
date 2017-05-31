@@ -213,7 +213,7 @@ func (s *Server) GetLayout(snapshotID uint64) (uint64, []uint64) {
 	// Error handling
 	if err != nil {
 		s.log.Error.Printf("%v.GetLayout(%v) returns error: %v, giving up.\n", s.name, snapshotID, err)
-		s.lock.Unlock()
+		s.lock.RUnlock()
 		return snapshotID, nil
 	} else if reply.Err == layout.ErrorInvalidSnapshotID {
 		s.log.Error.Printf("%v.GetLayout(%v) failed with invalid SnapshotID, should be %v. Trying again.\n", s.name, snapshotID, reply.SnapshotID)
@@ -252,7 +252,8 @@ func (s *Server) ApplyLayout(layout []uint64) []pirinterface.Shard {
 			msg, ok := s.messages[id]
 			if !ok {
 				s.log.Error.Printf("ApplyLayout() failed. Missing message ID=%v, giving up.\n", id)
-				s.lock.Unlock()
+				s.msgLock.Unlock()
+				s.lock.RUnlock()
 				return nil
 			}
 			// msg.Data is the correct size as per assertion in Write()
