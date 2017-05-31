@@ -86,7 +86,7 @@ func (s *Server) Notify(args *notify.Args, reply *notify.Reply) error {
 	defer tr.Finish()
 	//s.lock.RLock()
 
-	go s.GetLayout(args.Addr, args.SnapshotID)
+	go s.NewLayout(args.Addr, args.SnapshotID)
 	reply.Err = ""
 
 	//s.lock.RUnlock()
@@ -119,7 +119,7 @@ func (s *Server) Read(args *replica.ReadArgs, reply *replica.ReadReply) error {
 	s.lock.RLock()
 
 	if s.snapshotID < args.SnapshotID {
-		go s.GetLayout(s.layoutAddr, args.SnapshotID)
+		go s.NewLayout(s.layoutAddr, args.SnapshotID)
 		reply.Err = "Need updated layout. Try again later."
 		s.lock.RUnlock()
 		return nil
@@ -151,6 +151,28 @@ func (s *Server) Close() {
 	//s.lock.Unlock()
 }
 
+// NewLayout will attempt to fetch the new layout from the given addr and apply it to local shards
+// snapshotID is a hint of the current snapshotID, but can be corrected in an RPC to GetLayout
+func (s *Server) NewLayout(addr string, snapshotID uint64) {
+	tr := trace.New("Replica", "NewLayout")
+	defer tr.Finish()
+	// Try to establish an RPC client to server. Does nothing if addr is seen before
+	s.SetLayoutAddr(addr)
+	// Fetch Layout
+	snapshotID, layout := s.GetLayout(snapshotID)
+	if layout == nil {
+		return
+	}
+	// Construct new shards
+	shards := s.ApplyLayout(layout)
+	if shards == nil {
+		return
+	}
+	// Only set on success
+	s.SetShards(snapshotID, shards)
+
+}
+
 // SetLayoutAddr will set the address and RPC client towards the server from which we get layouts
 // Note: This will do nothing if addr is the same as we've seen before
 func (s *Server) SetLayoutAddr(addr string) {
@@ -174,15 +196,10 @@ func (s *Server) SetLayoutAddr(addr string) {
 }
 
 // GetLayout will fetch the layout for a snapshotID and apply it locally
-func (s *Server) GetLayout(addr string, snapshotID uint64) {
-	tr := trace.New("Replica", "GetLayout")
-	defer tr.Finish()
-
-	// Try to establish an RPC client to server. Does nothing if addr is seen before
-	s.SetLayoutAddr(addr)
-	// Locked region
-	s.lock.Lock()
-
+// Will retry if learns of a newer snapshotID
+// Returns snapshotID and layout
+func (s *Server) GetLayout(snapshotID uint64) (uint64, []uint64) {
+	s.lock.RLock()
 	// Do RPC
 	layoutSize := s.config.NumBucketsPerShard * s.config.NumShardsPerGroup
 	var reply layout.GetLayoutReply
@@ -195,55 +212,42 @@ func (s *Server) GetLayout(addr string, snapshotID uint64) {
 
 	// Error handling
 	if err != nil {
-		s.log.Error.Printf("%v.GetLayout(%v, %v) returns error: %v, giving up.\n", s.name, addr, snapshotID, err)
+		s.log.Error.Printf("%v.GetLayout(%v) returns error: %v, giving up.\n", s.name, snapshotID, err)
 		s.lock.Unlock()
-		return
+		return snapshotID, nil
 	} else if reply.Err == layout.ErrorInvalidSnapshotID {
-		s.log.Error.Printf("%v.GetLayout(%v, %v) failed with invalid SnapshotID=%v, should be %v. Trying again.\n", s.name, addr, snapshotID, args.SnapshotID, reply.SnapshotID)
-		go s.GetLayout(addr, reply.SnapshotID)
-		s.lock.Unlock()
-		return
+		s.log.Error.Printf("%v.GetLayout(%v) failed with invalid SnapshotID, should be %v. Trying again.\n", s.name, snapshotID, reply.SnapshotID)
+		s.lock.RUnlock()
+		return s.GetLayout(reply.SnapshotID)
 	} else if reply.Err == layout.ErrorInvalidIndex {
-		s.log.Error.Printf("%v.GetLayout(%v, %v) failed with invalid Index=%v, giving up.\n", s.name, addr, snapshotID, args.Index)
-		s.lock.Unlock()
-		return
+		s.log.Error.Printf("%v.GetLayout(%v) failed with invalid Index=%v, giving up.\n", s.name, snapshotID, args.Index)
+		s.lock.RUnlock()
+		return snapshotID, nil
 	} else if reply.Err == layout.ErrorInvalidNumSplit {
-		s.log.Error.Printf("%v.GetLayout(%v, %v) failed with invalid NumSplit=%v, giving up.\n", s.name, addr, snapshotID, args.NumSplit)
-		s.lock.Unlock()
-		return
+		s.log.Error.Printf("%v.GetLayout(%v) failed with invalid NumSplit=%v, giving up.\n", s.name, snapshotID, args.NumSplit)
+		s.lock.RUnlock()
+		return snapshotID, nil
 	}
 
-	// Only set on success
-	shards := s.ApplyLayout(s.config, s.pirBacking, reply.Layout)
-	if shards != nil {
-		s.snapshotID = snapshotID
-		// Free old shards
-		for _, shard := range s.shards {
-			err := shard.Free()
-			if err != nil {
-				s.log.Warn.Printf("shard.Free failed: %v\n", err)
-			}
-		}
-		s.shards = shards
-	}
-
-	s.lock.Unlock()
+	s.lock.RUnlock()
+	return snapshotID, reply.Layout
 }
 
 // ApplyLayout takes in a new layout and generates Shards from previously stored bank of messages
-func (s *Server) ApplyLayout(config common.Config, pirBacking string, layout []uint64) []pirinterface.Shard {
+func (s *Server) ApplyLayout(layout []uint64) []pirinterface.Shard {
 	// Build shards
+	s.lock.RLock()
 	s.msgLock.Lock()
-	shards := make([]pirinterface.Shard, config.NumShardsPerGroup)
-	NewShard := pirinterface.GetBacking(pirBacking)
-	bucketSize := int(config.BucketDepth * config.DataSize)
-	itemsPerShard := config.NumBucketsPerShard * config.BucketDepth
-	shardSize := itemsPerShard * config.DataSize
-	for i := uint64(0); i < config.NumShardsPerGroup; i++ {
+	shards := make([]pirinterface.Shard, s.config.NumShardsPerGroup)
+	NewShard := pirinterface.GetBacking(s.pirBacking)
+	bucketSize := int(s.config.BucketDepth * s.config.DataSize)
+	itemsPerShard := s.config.NumBucketsPerShard * s.config.BucketDepth
+	shardSize := itemsPerShard * s.config.DataSize
+	for i := uint64(0); i < s.config.NumShardsPerGroup; i++ {
 		data := make([]byte, shardSize)
 		for j := uint64(0); j < itemsPerShard; j++ {
 			layoutIdx := i*itemsPerShard + j
-			dataIdx := j * config.DataSize
+			dataIdx := j * s.config.DataSize
 			id := layout[layoutIdx]
 			msg, ok := s.messages[id]
 			if !ok {
@@ -252,14 +256,30 @@ func (s *Server) ApplyLayout(config common.Config, pirBacking string, layout []u
 				return nil
 			}
 			// msg.Data is the correct size as per assertion in Write()
-			copy(data[dataIdx:dataIdx+config.DataSize], msg.Data[:config.DataSize])
+			copy(data[dataIdx:dataIdx+s.config.DataSize], msg.Data[:s.config.DataSize])
 		}
-		shards[i] = NewShard(bucketSize, data, pirBacking)
+		shards[i] = NewShard(bucketSize, data, s.pirBacking)
 	}
 
 	// Garbage collect old messages from s.messages
 	// @todo
 
 	s.msgLock.Unlock()
+	s.lock.RUnlock()
 	return shards
+}
+
+// SetShards will set the snapshotID and shards to be used for Reads from this replica
+func (s *Server) SetShards(snapshotID uint64, shards []pirinterface.Shard) {
+	s.lock.Lock()
+	s.snapshotID = snapshotID
+	// Free old shards
+	for _, shard := range s.shards {
+		err := shard.Free()
+		if err != nil {
+			s.log.Warn.Printf("shard.Free failed: %v\n", err)
+		}
+	}
+	s.shards = shards
+	s.lock.Unlock()
 }
