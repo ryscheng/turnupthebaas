@@ -125,6 +125,7 @@ func (s *Server) Read(args *replica.ReadArgs, reply *replica.ReadReply) error {
 		return nil
 	}
 
+	// @todo
 	//shardIdx :=
 	//shard := s.shards[shardIdx]
 	reply.Err = ""
