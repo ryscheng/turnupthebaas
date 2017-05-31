@@ -7,8 +7,8 @@ package layout
 // GetLayoutArgs requests the layout for a shard
 type GetLayoutArgs struct {
 	SnapshotID uint64
-	ShardID    uint64
-	NumShards  uint64
+	Index      uint64
+	NumSplit   uint64
 }
 
 // GetLayoutReply returns the layout for a shard

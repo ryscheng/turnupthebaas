@@ -125,8 +125,8 @@ func (s *Server) Read(args *replica.ReadArgs, reply *replica.ReadReply) error {
 		return nil
 	}
 
-	// @todo
-
+	//shardIdx :=
+	//shard := s.shards[shardIdx]
 	reply.Err = ""
 
 	s.lock.RUnlock()
@@ -187,8 +187,8 @@ func (s *Server) GetLayout(addr string, snapshotID uint64) {
 	var reply layout.GetLayoutReply
 	args := &layout.GetLayoutArgs{
 		SnapshotID: snapshotID,
-		ShardID:    s.group,
-		NumShards:  s.config.NumBuckets / layoutSize,
+		Index:      s.group,
+		NumSplit:   s.config.NumBuckets / layoutSize,
 	}
 	err := s.layoutClient.GetLayout(args, &reply)
 
@@ -202,46 +202,56 @@ func (s *Server) GetLayout(addr string, snapshotID uint64) {
 		go s.GetLayout(addr, reply.SnapshotID)
 		s.lock.Unlock()
 		return
-	} else if reply.Err == layout.ErrorInvalidShardID {
-		s.log.Error.Printf("%v.GetLayout(%v, %v) failed with invalid ShardID=%v, giving up.\n", s.name, addr, snapshotID, args.ShardID)
+	} else if reply.Err == layout.ErrorInvalidIndex {
+		s.log.Error.Printf("%v.GetLayout(%v, %v) failed with invalid Index=%v, giving up.\n", s.name, addr, snapshotID, args.Index)
 		s.lock.Unlock()
 		return
-	} else if reply.Err == layout.ErrorInvalidNumShards {
-		s.log.Error.Printf("%v.GetLayout(%v, %v) failed with invalid NumShards=%v, giving up.\n", s.name, addr, snapshotID, args.NumShards)
+	} else if reply.Err == layout.ErrorInvalidNumSplit {
+		s.log.Error.Printf("%v.GetLayout(%v, %v) failed with invalid NumSplit=%v, giving up.\n", s.name, addr, snapshotID, args.NumSplit)
 		s.lock.Unlock()
 		return
-	}
-
-	// Build shards
-	shards := make([]pirinterface.Shard, s.config.NumShardsPerGroup)
-	NewShard := pirinterface.GetBacking(s.pirBacking)
-	bucketSize := int(s.config.BucketDepth * s.config.DataSize)
-	itemsPerShard := s.config.NumBucketsPerShard * s.config.BucketDepth
-	shardSize := itemsPerShard * s.config.DataSize
-	for i := uint64(0); i < s.config.NumShardsPerGroup; i++ {
-		data := make([]byte, shardSize)
-		for j := uint64(0); j < itemsPerShard; j++ {
-			layoutIdx := i*itemsPerShard + j
-			dataIdx := j * s.config.DataSize
-			id := reply.Layout[layoutIdx]
-			msg, ok := s.messages[id]
-			if !ok {
-				s.log.Error.Printf("%v.GetLayout(%v, %v) failed. Missing message ID=%v, giving up.\n", s.name, addr, snapshotID, id)
-				s.lock.Unlock()
-				return
-			}
-			// msg.Data is the correct size as per assertion in Write()
-			copy(data[dataIdx:dataIdx+s.config.DataSize], msg.Data[:s.config.DataSize])
-		}
-		shards[i] = NewShard(bucketSize, data, s.pirBacking)
 	}
 
 	// Only set on success
-	s.snapshotID = snapshotID
-	s.shards = shards
+	shards := s.ApplyLayout(s.config, s.pirBacking, reply.Layout)
+	if shards != nil {
+		s.snapshotID = snapshotID
+		s.shards = shards
+	}
+
+	s.lock.Unlock()
+}
+
+// ApplyLayout takes in a new layout and generates Shards from previously stored bank of messages
+func (s *Server) ApplyLayout(config common.Config, pirBacking string, layout []uint64) []pirinterface.Shard {
+	// Build shards
+	s.msgLock.Lock()
+	shards := make([]pirinterface.Shard, config.NumShardsPerGroup)
+	NewShard := pirinterface.GetBacking(pirBacking)
+	bucketSize := int(config.BucketDepth * config.DataSize)
+	itemsPerShard := config.NumBucketsPerShard * config.BucketDepth
+	shardSize := itemsPerShard * config.DataSize
+	for i := uint64(0); i < config.NumShardsPerGroup; i++ {
+		data := make([]byte, shardSize)
+		for j := uint64(0); j < itemsPerShard; j++ {
+			layoutIdx := i*itemsPerShard + j
+			dataIdx := j * config.DataSize
+			id := layout[layoutIdx]
+			msg, ok := s.messages[id]
+			if !ok {
+				s.log.Error.Printf("ApplyLayout() failed. Missing message ID=%v, giving up.\n", id)
+				s.lock.Unlock()
+				return nil
+			}
+			// msg.Data is the correct size as per assertion in Write()
+			copy(data[dataIdx:dataIdx+config.DataSize], msg.Data[:config.DataSize])
+		}
+		shards[i] = NewShard(bucketSize, data, pirBacking)
+	}
 
 	// Garbage collect old messages from s.messages
 	// @todo
 
-	s.lock.Unlock()
+	s.msgLock.Unlock()
+	return shards
 }

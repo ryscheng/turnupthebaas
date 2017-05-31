@@ -141,17 +141,17 @@ func (s *Server) GetLayout(args *layout.GetLayoutArgs, reply *layout.GetLayoutRe
 		return nil
 	}
 
-	// Check non-zero NumShards
-	if args.NumShards < 1 {
-		reply.Err = layout.ErrorInvalidNumShards
+	// Check non-zero NumSplit
+	if args.NumSplit < 1 {
+		reply.Err = layout.ErrorInvalidNumSplit
 		s.lock.RUnlock()
 		return nil
 	}
 
-	shardSize := uint64(len(s.lastLayout)) / args.NumShards
-	idx := args.ShardID * shardSize
+	shardSize := uint64(len(s.lastLayout)) / args.NumSplit
+	idx := args.Index * shardSize
 	if idx < 0 || (idx+shardSize) > uint64(len(s.lastLayout)) {
-		reply.Err = layout.ErrorInvalidShardID
+		reply.Err = layout.ErrorInvalidIndex
 	} else {
 		reply.Err = ""
 		reply.Layout = s.lastLayout[idx:(idx + shardSize)]

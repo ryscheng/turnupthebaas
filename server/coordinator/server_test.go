@@ -189,8 +189,8 @@ func TestGetLayoutInvalidSnapshotID(t *testing.T) {
 	}
 	args := &layout.GetLayoutArgs{
 		SnapshotID: 100,
-		ShardID:    0,
-		NumShards:  1,
+		Index:      0,
+		NumSplit:   1,
 	}
 	reply := &layout.GetLayoutReply{}
 	if s.GetLayout(args, reply) != nil {
@@ -202,42 +202,42 @@ func TestGetLayoutInvalidSnapshotID(t *testing.T) {
 	afterEach(s, nil)
 }
 
-func TestGetLayoutInvalidNumShards(t *testing.T) {
+func TestGetLayoutInvalidNumSplit(t *testing.T) {
 	s, err := NewServer("test", testAddr, false, testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
 	args := &layout.GetLayoutArgs{
 		SnapshotID: 0,
-		ShardID:    0,
-		NumShards:  0,
+		Index:      0,
+		NumSplit:   0,
 	}
 	reply := &layout.GetLayoutReply{}
 	if s.GetLayout(args, reply) != nil {
 		t.Errorf("Error calling GetLayout: %v", err)
 	}
 	if reply.Err == "" {
-		t.Errorf("GetLayout should have returned an error for invalid NumShards: %v", reply)
+		t.Errorf("GetLayout should have returned an error for invalid NumSplit: %v", reply)
 	}
 	afterEach(s, nil)
 }
 
-func TestGetLayoutInvalidShardID(t *testing.T) {
+func TestGetLayoutInvalidIndex(t *testing.T) {
 	s, err := NewServer("test", testAddr, false, testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
 	args := &layout.GetLayoutArgs{
 		SnapshotID: 0,
-		ShardID:    4,
-		NumShards:  4,
+		Index:      4,
+		NumSplit:   4,
 	}
 	reply := &layout.GetLayoutReply{}
 	if s.GetLayout(args, reply) != nil {
 		t.Errorf("Error calling GetLayout: %v", err)
 	}
 	if reply.Err == "" {
-		t.Errorf("GetLayout should have returned an error for invalid ShardID: %v", reply)
+		t.Errorf("GetLayout should have returned an error for invalid Index: %v", reply)
 	}
 	afterEach(s, nil)
 }
@@ -249,8 +249,8 @@ func TestGetLayoutEmpty(t *testing.T) {
 	}
 	args := &layout.GetLayoutArgs{
 		SnapshotID: 0,
-		ShardID:    0,
-		NumShards:  1,
+		Index:      0,
+		NumSplit:   1,
 	}
 	reply := &layout.GetLayoutReply{}
 	if s.GetLayout(args, reply) != nil {
@@ -362,7 +362,7 @@ func TestSnapshot(t *testing.T) {
 		}
 	}
 	// Check layout
-	layoutArgs := &layout.GetLayoutArgs{SnapshotID: 1, ShardID: 0, NumShards: 1}
+	layoutArgs := &layout.GetLayoutArgs{SnapshotID: 1, Index: 0, NumSplit: 1}
 	layoutReply := &layout.GetLayoutReply{}
 	if s.GetLayout(layoutArgs, layoutReply) != nil {
 		t.Errorf("Error calling GetLayout: %v", err)
