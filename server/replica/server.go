@@ -217,6 +217,13 @@ func (s *Server) GetLayout(addr string, snapshotID uint64) {
 	shards := s.ApplyLayout(s.config, s.pirBacking, reply.Layout)
 	if shards != nil {
 		s.snapshotID = snapshotID
+		// Free old shards
+		for _, shard := range s.shards {
+			err := shard.Free()
+			if err != nil {
+				s.log.Warn.Printf("shard.Free failed: %v\n", err)
+			}
+		}
 		s.shards = shards
 	}
 
