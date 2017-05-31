@@ -11,7 +11,7 @@ import (
 
 func TestReplica(t *testing.T) {
 	testAddr := randAddr()
-	s, err := server.NewServer("test", testAddr, true, testConfig(), 0)
+	s, err := server.NewServer("test", testAddr, true, testConfig(), 0, "cpu.0")
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}

@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/pir/pirinterface"
 	"github.com/privacylab/talek/protocol/layout"
 	"github.com/privacylab/talek/protocol/notify"
 	"github.com/privacylab/talek/protocol/replica"
@@ -21,21 +22,21 @@ type Server struct {
 	networkRPC *server.NetworkRPC
 	config     common.Config // Config
 	group      uint64
+	pirBacking string
 
 	// Thread-safe (organized by lock scope)
 	lock         *sync.RWMutex
 	snapshotID   uint64
 	layoutAddr   string
 	layoutClient *layout.Client
+	shards       []pirinterface.Shard
 
 	msgLock  *sync.Mutex
 	messages map[uint64]*common.WriteArgs
-
-	// Channels
 }
 
 // NewServer creates a new replica server
-func NewServer(name string, addr string, listenRPC bool, config common.Config, group uint64) (*Server, error) {
+func NewServer(name string, addr string, listenRPC bool, config common.Config, group uint64, pirBacking string) (*Server, error) {
 	s := &Server{}
 	s.log = common.NewLogger(name)
 	s.name = name
@@ -46,11 +47,13 @@ func NewServer(name string, addr string, listenRPC bool, config common.Config, g
 	}
 	s.config = config
 	s.group = group
+	s.pirBacking = pirBacking
 
 	s.lock = &sync.RWMutex{}
 	s.snapshotID = 0
 	s.layoutAddr = ""
 	s.layoutClient = layout.NewClient(s.name, "")
+	s.shards = make([]pirinterface.Shard, s.config.NumShardsPerGroup)
 
 	s.msgLock = &sync.Mutex{}
 	s.messages = make(map[uint64]*common.WriteArgs)
@@ -94,6 +97,12 @@ func (s *Server) Notify(args *notify.Args, reply *notify.Reply) error {
 func (s *Server) Write(args *common.WriteArgs, reply *common.WriteReply) error {
 	tr := trace.New("Replica", "Write")
 	defer tr.Finish()
+	// Check that the data size is correct before accepting
+	if uint64(len(args.Data)) != s.config.DataSize {
+		reply.Err = "Invalid data size"
+		return nil
+	}
+
 	s.msgLock.Lock()
 
 	s.messages[args.ID] = args
@@ -204,23 +213,35 @@ func (s *Server) GetLayout(addr string, snapshotID uint64) {
 	}
 
 	// Build shards
+	shards := make([]pirinterface.Shard, s.config.NumShardsPerGroup)
+	NewShard := pirinterface.GetBacking(s.pirBacking)
+	bucketSize := int(s.config.BucketDepth * s.config.DataSize)
+	itemsPerShard := s.config.NumBucketsPerShard * s.config.BucketDepth
+	shardSize := itemsPerShard * s.config.DataSize
 	for i := uint64(0); i < s.config.NumShardsPerGroup; i++ {
-		// reply.Layout
-
+		data := make([]byte, shardSize)
+		for j := uint64(0); j < itemsPerShard; j++ {
+			layoutIdx := i*itemsPerShard + j
+			dataIdx := j * s.config.DataSize
+			id := reply.Layout[layoutIdx]
+			msg, ok := s.messages[id]
+			if !ok {
+				s.log.Error.Printf("%v.GetLayout(%v, %v) failed. Missing message ID=%v, giving up.\n", s.name, addr, snapshotID, id)
+				s.lock.Unlock()
+				return
+			}
+			// msg.Data is the correct size as per assertion in Write()
+			copy(data[dataIdx:dataIdx+s.config.DataSize], msg.Data[:s.config.DataSize])
+		}
+		shards[i] = NewShard(bucketSize, data, s.pirBacking)
 	}
-
-	// Garbage collect s.messages
 
 	// Only set on success
 	s.snapshotID = snapshotID
+	s.shards = shards
+
+	// Garbage collect old messages from s.messages
+	// @todo
 
 	s.lock.Unlock()
 }
-
-/**********************************
- * PRIVATE METHODS (single-threaded)
- **********************************/
-
-/**********************************
- * HELPER FUNCTIONS
- **********************************/
