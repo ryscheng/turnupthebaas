@@ -141,19 +141,19 @@ func TestGetSetLayoutAddr(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	_, client := s.GetLayoutAddr()
-	if client == nil {
+	_, client0 := s.GetLayoutAddr()
+	if client0 == nil {
 		t.Errorf("GetLayout client should exist when server is created")
 	}
 	s.SetLayoutAddr(testAddr)
-	addr, client = s.GetLayoutAddr()
-	if addr != testAddr || client == nil {
+	addr1, client1 := s.GetLayoutAddr()
+	if addr1 != testAddr || client1 == nil {
 		t.Errorf("SetLayoutAddr didn't set the RPC client properly")
 	}
 	// Check that we don't create a new client when setting with same address
 	s.SetLayoutAddr(testAddr)
 	addr2, client2 := s.GetLayoutAddr()
-	if addr != addr2 || client != client2 {
+	if addr1 != addr2 || client1 != client2 {
 		t.Errorf("SetLayoutAddr should not have created a new client when setting with same address")
 	}
 	s.Close()
