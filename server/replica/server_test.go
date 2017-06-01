@@ -56,16 +56,18 @@ func testNewWrite(id uint64) *common.WriteArgs {
 }
 
 type MockServer struct {
-	rpc    *server.NetworkRPC
-	err    string
-	layout []uint64
-	Done   chan *layout.GetLayoutArgs
+	rpc        *server.NetworkRPC
+	err        string
+	snapshotID uint64
+	layout     []uint64
+	Done       chan *layout.GetLayoutArgs
 }
 
-func NewMockServer(addr string, err string, l []uint64) *MockServer {
+func NewMockServer(addr string, err string, snapshotID uint64, l []uint64) *MockServer {
 	s := &MockServer{}
 	s.rpc = server.NewNetworkRPCAddr(s, addr)
 	s.err = err
+	s.snapshotID = snapshotID
 	s.layout = l
 	s.Done = make(chan *layout.GetLayoutArgs)
 	return s
@@ -78,8 +80,14 @@ func (s *MockServer) Close() {
 
 func (s *MockServer) GetLayout(args *layout.GetLayoutArgs, reply *layout.GetLayoutReply) error {
 	//s.Done <- args
-	reply.Err = s.err
-	reply.SnapshotID = args.SnapshotID
+	// Make sure GetLayout eventually terminates
+	if args.SnapshotID == s.snapshotID && s.err == layout.ErrorInvalidSnapshotID {
+		reply.Err = ""
+	} else {
+		reply.Err = s.err
+	}
+
+	reply.SnapshotID = s.snapshotID
 	reply.Layout = s.layout
 	return nil
 }
@@ -113,7 +121,7 @@ func TestGetInfo(t *testing.T) {
 }
 
 func TestNotify(t *testing.T) {
-	// @todo
+	// @todo notify, check GetLayout called, check shards set
 }
 
 func TestWrite(t *testing.T) {
@@ -152,7 +160,7 @@ func TestWriteBadData(t *testing.T) {
 }
 
 func TestRead(t *testing.T) {
-	// @todo
+	// @todo - setshard, do read, check correctness
 }
 
 func TestGetSetLayoutAddr(t *testing.T) {
@@ -180,50 +188,17 @@ func TestGetSetLayoutAddr(t *testing.T) {
 
 func TestGetLayout(t *testing.T) {
 	mockAddr := randAddr()
+	mockSnapshotID := uint64(1)
 	mockLayout := []uint64{0, 1, 2}
-	mock := NewMockServer(mockAddr, "", mockLayout)
+	mock := NewMockServer(mockAddr, "", mockSnapshotID, mockLayout)
 	s, err := NewServer("test", testAddr, false, testConfig(), 0, "cpu.0")
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
 	s.SetLayoutAddr(mockAddr)
-	snapshotID, layout := s.GetLayout(1)
-	if snapshotID != 1 || !reflect.DeepEqual(layout, mockLayout) {
+	snapshotID, layout := s.GetLayout(mockSnapshotID)
+	if snapshotID != mockSnapshotID || !reflect.DeepEqual(layout, mockLayout) {
 		t.Errorf("GetLayout returns invalid results: snapshotID=%v, layout=%v", snapshotID, layout)
-	}
-	s.Close()
-	mock.Close()
-}
-
-func TestGetLayoutErrorInvalidIndex(t *testing.T) {
-	mockAddr := randAddr()
-	mockLayout := []uint64{0, 1, 2}
-	mock := NewMockServer(mockAddr, layout.ErrorInvalidIndex, mockLayout)
-	s, err := NewServer("test", testAddr, false, testConfig(), 0, "cpu.0")
-	if err != nil {
-		t.Errorf("Error creating new server")
-	}
-	s.SetLayoutAddr(mockAddr)
-	snapshotID, layout := s.GetLayout(1)
-	if snapshotID != 1 || layout != nil {
-		t.Errorf("GetLayout should have failed with ErrorInvalidIndex")
-	}
-	s.Close()
-	mock.Close()
-}
-
-func TestGetLayoutErrorInvalidNumSplit(t *testing.T) {
-	mockAddr := randAddr()
-	mockLayout := []uint64{0, 1, 2}
-	mock := NewMockServer(mockAddr, layout.ErrorInvalidNumSplit, mockLayout)
-	s, err := NewServer("test", testAddr, false, testConfig(), 0, "cpu.0")
-	if err != nil {
-		t.Errorf("Error creating new server")
-	}
-	s.SetLayoutAddr(mockAddr)
-	snapshotID, layout := s.GetLayout(1)
-	if snapshotID != 1 || layout != nil {
-		t.Errorf("GetLayout should have failed with ErrorInvalidNumSplit")
 	}
 	s.Close()
 	mock.Close()
@@ -231,26 +206,67 @@ func TestGetLayoutErrorInvalidNumSplit(t *testing.T) {
 
 func TestGetLayoutRPCFail(t *testing.T) {
 	mockAddr := randAddr()
+	mockSnapshotID := uint64(1)
 	s, err := NewServer("test", testAddr, false, testConfig(), 0, "cpu.0")
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
 	s.SetLayoutAddr(mockAddr)
-	snapshotID, layout := s.GetLayout(1)
-	if snapshotID != 1 || layout != nil {
+	snapshotID, layout := s.GetLayout(mockSnapshotID)
+	if snapshotID != mockSnapshotID || layout != nil {
 		t.Errorf("GetLayout should have failed with no server to contact")
 	}
 	s.Close()
 }
 
+func TestGetLayoutErrorInvalidSnapshotID(t *testing.T) {
+	mockAddr := randAddr()
+	mockSnapshotID := uint64(1)
+	mockLayout := []uint64{0, 1, 2}
+	mock := NewMockServer(mockAddr, layout.ErrorInvalidSnapshotID, mockSnapshotID, mockLayout)
+	s, err := NewServer("test", testAddr, false, testConfig(), 0, "cpu.0")
+	if err != nil {
+		t.Errorf("Error creating new server")
+	}
+	s.SetLayoutAddr(mockAddr)
+	snapshotID, layout := s.GetLayout(0)
+	if snapshotID != mockSnapshotID || !reflect.DeepEqual(layout, mockLayout) {
+		t.Errorf("GetLayout should have eventually succeeded when starting with invalid snapshotID")
+	}
+	s.Close()
+	mock.Close()
+}
+
+func TestGetLayoutErrorInvalidIndex(t *testing.T) {
+	mockAddr := randAddr()
+	mockSnapshotID := uint64(1)
+	mockLayout := []uint64{0, 1, 2}
+	mock := NewMockServer(mockAddr, layout.ErrorInvalidIndex, mockSnapshotID, mockLayout)
+	s, err := NewServer("test", testAddr, false, testConfig(), 0, "cpu.0")
+	if err != nil {
+		t.Errorf("Error creating new server")
+	}
+	s.SetLayoutAddr(mockAddr)
+	snapshotID, layout := s.GetLayout(mockSnapshotID)
+	if snapshotID != mockSnapshotID || layout != nil {
+		t.Errorf("GetLayout should have failed with ErrorInvalidIndex")
+	}
+	s.Close()
+	mock.Close()
+}
+
 func TestApplyLayout(t *testing.T) {
-	// @todo
+	// @todo - Do writes, apply layout, check correctness
+}
+
+func TestApplyLayoutMissingMessage(t *testing.T) {
+	// @todo -
 }
 
 func TestSetShards(t *testing.T) {
-	// @todo
+	// @todo - Construct a shard, set
 }
 
 func TestNewLayout(t *testing.T) {
-	// @todo
+	// @todo - writes, Notify, Read
 }

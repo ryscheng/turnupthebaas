@@ -206,12 +206,8 @@ func (s *Server) GetLayout(snapshotID uint64) (uint64, []uint64) {
 		s.log.Error.Printf("%v.GetLayout(%v) failed with invalid SnapshotID, should be %v. Trying again.\n", s.name, snapshotID, reply.SnapshotID)
 		s.lock.RUnlock()
 		return s.GetLayout(reply.SnapshotID)
-	} else if reply.Err == layout.ErrorInvalidIndex {
-		s.log.Error.Printf("%v.GetLayout(%v) failed with invalid Index=%v, giving up.\n", s.name, snapshotID, args.Index)
-		s.lock.RUnlock()
-		return snapshotID, nil
-	} else if reply.Err == layout.ErrorInvalidNumSplit {
-		s.log.Error.Printf("%v.GetLayout(%v) failed with invalid NumSplit=%v, giving up.\n", s.name, snapshotID, args.NumSplit)
+	} else if reply.Err != "" {
+		s.log.Error.Printf("%v.GetLayout(%v) failed with err=%v, args=%v, giving up.\n", s.name, snapshotID, reply.Err, args)
 		s.lock.RUnlock()
 		return snapshotID, nil
 	}
