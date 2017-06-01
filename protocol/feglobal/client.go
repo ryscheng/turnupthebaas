@@ -63,7 +63,7 @@ func (c *Client) Write(args *WriteArgs, reply *WriteReply) error {
 	return c.lastErr
 }
 
-// Read
+// Read a single message
 func (c *Client) Read(args *ReadArgs, reply *ReadReply) error {
 	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.Read", args, reply)
 	return c.lastErr

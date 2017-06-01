@@ -4,6 +4,7 @@ import (
 	"net/rpc"
 
 	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/protocol/feglobal"
 	"github.com/privacylab/talek/protocol/layout"
 	"github.com/privacylab/talek/protocol/notify"
 )
@@ -58,13 +59,13 @@ func (c *Client) Notify(args *notify.Args, reply *notify.Reply) error {
 }
 
 // Write a single message
-func (c *Client) Write(args *common.WriteArgs, reply *common.WriteReply) error {
+func (c *Client) Write(args *feglobal.WriteArgs, reply *feglobal.WriteReply) error {
 	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.Write", args, reply)
 	return c.lastErr
 }
 
 // EncPIR for an encrypted batch PIR request for a shard range
-func (c *Client) EncPIR(args *EncPIRArgs, reply *EncPIRReply) error {
+func (c *Client) EncPIR(args *feglobal.EncPIRArgs, reply *feglobal.ReadReply) error {
 	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.EncPIR", args, reply)
 	return c.lastErr
 }
