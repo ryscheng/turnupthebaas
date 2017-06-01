@@ -151,28 +151,6 @@ func (s *Server) Close() {
 	//s.lock.Unlock()
 }
 
-// NewLayout will attempt to fetch the new layout from the given addr and apply it to local shards
-// snapshotID is a hint of the current snapshotID, but can be corrected in an RPC to GetLayout
-func (s *Server) NewLayout(addr string, snapshotID uint64) {
-	tr := trace.New("Replica", "NewLayout")
-	defer tr.Finish()
-	// Try to establish an RPC client to server. Does nothing if addr is seen before
-	s.SetLayoutAddr(addr)
-	// Fetch Layout
-	snapshotID, layout := s.GetLayout(snapshotID)
-	if layout == nil {
-		return
-	}
-	// Construct new shards
-	shards := s.ApplyLayout(layout)
-	if shards == nil {
-		return
-	}
-	// Only set on success
-	s.SetShards(snapshotID, shards)
-
-}
-
 // SetLayoutAddr will set the address and RPC client towards the server from which we get layouts
 // Note: This will do nothing if addr is the same as we've seen before
 func (s *Server) SetLayoutAddr(addr string) {
@@ -283,4 +261,25 @@ func (s *Server) SetShards(snapshotID uint64, shards []pirinterface.Shard) {
 	}
 	s.shards = shards
 	s.lock.Unlock()
+}
+
+// NewLayout will attempt to fetch the new layout from the given addr and apply it to local shards
+// snapshotID is a hint of the current snapshotID, but can be corrected in an RPC to GetLayout
+func (s *Server) NewLayout(addr string, snapshotID uint64) {
+	tr := trace.New("Replica", "NewLayout")
+	defer tr.Finish()
+	// Try to establish an RPC client to server. Does nothing if addr is seen before
+	s.SetLayoutAddr(addr)
+	// Fetch Layout
+	snapshotID, layout := s.GetLayout(snapshotID)
+	if layout == nil {
+		return
+	}
+	// Construct new shards
+	shards := s.ApplyLayout(layout)
+	if shards == nil {
+		return
+	}
+	// Only set on success
+	s.SetShards(snapshotID, shards)
 }
