@@ -2,8 +2,8 @@ package replica
 
 import (
 	"encoding/binary"
-	"fmt"
 	"math/rand"
+	"reflect"
 	"strconv"
 	"testing"
 	"time"
@@ -57,13 +57,15 @@ func testNewWrite(id uint64) *common.WriteArgs {
 
 type MockServer struct {
 	rpc    *server.NetworkRPC
+	err    string
 	layout []uint64
 	Done   chan *layout.GetLayoutArgs
 }
 
-func NewMockServer(addr string, l []uint64) *MockServer {
+func NewMockServer(addr string, err string, l []uint64) *MockServer {
 	s := &MockServer{}
 	s.rpc = server.NewNetworkRPCAddr(s, addr)
+	s.err = err
 	s.layout = l
 	s.Done = make(chan *layout.GetLayoutArgs)
 	return s
@@ -76,8 +78,7 @@ func (s *MockServer) Close() {
 
 func (s *MockServer) GetLayout(args *layout.GetLayoutArgs, reply *layout.GetLayoutReply) error {
 	//s.Done <- args
-	fmt.Println("!!!!!!")
-	reply.Err = ""
+	reply.Err = s.err
 	reply.SnapshotID = args.SnapshotID
 	reply.Layout = s.layout
 	return nil
@@ -132,6 +133,24 @@ func TestWrite(t *testing.T) {
 	s.Close()
 }
 
+func TestWriteBadData(t *testing.T) {
+	s, err := NewServer("test", testAddr, false, testConfig(), 0, "cpu.0")
+	if err != nil {
+		t.Errorf("Error creating new server")
+	}
+	reply := &common.WriteReply{}
+	args := testNewWrite(10)
+	args.Data = make([]byte, 1) // Invalid DataSize!
+	err = s.Write(args, reply)
+	if err != nil {
+		t.Errorf("Error calling Write: %v", err)
+	}
+	if reply.Err == "" {
+		t.Errorf("Write should have returned InvalidDataSize: %v", reply)
+	}
+	s.Close()
+}
+
 func TestRead(t *testing.T) {
 	// @todo
 }
@@ -161,19 +180,67 @@ func TestGetSetLayoutAddr(t *testing.T) {
 
 func TestGetLayout(t *testing.T) {
 	mockAddr := randAddr()
-	mock := NewMockServer(mockAddr, []uint64{0})
+	mockLayout := []uint64{0, 1, 2}
+	mock := NewMockServer(mockAddr, "", mockLayout)
 	s, err := NewServer("test", testAddr, false, testConfig(), 0, "cpu.0")
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
 	s.SetLayoutAddr(mockAddr)
 	snapshotID, layout := s.GetLayout(1)
-	if snapshotID != 1 || layout == nil {
+	if snapshotID != 1 || !reflect.DeepEqual(layout, mockLayout) {
 		t.Errorf("GetLayout returns invalid results: snapshotID=%v, layout=%v", snapshotID, layout)
 	}
-
 	s.Close()
 	mock.Close()
+}
+
+func TestGetLayoutErrorInvalidIndex(t *testing.T) {
+	mockAddr := randAddr()
+	mockLayout := []uint64{0, 1, 2}
+	mock := NewMockServer(mockAddr, layout.ErrorInvalidIndex, mockLayout)
+	s, err := NewServer("test", testAddr, false, testConfig(), 0, "cpu.0")
+	if err != nil {
+		t.Errorf("Error creating new server")
+	}
+	s.SetLayoutAddr(mockAddr)
+	snapshotID, layout := s.GetLayout(1)
+	if snapshotID != 1 || layout != nil {
+		t.Errorf("GetLayout should have failed with ErrorInvalidIndex")
+	}
+	s.Close()
+	mock.Close()
+}
+
+func TestGetLayoutErrorInvalidNumSplit(t *testing.T) {
+	mockAddr := randAddr()
+	mockLayout := []uint64{0, 1, 2}
+	mock := NewMockServer(mockAddr, layout.ErrorInvalidNumSplit, mockLayout)
+	s, err := NewServer("test", testAddr, false, testConfig(), 0, "cpu.0")
+	if err != nil {
+		t.Errorf("Error creating new server")
+	}
+	s.SetLayoutAddr(mockAddr)
+	snapshotID, layout := s.GetLayout(1)
+	if snapshotID != 1 || layout != nil {
+		t.Errorf("GetLayout should have failed with ErrorInvalidNumSplit")
+	}
+	s.Close()
+	mock.Close()
+}
+
+func TestGetLayoutRPCFail(t *testing.T) {
+	mockAddr := randAddr()
+	s, err := NewServer("test", testAddr, false, testConfig(), 0, "cpu.0")
+	if err != nil {
+		t.Errorf("Error creating new server")
+	}
+	s.SetLayoutAddr(mockAddr)
+	snapshotID, layout := s.GetLayout(1)
+	if snapshotID != 1 || layout != nil {
+		t.Errorf("GetLayout should have failed with no server to contact")
+	}
+	s.Close()
 }
 
 func TestApplyLayout(t *testing.T) {
