@@ -28,7 +28,7 @@ func TestReplica(t *testing.T) {
 	if err = cc.Write(&feglobal.WriteArgs{}, &feglobal.WriteReply{}); err != nil {
 		t.Errorf("Error calling Write: %v", err)
 	}
-	if err = cc.Read(&protocol.ReadArgs{}, &protocol.ReadReply{}); err != nil {
+	if err = cc.PIR(&protocol.PIRArgs{}, &protocol.PIRReply{}); err != nil {
 		t.Errorf("Error calling Read: %v", err)
 	}
 

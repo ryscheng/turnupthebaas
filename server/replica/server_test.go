@@ -160,7 +160,7 @@ func TestWriteBadData(t *testing.T) {
 	s.Close()
 }
 
-func TestRead(t *testing.T) {
+func TestPIR(t *testing.T) {
 	// @todo - setshard, do read, check correctness
 }
 
@@ -269,5 +269,5 @@ func TestSetShards(t *testing.T) {
 }
 
 func TestNewLayout(t *testing.T) {
-	// @todo - writes, Notify, Read
+	// @todo - writes, Notify, PIR
 }
