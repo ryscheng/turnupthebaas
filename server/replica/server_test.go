@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/protocol/feglobal"
 	"github.com/privacylab/talek/protocol/layout"
 	"github.com/privacylab/talek/protocol/replica"
 	"github.com/privacylab/talek/server"
@@ -43,10 +44,10 @@ func randAddr() string {
 	return "localhost:" + strconv.Itoa(num)
 }
 
-func testNewWrite(id uint64) *common.WriteArgs {
+func testNewWrite(id uint64) *feglobal.WriteArgs {
 	data := make([]byte, testDataSize)
 	binary.PutUvarint(data, id)
-	return &common.WriteArgs{
+	return &feglobal.WriteArgs{
 		ID:             id,
 		Bucket1:        rand.Uint64() % testNumBuckets,
 		Bucket2:        rand.Uint64() % testNumBuckets,
@@ -129,7 +130,7 @@ func TestWrite(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	reply := &common.WriteReply{}
+	reply := &feglobal.WriteReply{}
 	args := testNewWrite(10)
 	err = s.Write(args, reply)
 	if err != nil {
@@ -146,7 +147,7 @@ func TestWriteBadData(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	reply := &common.WriteReply{}
+	reply := &feglobal.WriteReply{}
 	args := testNewWrite(10)
 	args.Data = make([]byte, 1) // Invalid DataSize!
 	err = s.Write(args, reply)

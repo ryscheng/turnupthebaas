@@ -5,6 +5,7 @@ import (
 
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/pir/pirinterface"
+	"github.com/privacylab/talek/protocol/feglobal"
 	"github.com/privacylab/talek/protocol/layout"
 	"github.com/privacylab/talek/protocol/notify"
 	"github.com/privacylab/talek/protocol/replica"
@@ -32,7 +33,7 @@ type Server struct {
 	shards       []pirinterface.Shard
 
 	msgLock  *sync.Mutex
-	messages map[uint64]*common.WriteArgs
+	messages map[uint64]*feglobal.WriteArgs
 }
 
 // NewServer creates a new replica server
@@ -56,7 +57,7 @@ func NewServer(name string, addr string, listenRPC bool, config common.Config, g
 	s.shards = make([]pirinterface.Shard, s.config.NumShardsPerGroup)
 
 	s.msgLock = &sync.Mutex{}
-	s.messages = make(map[uint64]*common.WriteArgs)
+	s.messages = make(map[uint64]*feglobal.WriteArgs)
 
 	s.log.Info.Printf("replica.NewServer(%v) success\n", name)
 	return s, nil
@@ -94,7 +95,7 @@ func (s *Server) Notify(args *notify.Args, reply *notify.Reply) error {
 }
 
 // Write stores a single message
-func (s *Server) Write(args *common.WriteArgs, reply *common.WriteReply) error {
+func (s *Server) Write(args *feglobal.WriteArgs, reply *feglobal.WriteReply) error {
 	tr := trace.New("Replica", "Write")
 	defer tr.Finish()
 	// Check that the data size is correct before accepting

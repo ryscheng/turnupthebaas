@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/protocol/feglobal"
 	"github.com/privacylab/talek/protocol/notify"
 	protocol "github.com/privacylab/talek/protocol/replica"
 	server "github.com/privacylab/talek/server/replica"
@@ -25,7 +25,7 @@ func TestReplica(t *testing.T) {
 	if err = cc.Notify(&notify.Args{}, &notify.Reply{}); err != nil {
 		t.Errorf("Error calling Notify: %v", err)
 	}
-	if err = cc.Write(&common.WriteArgs{}, &common.WriteReply{}); err != nil {
+	if err = cc.Write(&feglobal.WriteArgs{}, &feglobal.WriteReply{}); err != nil {
 		t.Errorf("Error calling Write: %v", err)
 	}
 	if err = cc.Read(&protocol.ReadArgs{}, &protocol.ReadReply{}); err != nil {

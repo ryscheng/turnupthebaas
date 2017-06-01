@@ -1,7 +1,7 @@
 package replica
 
 import (
-	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/protocol/feglobal"
 	"github.com/privacylab/talek/protocol/notify"
 )
 
@@ -9,6 +9,6 @@ import (
 type Interface interface {
 	GetInfo(args *interface{}, reply *GetInfoReply) error
 	Notify(args *notify.Args, reply *notify.Reply) error
-	Write(args *common.WriteArgs, reply *common.WriteReply) error
+	Write(args *feglobal.WriteArgs, reply *feglobal.WriteReply) error
 	Read(args *ReadArgs, reply *ReadReply) error
 }
