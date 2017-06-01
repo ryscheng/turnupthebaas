@@ -6,7 +6,7 @@ import (
 	"github.com/privacylab/talek/protocol/notify"
 )
 
-// Interface is the interface to the central coordinator
+// Interface is the interface to a trust domain frontend
 type Interface interface {
 	GetInfo(args *interface{}, reply *GetInfoReply) error
 	GetLayout(args *layout.GetLayoutArgs, reply *layout.GetLayoutReply) error
