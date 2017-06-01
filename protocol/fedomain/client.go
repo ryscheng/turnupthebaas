@@ -64,7 +64,7 @@ func (c *Client) Write(args *feglobal.WriteArgs, reply *feglobal.WriteReply) err
 	return c.lastErr
 }
 
-// EncPIR for an encrypted batch PIR request for a shard range
+// EncPIR for an encrypted single PIR request for a shard range
 func (c *Client) EncPIR(args *feglobal.EncPIRArgs, reply *feglobal.ReadReply) error {
 	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.EncPIR", args, reply)
 	return c.lastErr
