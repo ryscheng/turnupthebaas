@@ -151,6 +151,15 @@ func (s *Server) Close() {
 	//s.lock.Unlock()
 }
 
+// GetLayoutAddr returns the address used for GetLayout calls
+func (s *Server) GetLayoutAddr() (string, *layout.Client) {
+	s.lock.RLock()
+	addr := s.layoutAddr
+	client := s.layoutClient
+	s.lock.RUnlock()
+	return addr, client
+}
+
 // SetLayoutAddr will set the address and RPC client towards the server from which we get layouts
 // Note: This will do nothing if addr is the same as we've seen before
 func (s *Server) SetLayoutAddr(addr string) {
