@@ -1,4 +1,4 @@
-package frontend_domain
+package fedomain
 
 /*************
  * PROTOCOL
