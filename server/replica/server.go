@@ -140,7 +140,6 @@ func (s *Server) Read(args *replica.ReadArgs, reply *replica.ReadReply) error {
 
 // Close shuts down the server
 func (s *Server) Close() {
-	s.log.Info.Printf("%v.Close: success\n", s.name)
 	//s.lock.Lock()
 
 	if s.networkRPC != nil {
@@ -148,6 +147,7 @@ func (s *Server) Close() {
 		s.networkRPC = nil
 	}
 
+	s.log.Info.Printf("%v.Close: success\n", s.name)
 	//s.lock.Unlock()
 }
 
@@ -189,13 +189,13 @@ func (s *Server) GetLayout(snapshotID uint64) (uint64, []uint64) {
 	s.lock.RLock()
 	// Do RPC
 	layoutSize := s.config.NumBucketsPerShard * s.config.NumShardsPerGroup
-	var reply layout.GetLayoutReply
+	reply := &layout.GetLayoutReply{}
 	args := &layout.GetLayoutArgs{
 		SnapshotID: snapshotID,
 		Index:      s.group,
 		NumSplit:   s.config.NumBuckets / layoutSize,
 	}
-	err := s.layoutClient.GetLayout(args, &reply)
+	err := s.layoutClient.GetLayout(args, reply)
 
 	// Error handling
 	if err != nil {
@@ -216,6 +216,7 @@ func (s *Server) GetLayout(snapshotID uint64) (uint64, []uint64) {
 		return snapshotID, nil
 	}
 
+	s.log.Info.Printf("%v.GetLayout(%v): success\n", s.name, snapshotID)
 	s.lock.RUnlock()
 	return snapshotID, reply.Layout
 }
@@ -252,6 +253,7 @@ func (s *Server) ApplyLayout(layout []uint64) []pirinterface.Shard {
 	// Garbage collect old messages from s.messages
 	// @todo
 
+	s.log.Info.Printf("%v.ApplyLayout(): success\n", s.name)
 	s.msgLock.Unlock()
 	s.lock.RUnlock()
 	return shards
@@ -269,6 +271,7 @@ func (s *Server) SetShards(snapshotID uint64, shards []pirinterface.Shard) {
 		}
 	}
 	s.shards = shards
+	s.log.Info.Printf("%v.SetShards(%v): success\n", s.name, snapshotID)
 	s.lock.Unlock()
 }
 

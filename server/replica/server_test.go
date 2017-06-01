@@ -2,12 +2,16 @@ package replica
 
 import (
 	"encoding/binary"
+	"fmt"
 	"math/rand"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/protocol/layout"
 	"github.com/privacylab/talek/protocol/replica"
+	"github.com/privacylab/talek/server"
 )
 
 /********************************
@@ -32,8 +36,14 @@ func testConfig() common.Config {
 	}
 }
 
-func testNewWrite() *common.WriteArgs {
-	id := rand.Uint64()
+func randAddr() string {
+	num := rand.Int()
+	num %= 100
+	num += 9800
+	return "localhost:" + strconv.Itoa(num)
+}
+
+func testNewWrite(id uint64) *common.WriteArgs {
 	data := make([]byte, testDataSize)
 	binary.PutUvarint(data, id)
 	return &common.WriteArgs{
@@ -43,6 +53,34 @@ func testNewWrite() *common.WriteArgs {
 		Data:           data,
 		InterestVector: []uint64{rand.Uint64(), rand.Uint64()},
 	}
+}
+
+type MockServer struct {
+	rpc    *server.NetworkRPC
+	layout []uint64
+	Done   chan *layout.GetLayoutArgs
+}
+
+func NewMockServer(addr string, l []uint64) *MockServer {
+	s := &MockServer{}
+	s.rpc = server.NewNetworkRPCAddr(s, addr)
+	s.layout = l
+	s.Done = make(chan *layout.GetLayoutArgs)
+	return s
+}
+
+func (s *MockServer) Close() {
+	s.rpc.Kill()
+	close(s.Done)
+}
+
+func (s *MockServer) GetLayout(args *layout.GetLayoutArgs, reply *layout.GetLayoutReply) error {
+	//s.Done <- args
+	fmt.Println("!!!!!!")
+	reply.Err = ""
+	reply.SnapshotID = args.SnapshotID
+	reply.Layout = s.layout
+	return nil
 }
 
 /********************************
@@ -83,7 +121,7 @@ func TestWrite(t *testing.T) {
 		t.Errorf("Error creating new server")
 	}
 	reply := &common.WriteReply{}
-	args := testNewWrite()
+	args := testNewWrite(10)
 	err = s.Write(args, reply)
 	if err != nil {
 		t.Errorf("Error calling Write: %v", err)
@@ -98,12 +136,12 @@ func TestRead(t *testing.T) {
 	// @todo
 }
 
-func TestSetLayoutAddr(t *testing.T) {
+func TestGetSetLayoutAddr(t *testing.T) {
 	s, err := NewServer("test", testAddr, false, testConfig(), 0, "cpu.0")
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	addr, client := s.GetLayoutAddr()
+	_, client := s.GetLayoutAddr()
 	if client == nil {
 		t.Errorf("GetLayout client should exist when server is created")
 	}
@@ -122,7 +160,20 @@ func TestSetLayoutAddr(t *testing.T) {
 }
 
 func TestGetLayout(t *testing.T) {
-	// @todo
+	mockAddr := randAddr()
+	mock := NewMockServer(mockAddr, []uint64{0})
+	s, err := NewServer("test", testAddr, false, testConfig(), 0, "cpu.0")
+	if err != nil {
+		t.Errorf("Error creating new server")
+	}
+	s.SetLayoutAddr(mockAddr)
+	snapshotID, layout := s.GetLayout(1)
+	if snapshotID != 1 || layout == nil {
+		t.Errorf("GetLayout returns invalid results: snapshotID=%v, layout=%v", snapshotID, layout)
+	}
+
+	s.Close()
+	mock.Close()
 }
 
 func TestApplyLayout(t *testing.T) {

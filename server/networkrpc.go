@@ -38,7 +38,7 @@ func NewNetworkRPC(handler interface{}, port int) *NetworkRPC {
 	n.port = port
 	// Register RPC
 	n.server = rpc.NewServer()
-	n.server.Register(handler)
+	n.server.RegisterName("Server", handler)
 	//rpc.Register(handler)
 	l, e := net.Listen("tcp", ":"+strconv.Itoa(port))
 	if e != nil {
