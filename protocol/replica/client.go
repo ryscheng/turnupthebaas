@@ -56,8 +56,8 @@ func (c *Client) Write(args *common.WriteArgs, reply *common.WriteReply) error {
 	return c.lastErr
 }
 
-// Read a batch of requests for a shard range
-func (c *Client) Read(args *ReadArgs, reply *ReadReply) error {
-	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.Read", args, reply)
+// PIR for a single request vector tareting a shard range
+func (c *Client) PIR(args *PIRArgs, reply *PIRReply) error {
+	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.PIR", args, reply)
 	return c.lastErr
 }

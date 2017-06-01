@@ -112,9 +112,9 @@ func (s *Server) Write(args *common.WriteArgs, reply *common.WriteReply) error {
 	return nil
 }
 
-// Read a batch of requests for a shard range
-func (s *Server) Read(args *replica.ReadArgs, reply *replica.ReadReply) error {
-	tr := trace.New("Replica", "Read")
+// PIR a request vector for a shard range
+func (s *Server) PIR(args *replica.PIRArgs, reply *replica.PIRReply) error {
+	tr := trace.New("Replica", "PIR")
 	defer tr.Finish()
 	s.lock.RLock()
 
