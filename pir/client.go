@@ -55,10 +55,7 @@ func (c *Client) GenerateRequestVectors(bucket uint64, numServers uint64, numBuc
 			return nil, err
 		}
 		// XOR this request vector into the secret
-		if uint64(pircpu.XorBytes(req[0], req[0], req[i])) != numBytes {
-			c.log.Error.Printf("GenerateRequestVectors failed, couldn't fully XOR")
-			return nil, fmt.Errorf("XorBytes failed")
-		}
+		pircpu.XorBytes(req[0], req[0], req[i])
 	}
 
 	return req, nil
@@ -76,9 +73,9 @@ func (c *Client) CombineResponses(responses [][]byte) ([]byte, error) {
 	result := make([]byte, length)
 	copy(result, responses[0])
 
-	for i, resp := range responses {
+	for i := 1; i < len(responses); i++ {
 		// Combine into result
-		if pircpu.XorBytes(result, result, resp) != length {
+		if pircpu.XorBytes(result, result, responses[i]) != length {
 			c.log.Error.Printf("CombineResponses failed: malformed response %v", i)
 			return nil, fmt.Errorf("malformed response %v", i)
 		}
