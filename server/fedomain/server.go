@@ -1,17 +1,18 @@
-package feglobal
+package fedomain
 
 import (
 	"sync"
 
 	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/protocol/fedomain"
 	"github.com/privacylab/talek/protocol/feglobal"
-	"github.com/privacylab/talek/protocol/intvec"
+	"github.com/privacylab/talek/protocol/layout"
 	"github.com/privacylab/talek/protocol/notify"
 	"github.com/privacylab/talek/server"
 	"golang.org/x/net/trace"
 )
 
-// Server is the main logic for global frontends
+// Server is the main logic for trust domain frontends
 type Server struct {
 	/** Private State **/
 	// Static
@@ -26,7 +27,7 @@ type Server struct {
 	snapshotID uint64
 }
 
-// NewServer creates a new global frontend server
+// NewServer creates a new trust domain frontend server
 func NewServer(name string, addr string, listenRPC bool, config common.Config) (*Server, error) {
 	s := &Server{}
 	s.log = common.NewLogger(name)
@@ -41,7 +42,7 @@ func NewServer(name string, addr string, listenRPC bool, config common.Config) (
 	s.lock = &sync.RWMutex{}
 	s.snapshotID = 0
 
-	s.log.Info.Printf("feglobal.NewServer(%v) success\n", name)
+	s.log.Info.Printf("fedomain.NewServer(%v) success\n", name)
 	return s, nil
 }
 
@@ -50,8 +51,8 @@ func NewServer(name string, addr string, listenRPC bool, config common.Config) (
  **********************************/
 
 // GetInfo returns information about this server
-func (s *Server) GetInfo(args *interface{}, reply *feglobal.GetInfoReply) error {
-	tr := trace.New("FEGlobal", "GetInfo")
+func (s *Server) GetInfo(args *interface{}, reply *fedomain.GetInfoReply) error {
+	tr := trace.New("FEDomain", "GetInfo")
 	defer tr.Finish()
 	s.lock.RLock()
 
@@ -63,9 +64,9 @@ func (s *Server) GetInfo(args *interface{}, reply *feglobal.GetInfoReply) error 
 	return nil
 }
 
-// GetIntVec returns the global interest vector
-func (s *Server) GetIntVec(args *intvec.GetIntVecArgs, reply *intvec.GetIntVecReply) error {
-	tr := trace.New("FEGlobal", "GetIntVec")
+// GetLayout returns the layout
+func (s *Server) GetLayout(args *layout.GetLayoutArgs, reply *layout.GetLayoutReply) error {
+	tr := trace.New("FEDomain", "GetLayout")
 	defer tr.Finish()
 	//s.lock.RLock()
 
@@ -78,7 +79,7 @@ func (s *Server) GetIntVec(args *intvec.GetIntVecArgs, reply *intvec.GetIntVecRe
 
 // Notify this server of a new snapshotID
 func (s *Server) Notify(args *notify.Args, reply *notify.Reply) error {
-	tr := trace.New("FEGlobal", "Notify")
+	tr := trace.New("FEDomain", "Notify")
 	defer tr.Finish()
 	//s.lock.RLock()
 
@@ -91,7 +92,7 @@ func (s *Server) Notify(args *notify.Args, reply *notify.Reply) error {
 
 // Write stores a single message
 func (s *Server) Write(args *feglobal.WriteArgs, reply *feglobal.WriteReply) error {
-	tr := trace.New("FEGlobal", "Write")
+	tr := trace.New("FEDomain", "Write")
 	defer tr.Finish()
 
 	// @todo
@@ -100,9 +101,9 @@ func (s *Server) Write(args *feglobal.WriteArgs, reply *feglobal.WriteReply) err
 	return nil
 }
 
-// Read processes a read for a shard range
-func (s *Server) Read(args *feglobal.ReadArgs, reply *feglobal.ReadReply) error {
-	tr := trace.New("FEGlobal", "Read")
+// EncPIR processes a single encrypted PIR requests
+func (s *Server) EncPIR(args *feglobal.EncPIRArgs, reply *feglobal.ReadReply) error {
+	tr := trace.New("FEDomain", "EncPIR")
 	defer tr.Finish()
 	s.lock.RLock()
 
