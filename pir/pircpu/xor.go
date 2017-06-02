@@ -48,9 +48,9 @@ func safeXORBytes(dst, a, b []byte) int {
 	return n
 }
 
-// xorBytes xors the bytes in a and b. The destination is assumed to have enough
+// XorBytes xors the bytes in a and b. The destination is assumed to have enough
 // space. Returns the number of bytes xor'd.
-func xorBytes(dst, a, b []byte) int {
+func XorBytes(dst, a, b []byte) int {
 	if supportsUnaligned {
 		return fastXORBytes(dst, a, b)
 	}
@@ -74,7 +74,8 @@ func fastXORWords(dst, a, b []byte) {
 	}
 }
 
-func xorWords(dst, a, b []byte) {
+// XorWords uses fastXORWords
+func XorWords(dst, a, b []byte) {
 	if supportsUnaligned {
 		fastXORWords(dst, a, b)
 	} else {

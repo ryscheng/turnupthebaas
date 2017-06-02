@@ -141,7 +141,7 @@ func (s *ShardCPU) read0(reqs []byte, reqLength int) ([]byte, error) {
 				bucketOffset := bucketIndex * s.bucketSize
 				bucket := s.data[bucketOffset:(bucketOffset + s.bucketSize)]
 				response := responses[respOffset:(respOffset + s.bucketSize)]
-				xorWords(response, response, bucket)
+				XorWords(response, response, bucket)
 			}
 		}
 	}
@@ -165,7 +165,7 @@ func (s *ShardCPU) read1(reqs []byte, reqLength int) ([]byte, error) {
 				bucketOffset := bucketIndex * s.bucketSize
 				bucket := s.data[bucketOffset:(bucketOffset + s.bucketSize)]
 				response := responses[respOffset:(respOffset + s.bucketSize)]
-				xorBytes(response, response, bucket)
+				XorBytes(response, response, bucket)
 			}
 		}
 	}
