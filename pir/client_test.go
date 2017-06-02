@@ -33,16 +33,59 @@ func TestGenerateRequestVectors(t *testing.T) {
 }
 
 func TestGenerateRequestVectorsInvalidNumServers(t *testing.T) {
+	c := NewClient("test")
+	_, err := c.GenerateRequestVectors(1, 1, 64)
+	if err == nil {
+		t.Errorf("GenerateRequestVectors should fail with 1 server")
+	}
 }
 
 func TestGenerateRequestVectorsInvalidBucket(t *testing.T) {
+	c := NewClient("test")
+	_, err := c.GenerateRequestVectors(65, 3, 64)
+	if err == nil {
+		t.Errorf("GenerateRequestVectors should fail with out of bounds bucket")
+	}
 }
 
 func TestCombineResponses(t *testing.T) {
+	c := NewClient("test")
+	result, err := c.CombineResponses([][]byte{
+		[]byte{1, 2, 3, 4, 5},
+		[]byte{1, 2, 3, 4, 5},
+	})
+	if err != nil {
+		t.Errorf("CombineResponses shouldn't have failed")
+	}
+	for _, b := range result {
+		if b != 0 {
+			t.Errorf("CombineResponses should return 0")
+		}
+	}
 }
 
 func TestCombineResponsesNone(t *testing.T) {
+	c := NewClient("test")
+	_, err := c.CombineResponses(make([][]byte, 0))
+	if err == nil {
+		t.Errorf("CombineResponses should have failed with no responses to combine")
+	}
 }
 
 func TestCombineResponsesInvalid(t *testing.T) {
+	c := NewClient("test")
+	_, err := c.CombineResponses([][]byte{
+		[]byte{1, 2, 3},
+		[]byte{1},
+	})
+	if err == nil {
+		t.Errorf("CombineResponses should have failed with mismatched responses")
+	}
+	_, err = c.CombineResponses([][]byte{
+		[]byte{1},
+		[]byte{1, 2, 3},
+	})
+	if err != nil {
+		t.Errorf("CombineResponses is okay with bigger later responses")
+	}
 }
