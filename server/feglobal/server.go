@@ -64,7 +64,7 @@ func (s *Server) GetInfo(args *interface{}, reply *feglobal.GetInfoReply) error 
 }
 
 // GetIntVec returns the global interest vector
-func (s *Server) GetIntVec(args *intvec.GetIntVecArgs, reply *intvec.GetIntVecReply) error {
+func (s *Server) GetIntVec(args *intvec.Args, reply *intvec.Reply) error {
 	tr := trace.New("FEGlobal", "GetIntVec")
 	defer tr.Finish()
 	//s.lock.RLock()

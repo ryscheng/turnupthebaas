@@ -187,12 +187,12 @@ func TestGetLayoutInvalidSnapshotID(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	args := &layout.GetLayoutArgs{
+	args := &layout.Args{
 		SnapshotID: 100,
 		Index:      0,
 		NumSplit:   1,
 	}
-	reply := &layout.GetLayoutReply{}
+	reply := &layout.Reply{}
 	if s.GetLayout(args, reply) != nil {
 		t.Errorf("Error calling GetLayout: %v", err)
 	}
@@ -207,12 +207,12 @@ func TestGetLayoutInvalidNumSplit(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	args := &layout.GetLayoutArgs{
+	args := &layout.Args{
 		SnapshotID: 0,
 		Index:      0,
 		NumSplit:   0,
 	}
-	reply := &layout.GetLayoutReply{}
+	reply := &layout.Reply{}
 	if s.GetLayout(args, reply) != nil {
 		t.Errorf("Error calling GetLayout: %v", err)
 	}
@@ -227,12 +227,12 @@ func TestGetLayoutInvalidIndex(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	args := &layout.GetLayoutArgs{
+	args := &layout.Args{
 		SnapshotID: 0,
 		Index:      4,
 		NumSplit:   4,
 	}
-	reply := &layout.GetLayoutReply{}
+	reply := &layout.Reply{}
 	if s.GetLayout(args, reply) != nil {
 		t.Errorf("Error calling GetLayout: %v", err)
 	}
@@ -247,12 +247,12 @@ func TestGetLayoutEmpty(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	args := &layout.GetLayoutArgs{
+	args := &layout.Args{
 		SnapshotID: 0,
 		Index:      0,
 		NumSplit:   1,
 	}
-	reply := &layout.GetLayoutReply{}
+	reply := &layout.Reply{}
 	if s.GetLayout(args, reply) != nil {
 		t.Errorf("Error calling GetLayout: %v", err)
 	}
@@ -272,8 +272,8 @@ func TestGetIntVecInvalidSnapshotID(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	args := &intvec.GetIntVecArgs{SnapshotID: 100}
-	reply := &intvec.GetIntVecReply{}
+	args := &intvec.Args{SnapshotID: 100}
+	reply := &intvec.Reply{}
 	if s.GetIntVec(args, reply) != nil {
 		t.Errorf("Error calling GetIntVec: %v", err)
 	}
@@ -288,8 +288,8 @@ func TestGetIntVecEmpty(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	args := &intvec.GetIntVecArgs{SnapshotID: 0}
-	reply := &intvec.GetIntVecReply{}
+	args := &intvec.Args{SnapshotID: 0}
+	reply := &intvec.Reply{}
 	if s.GetIntVec(args, reply) != nil {
 		t.Errorf("Error calling GetIntVec: %v", err)
 	}
@@ -362,8 +362,8 @@ func TestSnapshot(t *testing.T) {
 		}
 	}
 	// Check layout
-	layoutArgs := &layout.GetLayoutArgs{SnapshotID: 1, Index: 0, NumSplit: 1}
-	layoutReply := &layout.GetLayoutReply{}
+	layoutArgs := &layout.Args{SnapshotID: 1, Index: 0, NumSplit: 1}
+	layoutReply := &layout.Reply{}
 	if s.GetLayout(layoutArgs, layoutReply) != nil {
 		t.Errorf("Error calling GetLayout: %v", err)
 	}
@@ -379,8 +379,8 @@ func TestSnapshot(t *testing.T) {
 		}
 	}
 	// Check interest vector
-	intVecArgs := &intvec.GetIntVecArgs{SnapshotID: 1}
-	intVecReply := &intvec.GetIntVecReply{}
+	intVecArgs := &intvec.Args{SnapshotID: 1}
+	intVecReply := &intvec.Reply{}
 	if s.GetIntVec(intVecArgs, intVecReply) != nil {
 		t.Errorf("Error calling GetIntVec: %v", err)
 	}

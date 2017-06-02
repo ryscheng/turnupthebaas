@@ -27,10 +27,10 @@ func TestCoordinator(t *testing.T) {
 	if err = cc.GetCommonConfig(nil, &common.Config{}); err != nil {
 		t.Errorf("Error calling GetCommonConfig: %v", err)
 	}
-	if err = cc.GetLayout(&layout.GetLayoutArgs{}, &layout.GetLayoutReply{}); err != nil {
+	if err = cc.GetLayout(&layout.Args{}, &layout.Reply{}); err != nil {
 		t.Errorf("Error calling GetLayout: %v", err)
 	}
-	if err = cc.GetIntVec(&intvec.GetIntVecArgs{}, &intvec.GetIntVecReply{}); err != nil {
+	if err = cc.GetIntVec(&intvec.Args{}, &intvec.Reply{}); err != nil {
 		t.Errorf("Error calling GetIntVec: %v", err)
 	}
 	if err = cc.Commit(&protocol.CommitArgs{}, &protocol.CommitReply{}); err != nil {

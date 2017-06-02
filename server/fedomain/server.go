@@ -65,7 +65,7 @@ func (s *Server) GetInfo(args *interface{}, reply *fedomain.GetInfoReply) error 
 }
 
 // GetLayout returns the layout
-func (s *Server) GetLayout(args *layout.GetLayoutArgs, reply *layout.GetLayoutReply) error {
+func (s *Server) GetLayout(args *layout.Args, reply *layout.Reply) error {
 	tr := trace.New("FEDomain", "GetLayout")
 	defer tr.Finish()
 	//s.lock.RLock()

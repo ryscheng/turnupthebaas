@@ -23,7 +23,7 @@ func TestFEDomain(t *testing.T) {
 	if err = cc.GetInfo(nil, &protocol.GetInfoReply{}); err != nil {
 		t.Errorf("Error calling GetInfo: %v", err)
 	}
-	if err = cc.GetLayout(&layout.GetLayoutArgs{}, &layout.GetLayoutReply{}); err != nil {
+	if err = cc.GetLayout(&layout.Args{}, &layout.Reply{}); err != nil {
 		t.Errorf("Error calling GetLayout: %v", err)
 	}
 	if err = cc.Notify(&notify.Args{}, &notify.Reply{}); err != nil {

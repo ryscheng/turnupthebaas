@@ -22,7 +22,7 @@ func TestFEGlobal(t *testing.T) {
 	if err = cc.GetInfo(nil, &protocol.GetInfoReply{}); err != nil {
 		t.Errorf("Error calling GetInfo: %v", err)
 	}
-	if err = cc.GetIntVec(&intvec.GetIntVecArgs{}, &intvec.GetIntVecReply{}); err != nil {
+	if err = cc.GetIntVec(&intvec.Args{}, &intvec.Reply{}); err != nil {
 		t.Errorf("Error calling GetIntVec: %v", err)
 	}
 	if err = cc.Notify(&notify.Args{}, &notify.Reply{}); err != nil {

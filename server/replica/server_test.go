@@ -61,7 +61,7 @@ type MockServer struct {
 	err        string
 	snapshotID uint64
 	layout     []uint64
-	Done       chan *layout.GetLayoutArgs
+	Done       chan *layout.Args
 }
 
 func NewMockServer(addr string, err string, snapshotID uint64, l []uint64) *MockServer {
@@ -70,7 +70,7 @@ func NewMockServer(addr string, err string, snapshotID uint64, l []uint64) *Mock
 	s.err = err
 	s.snapshotID = snapshotID
 	s.layout = l
-	s.Done = make(chan *layout.GetLayoutArgs)
+	s.Done = make(chan *layout.Args)
 	return s
 }
 
@@ -79,7 +79,7 @@ func (s *MockServer) Close() {
 	close(s.Done)
 }
 
-func (s *MockServer) GetLayout(args *layout.GetLayoutArgs, reply *layout.GetLayoutReply) error {
+func (s *MockServer) GetLayout(args *layout.Args, reply *layout.Reply) error {
 	//s.Done <- args
 	// Make sure GetLayout eventually terminates
 	if args.SnapshotID == s.snapshotID && s.err == layout.ErrorInvalidSnapshotID {

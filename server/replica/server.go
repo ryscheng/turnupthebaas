@@ -190,8 +190,8 @@ func (s *Server) GetLayout(snapshotID uint64) (uint64, []uint64) {
 	s.lock.RLock()
 	// Do RPC
 	layoutSize := s.config.NumBucketsPerShard * s.config.NumShardsPerGroup
-	reply := &layout.GetLayoutReply{}
-	args := &layout.GetLayoutArgs{
+	reply := &layout.Reply{}
+	args := &layout.Args{
 		SnapshotID: snapshotID,
 		Index:      s.group,
 		NumSplit:   s.config.NumBuckets / layoutSize,

@@ -10,7 +10,7 @@ import (
 type Interface interface {
 	GetInfo(args *interface{}, reply *GetInfoReply) error
 	GetCommonConfig(args *interface{}, reply *common.Config) error
-	GetLayout(args *layout.GetLayoutArgs, reply *layout.GetLayoutReply) error
-	GetIntVec(args *intvec.GetIntVecArgs, reply *intvec.GetIntVecReply) error
+	GetLayout(args *layout.Args, reply *layout.Reply) error
+	GetIntVec(args *intvec.Args, reply *intvec.Reply) error
 	Commit(args *CommitArgs, reply *CommitReply) error
 }

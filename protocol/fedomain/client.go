@@ -47,7 +47,7 @@ func (c *Client) GetInfo(_ *interface{}, reply *GetInfoReply) error {
 }
 
 // GetLayout retrieves a layout (potentially partial)
-func (c *Client) GetLayout(args *layout.GetLayoutArgs, reply *layout.GetLayoutReply) error {
+func (c *Client) GetLayout(args *layout.Args, reply *layout.Reply) error {
 	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.GetLayout", args, reply)
 	return c.lastErr
 }

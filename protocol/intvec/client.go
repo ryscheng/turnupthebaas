@@ -37,7 +37,7 @@ func (c *Client) Close() error {
 }
 
 // GetIntVec retrieves the global interest vector
-func (c *Client) GetIntVec(args *GetIntVecArgs, reply *GetIntVecReply) error {
+func (c *Client) GetIntVec(args *Args, reply *Reply) error {
 	c.client, c.lastErr = common.RPCCall(c.client, c.address, "Server.GetIntVec", args, reply)
 	return c.lastErr
 }

@@ -128,7 +128,7 @@ func (s *Server) GetCommonConfig(args *interface{}, reply *common.Config) error 
 }
 
 // GetLayout returns the layout for a shard
-func (s *Server) GetLayout(args *layout.GetLayoutArgs, reply *layout.GetLayoutReply) error {
+func (s *Server) GetLayout(args *layout.Args, reply *layout.Reply) error {
 	tr := trace.New("Coordinator", "GetLayout")
 	defer tr.Finish()
 	s.lock.RLock()
@@ -162,7 +162,7 @@ func (s *Server) GetLayout(args *layout.GetLayoutArgs, reply *layout.GetLayoutRe
 }
 
 // GetIntVec returns the global interest vector
-func (s *Server) GetIntVec(args *intvec.GetIntVecArgs, reply *intvec.GetIntVecReply) error {
+func (s *Server) GetIntVec(args *intvec.Args, reply *intvec.Reply) error {
 	tr := trace.New("Coordinator", "GetIntVec")
 	defer tr.Finish()
 	s.lock.RLock()

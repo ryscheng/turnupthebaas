@@ -4,15 +4,15 @@ package layout
  * PROTOCOL
  **********************/
 
-// GetLayoutArgs requests the layout for a shard
-type GetLayoutArgs struct {
+// Args requests the layout for a shard
+type Args struct {
 	SnapshotID uint64
 	Index      uint64
 	NumSplit   uint64
 }
 
-// GetLayoutReply returns the layout for a shard
-type GetLayoutReply struct {
+// Reply returns the layout for a shard
+type Reply struct {
 	Err        string
 	SnapshotID uint64
 	Layout     []uint64
