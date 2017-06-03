@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/privacylab/talek/pir/pirclient"
 	"github.com/privacylab/talek/pir/pirinterface"
 )
 
@@ -124,6 +125,38 @@ func HelperTestShardRead(t *testing.T, shard pirinterface.Shard) {
 	if err == nil {
 		t.Fatalf("shard.Read should have returned an error with mismatched reqs and reqLength")
 	}
+}
+
+// HelperTestClientRead tests an end to end PIR read
+func HelperTestClientRead(t *testing.T, shard pirinterface.Shard) {
+	bucket := uint64(1)
+	numServers := uint64(3)
+	c := pirclient.NewClient("test")
+	reqs, err := c.GenerateRequestVectors(bucket, numServers, TestNumMessages/TestDepth)
+	if err != nil {
+		t.Errorf("GenerateRequestVectors shouldn't have failed, %v", err)
+	}
+
+	responses := make([][]byte, numServers)
+	for i := uint64(0); i < numServers; i++ {
+		responses[i], err = shard.Read(reqs[i], len(reqs[i]))
+		if err != nil {
+			t.Errorf("error calling shard.Read: %v", err)
+		}
+	}
+
+	result, err := c.CombineResponses(responses)
+	if err != nil {
+		t.Errorf("CombineResponses shouldn't have failed, %v", err)
+	}
+
+	for i := uint64(0); i < TestDepth*TestMessageSize; i++ {
+		expected := byte(bucket*(TestDepth*TestMessageSize) + i)
+		if result[i] != expected {
+			t.Errorf("Client should have read %v, not %v", expected, result)
+		}
+	}
+
 }
 
 // HelperBenchmarkShardRead is the generic function for testing performance of a PIR implementation

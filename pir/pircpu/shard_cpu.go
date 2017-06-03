@@ -8,6 +8,7 @@ import (
 
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/pir/pirinterface"
+	"github.com/privacylab/talek/pir/xor"
 )
 
 // ShardCPU represents a read-only shard of the database
@@ -141,7 +142,7 @@ func (s *ShardCPU) read0(reqs []byte, reqLength int) ([]byte, error) {
 				bucketOffset := bucketIndex * s.bucketSize
 				bucket := s.data[bucketOffset:(bucketOffset + s.bucketSize)]
 				response := responses[respOffset:(respOffset + s.bucketSize)]
-				XorWords(response, response, bucket)
+				xor.Words(response, response, bucket)
 			}
 		}
 	}
@@ -165,7 +166,7 @@ func (s *ShardCPU) read1(reqs []byte, reqLength int) ([]byte, error) {
 				bucketOffset := bucketIndex * s.bucketSize
 				bucket := s.data[bucketOffset:(bucketOffset + s.bucketSize)]
 				response := responses[respOffset:(respOffset + s.bucketSize)]
-				XorBytes(response, response, bucket)
+				xor.Bytes(response, response, bucket)
 			}
 		}
 	}

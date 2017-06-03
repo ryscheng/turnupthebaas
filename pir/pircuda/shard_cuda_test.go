@@ -44,6 +44,7 @@ func TestShardCUDAReadv0(t *testing.T) {
 		t.Fatalf("cannot create new ShardCUDA: error=%v\n", err)
 	}
 	pt.HelperTestShardRead(t, shard)
+	pt.HelperTestClientRead(t, shard)
 	pt.AfterEach(t, shard, context)
 	fmt.Printf("... done \n")
 }

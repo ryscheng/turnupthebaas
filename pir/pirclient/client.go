@@ -1,11 +1,11 @@
-package pir
+package pirclient
 
 import (
 	"crypto/rand"
 	"fmt"
 
 	"github.com/privacylab/talek/common"
-	"github.com/privacylab/talek/pir/pircpu"
+	"github.com/privacylab/talek/pir/xor"
 )
 
 // Client handles the basic functionalities of a PIR client,
@@ -55,7 +55,7 @@ func (c *Client) GenerateRequestVectors(bucket uint64, numServers uint64, numBuc
 			return nil, err
 		}
 		// XOR this request vector into the secret
-		pircpu.XorBytes(req[0], req[0], req[i])
+		xor.Bytes(req[0], req[0], req[i])
 	}
 
 	return req, nil
@@ -75,7 +75,7 @@ func (c *Client) CombineResponses(responses [][]byte) ([]byte, error) {
 
 	for i := 1; i < len(responses); i++ {
 		// Combine into result
-		if pircpu.XorBytes(result, result, responses[i]) != length {
+		if xor.Bytes(result, result, responses[i]) != length {
 			c.log.Error.Printf("CombineResponses failed: malformed response %v", i)
 			return nil, fmt.Errorf("malformed response %v", i)
 		}

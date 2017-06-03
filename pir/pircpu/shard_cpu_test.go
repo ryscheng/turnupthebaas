@@ -34,6 +34,7 @@ func TestShardCPUReadv0(t *testing.T) {
 		t.Fatalf("cannot create new ShardCPU v0: error=%v\n", err)
 	}
 	pt.HelperTestShardRead(t, shard)
+	pt.HelperTestClientRead(t, shard)
 	pt.AfterEach(t, shard, nil)
 	fmt.Printf("... done \n")
 }
@@ -46,6 +47,7 @@ func TestShardCPUReadv1(t *testing.T) {
 		t.Fatalf("cannot create new ShardCPU v1: error=%v\n", err)
 	}
 	pt.HelperTestShardRead(t, shard)
+	pt.HelperTestClientRead(t, shard)
 	pt.AfterEach(t, shard, nil)
 	fmt.Printf("... done \n")
 }
@@ -58,6 +60,7 @@ func TestShardCPUReadv2(t *testing.T) {
 		t.Fatalf("cannot create new ShardCPU v2: error=%v\n", err)
 	}
 	pt.HelperTestShardRead(t, shard)
+	pt.HelperTestClientRead(t, shard)
 	pt.AfterEach(t, shard, nil)
 	fmt.Printf("... done \n")
 }

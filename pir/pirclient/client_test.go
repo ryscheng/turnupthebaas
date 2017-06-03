@@ -1,4 +1,4 @@
-package pir
+package pirclient
 
 import (
 	"encoding/binary"
@@ -51,8 +51,8 @@ func TestGenerateRequestVectorsInvalidBucket(t *testing.T) {
 func TestCombineResponses(t *testing.T) {
 	c := NewClient("test")
 	result, err := c.CombineResponses([][]byte{
-		[]byte{1, 2, 3, 4, 5},
-		[]byte{1, 2, 3, 4, 5},
+		{1, 2, 3, 4, 5},
+		{1, 2, 3, 4, 5},
 	})
 	if err != nil {
 		t.Errorf("CombineResponses shouldn't have failed")
@@ -75,15 +75,15 @@ func TestCombineResponsesNone(t *testing.T) {
 func TestCombineResponsesInvalid(t *testing.T) {
 	c := NewClient("test")
 	_, err := c.CombineResponses([][]byte{
-		[]byte{1, 2, 3},
-		[]byte{1},
+		{1, 2, 3},
+		{1},
 	})
 	if err == nil {
 		t.Errorf("CombineResponses should have failed with mismatched responses")
 	}
 	_, err = c.CombineResponses([][]byte{
-		[]byte{1},
-		[]byte{1, 2, 3},
+		{1},
+		{1, 2, 3},
 	})
 	if err != nil {
 		t.Errorf("CombineResponses is okay with bigger later responses")

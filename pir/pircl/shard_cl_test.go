@@ -46,6 +46,7 @@ func TestShardCLReadv0(t *testing.T) {
 		t.Fatalf("cannot create new ShardCL: error=%v\n", err)
 	}
 	pt.HelperTestShardRead(t, shard)
+	pt.HelperTestClientRead(t, shard)
 	pt.AfterEach(t, shard, context)
 	fmt.Printf("... done \n")
 }
@@ -62,6 +63,7 @@ func TestShardCLReadv1(t *testing.T) {
 		t.Fatalf("cannot create new ShardCL: error=%v\n", err)
 	}
 	pt.HelperTestShardRead(t, shard)
+	pt.HelperTestClientRead(t, shard)
 	pt.AfterEach(t, shard, context)
 	fmt.Printf("... done \n")
 }
@@ -78,6 +80,7 @@ func TestShardCLReadv2(t *testing.T) {
 		t.Fatalf("cannot create new ShardCL: error=%v\n", err)
 	}
 	pt.HelperTestShardRead(t, shard)
+	pt.HelperTestClientRead(t, shard)
 	pt.AfterEach(t, shard, context)
 	fmt.Printf("... done \n")
 }
