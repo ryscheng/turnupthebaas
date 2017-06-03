@@ -116,15 +116,14 @@ func (s *ShardCPU) Insert(bucket int, offset int, toCopy []byte) int {
 func (s *ShardCPU) Read(reqs []byte, reqLength int) ([]byte, error) {
 	if len(reqs)%reqLength != 0 {
 		return nil, fmt.Errorf("ShardCPU.Read expects len(reqs)=%d to be a multiple of reqLength=%d", len(reqs), reqLength)
-	} else if s.readVersion == 0 {
-		return s.read0(reqs, reqLength)
 	} else if s.readVersion == 1 {
 		return s.read1(reqs, reqLength)
 	} else if s.readVersion == 2 {
 		return s.read2(reqs, reqLength)
 	}
 
-	return nil, fmt.Errorf("ShardCPU.Read: invalid readVersion=%d", s.readVersion)
+	// Default to version 0
+	return s.read0(reqs, reqLength)
 }
 
 func (s *ShardCPU) read0(reqs []byte, reqLength int) ([]byte, error) {

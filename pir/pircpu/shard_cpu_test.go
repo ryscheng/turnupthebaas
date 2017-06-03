@@ -26,6 +26,39 @@ func TestShardCPUCreate(t *testing.T) {
 	fmt.Printf("... done \n")
 }
 
+func TestNewShardInvalidBucketSize(t *testing.T) {
+	fmt.Printf("TestShardCPUCreate: ...\n")
+	beforeEach()
+	// Creating with invalid bucketSize
+	shard := NewShard(7, pt.GenerateData(pt.TestNumMessages*pt.TestMessageSize), "cpu.0")
+	if shard != nil {
+		t.Fatalf("new ShardCPU should have failed with invalid bucketSize, but returned a shard")
+	}
+	fmt.Printf("... done \n")
+}
+
+func TestNewShardInvalidUserData1(t *testing.T) {
+	fmt.Printf("TestShardCPUCreate: ...\n")
+	beforeEach()
+	// Creating with invalid bucketSize
+	shard := NewShard(7, pt.GenerateData(pt.TestNumMessages*pt.TestMessageSize), "cpu")
+	if shard != nil {
+		t.Fatalf("new ShardCPU should have failed with invalid user data, but returned a shard")
+	}
+	fmt.Printf("... done \n")
+}
+
+func TestNewShardInvalidUserData2(t *testing.T) {
+	fmt.Printf("TestShardCPUCreate: ...\n")
+	beforeEach()
+	// Creating with invalid bucketSize
+	shard := NewShard(7, pt.GenerateData(pt.TestNumMessages*pt.TestMessageSize), "cpu.cpu")
+	if shard != nil {
+		t.Fatalf("new ShardCPU should have failed with invalid user data, but returned a shard")
+	}
+	fmt.Printf("... done \n")
+}
+
 func TestShardCPUReadv0(t *testing.T) {
 	fmt.Printf("TestShardCPUReadv0: ...\n")
 	beforeEach()
