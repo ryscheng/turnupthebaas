@@ -29,9 +29,9 @@ func TestShardCPUCreate(t *testing.T) {
 func TestShardCPUReadv0(t *testing.T) {
 	fmt.Printf("TestShardCPUReadv0: ...\n")
 	beforeEach()
-	shard, err := NewShardCPU("shardcpuv0", pt.TestDepth*pt.TestMessageSize, pt.GenerateData(pt.TestNumMessages*pt.TestMessageSize), 0)
-	if err != nil {
-		t.Fatalf("cannot create new ShardCPU v0: error=%v\n", err)
+	shard := NewShard(pt.TestDepth*pt.TestMessageSize, pt.GenerateData(pt.TestNumMessages*pt.TestMessageSize), "cpu.0")
+	if shard == nil {
+		t.Fatalf("cannot create new ShardCPU v0\n")
 	}
 	pt.HelperTestShardRead(t, shard)
 	pt.HelperTestClientRead(t, shard)
@@ -42,9 +42,9 @@ func TestShardCPUReadv0(t *testing.T) {
 func TestShardCPUReadv1(t *testing.T) {
 	fmt.Printf("TestShardCPUReadv1: ...\n")
 	beforeEach()
-	shard, err := NewShardCPU("shardcpuv1", pt.TestDepth*pt.TestMessageSize, pt.GenerateData(pt.TestNumMessages*pt.TestMessageSize), 1)
-	if err != nil {
-		t.Fatalf("cannot create new ShardCPU v1: error=%v\n", err)
+	shard := NewShard(pt.TestDepth*pt.TestMessageSize, pt.GenerateData(pt.TestNumMessages*pt.TestMessageSize), "cpu.1")
+	if shard == nil {
+		t.Fatalf("cannot create new ShardCPU v1\n")
 	}
 	pt.HelperTestShardRead(t, shard)
 	pt.HelperTestClientRead(t, shard)
@@ -55,9 +55,9 @@ func TestShardCPUReadv1(t *testing.T) {
 func TestShardCPUReadv2(t *testing.T) {
 	fmt.Printf("TestShardCPUReadv2: ...\n")
 	beforeEach()
-	shard, err := NewShardCPU("shardcpuv2", pt.TestDepth*pt.TestMessageSize, pt.GenerateData(pt.TestNumMessages*pt.TestMessageSize), 2)
-	if err != nil {
-		t.Fatalf("cannot create new ShardCPU v2: error=%v\n", err)
+	shard := NewShard(pt.TestDepth*pt.TestMessageSize, pt.GenerateData(pt.TestNumMessages*pt.TestMessageSize), "cpu.2")
+	if shard == nil {
+		t.Fatalf("cannot create new ShardCPU v2\n")
 	}
 	pt.HelperTestShardRead(t, shard)
 	pt.HelperTestClientRead(t, shard)
@@ -68,9 +68,9 @@ func TestShardCPUReadv2(t *testing.T) {
 func BenchmarkShardCPUReadv0(b *testing.B) {
 	//fmt.Printf("BenchmarkShardCPUReadv0 began with N=%d... \n", b.N)
 	beforeEach()
-	shard, err := NewShardCPU("shardcpuv0", pt.BenchDepth*pt.BenchMessageSize, pt.GenerateData(pt.BenchNumMessages*pt.BenchMessageSize), 0)
-	if err != nil {
-		b.Fatalf("cannot create new ShardCPU v0: error=%v\n", err)
+	shard := NewShard(pt.BenchDepth*pt.BenchMessageSize, pt.GenerateData(pt.BenchNumMessages*pt.BenchMessageSize), "cpu.0")
+	if shard == nil {
+		b.Fatalf("cannot create new ShardCPU v0\n")
 	}
 	pt.HelperBenchmarkShardRead(b, shard, pt.BenchBatchSize)
 	pt.AfterEach(b, shard, nil)
@@ -79,9 +79,9 @@ func BenchmarkShardCPUReadv0(b *testing.B) {
 func BenchmarkShardCPUReadv1(b *testing.B) {
 	//fmt.Printf("BenchmarkShardCPUReadv1 began with N=%d... \n", b.N)
 	beforeEach()
-	shard, err := NewShardCPU("shardcpuv1", pt.BenchDepth*pt.BenchMessageSize, pt.GenerateData(pt.BenchNumMessages*pt.BenchMessageSize), 1)
-	if err != nil {
-		b.Fatalf("cannot create new ShardCPU v1: error=%v\n", err)
+	shard := NewShard(pt.BenchDepth*pt.BenchMessageSize, pt.GenerateData(pt.BenchNumMessages*pt.BenchMessageSize), "cpu.1")
+	if shard == nil {
+		b.Fatalf("cannot create new ShardCPU v1\n")
 	}
 	pt.HelperBenchmarkShardRead(b, shard, pt.BenchBatchSize)
 	pt.AfterEach(b, shard, nil)
@@ -90,9 +90,9 @@ func BenchmarkShardCPUReadv1(b *testing.B) {
 func BenchmarkShardCPUReadv2(b *testing.B) {
 	//fmt.Printf("BenchmarkShardCPUReadv2 began with N=%d... \n", b.N)
 	beforeEach()
-	shard, err := NewShardCPU("shardcpuv2", pt.BenchDepth*pt.BenchMessageSize, pt.GenerateData(pt.BenchNumMessages*pt.BenchMessageSize), 2)
-	if err != nil {
-		b.Fatalf("cannot create new ShardCPU v2: error=%v\n", err)
+	shard := NewShard(pt.BenchDepth*pt.BenchMessageSize, pt.GenerateData(pt.BenchNumMessages*pt.BenchMessageSize), "cpu.2")
+	if shard == nil {
+		b.Fatalf("cannot create new ShardCPU v2\n")
 	}
 	pt.HelperBenchmarkShardRead(b, shard, pt.BenchBatchSize)
 	pt.AfterEach(b, shard, nil)
