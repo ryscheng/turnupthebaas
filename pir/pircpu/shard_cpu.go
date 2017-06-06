@@ -64,6 +64,10 @@ func NewShardCPU(name string, bucketSize int, data []byte, readVersion int) (*Sh
 		return nil, fmt.Errorf("NewShardCPU(%v) failed: data(len=%v) not multiple of bucketSize=%v", name, len(data), bucketSize)
 	}
 
+	if readVersion < 0 || readVersion > 2 {
+		return nil, fmt.Errorf("NewShardCPU(%v) failed: readVersion=%v must be 0, 1, or 2", name, readVersion)
+	}
+
 	s.bucketSize = bucketSize
 	s.numBuckets = (len(data) / bucketSize)
 	s.data = data
