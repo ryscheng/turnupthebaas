@@ -8,6 +8,7 @@ import (
 
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/pir/pirinterface"
+	"github.com/privacylab/talek/pir/xor"
 )
 
 // ShardCPU represents a read-only shard of the database
@@ -63,6 +64,10 @@ func NewShardCPU(name string, bucketSize int, data []byte, readVersion int) (*Sh
 		return nil, fmt.Errorf("NewShardCPU(%v) failed: data(len=%v) not multiple of bucketSize=%v", name, len(data), bucketSize)
 	}
 
+	if readVersion < 0 || readVersion > 2 {
+		return nil, fmt.Errorf("NewShardCPU(%v) failed: readVersion=%v must be 0, 1, or 2", name, readVersion)
+	}
+
 	s.bucketSize = bucketSize
 	s.numBuckets = (len(data) / bucketSize)
 	s.data = data
@@ -115,15 +120,14 @@ func (s *ShardCPU) Insert(bucket int, offset int, toCopy []byte) int {
 func (s *ShardCPU) Read(reqs []byte, reqLength int) ([]byte, error) {
 	if len(reqs)%reqLength != 0 {
 		return nil, fmt.Errorf("ShardCPU.Read expects len(reqs)=%d to be a multiple of reqLength=%d", len(reqs), reqLength)
-	} else if s.readVersion == 0 {
-		return s.read0(reqs, reqLength)
 	} else if s.readVersion == 1 {
 		return s.read1(reqs, reqLength)
 	} else if s.readVersion == 2 {
 		return s.read2(reqs, reqLength)
 	}
 
-	return nil, fmt.Errorf("ShardCPU.Read: invalid readVersion=%d", s.readVersion)
+	// Default to version 0
+	return s.read0(reqs, reqLength)
 }
 
 func (s *ShardCPU) read0(reqs []byte, reqLength int) ([]byte, error) {
@@ -141,7 +145,7 @@ func (s *ShardCPU) read0(reqs []byte, reqLength int) ([]byte, error) {
 				bucketOffset := bucketIndex * s.bucketSize
 				bucket := s.data[bucketOffset:(bucketOffset + s.bucketSize)]
 				response := responses[respOffset:(respOffset + s.bucketSize)]
-				xorWords(response, response, bucket)
+				xor.Words(response, response, bucket)
 			}
 		}
 	}
@@ -165,7 +169,7 @@ func (s *ShardCPU) read1(reqs []byte, reqLength int) ([]byte, error) {
 				bucketOffset := bucketIndex * s.bucketSize
 				bucket := s.data[bucketOffset:(bucketOffset + s.bucketSize)]
 				response := responses[respOffset:(respOffset + s.bucketSize)]
-				xorBytes(response, response, bucket)
+				xor.Bytes(response, response, bucket)
 			}
 		}
 	}

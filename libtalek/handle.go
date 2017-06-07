@@ -11,6 +11,7 @@ import (
 	"github.com/dchest/siphash"
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/drbg"
+	"github.com/privacylab/talek/pir/pirclient"
 	"golang.org/x/crypto/nacl/box"
 )
 
@@ -77,26 +78,22 @@ func makeReadArg(config *ClientConfig, bucket uint64, rand io.Reader) *common.Re
 	arg := &common.ReadArgs{}
 	num := len(config.TrustDomains)
 	arg.TD = make([]common.PirArgs, num)
-	arg.TD[0].RequestVector = make([]byte, (config.Config.NumBuckets+7)/8)
-	arg.TD[0].RequestVector[bucket/8] |= 1 << (bucket % 8)
-	arg.TD[0].PadSeed = make([]byte, drbg.SeedLength)
-	if _, err := rand.Read(arg.TD[0].PadSeed); err != nil {
+
+	pirClient := pirclient.NewClient("pirclient")
+	reqVec, err := pirClient.GenerateRequestVectors(bucket, uint64(num), config.Config.NumBuckets)
+	if err != nil {
 		return nil
 	}
 
-	for j := 1; j < num; j++ {
-		arg.TD[j].RequestVector = make([]byte, (config.Config.NumBuckets+7)/8)
-		if _, err := rand.Read(arg.TD[j].RequestVector); err != nil {
+	for i := 0; i < num; i++ {
+		arg.TD[i].RequestVector = reqVec[i]
+		arg.TD[i].PadSeed = make([]byte, drbg.SeedLength)
+		if _, err := rand.Read(arg.TD[i].PadSeed); err != nil {
 			return nil
 		}
-		arg.TD[j].PadSeed = make([]byte, drbg.SeedLength)
-		if _, err := rand.Read(arg.TD[j].PadSeed); err != nil {
-			return nil
-		}
-		for k := 0; k < len(arg.TD[j].RequestVector); k++ {
-			arg.TD[0].RequestVector[k] ^= arg.TD[j].RequestVector[k]
-		}
+
 	}
+
 	return arg
 }
 

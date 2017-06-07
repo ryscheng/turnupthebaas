@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package pircpu
+package xor
 
 import (
 	"runtime"
@@ -48,9 +48,9 @@ func safeXORBytes(dst, a, b []byte) int {
 	return n
 }
 
-// xorBytes xors the bytes in a and b. The destination is assumed to have enough
+// Bytes xors the bytes in a and b. The destination is assumed to have enough
 // space. Returns the number of bytes xor'd.
-func xorBytes(dst, a, b []byte) int {
+func Bytes(dst, a, b []byte) int {
 	if supportsUnaligned {
 		return fastXORBytes(dst, a, b)
 	}
@@ -74,7 +74,8 @@ func fastXORWords(dst, a, b []byte) {
 	}
 }
 
-func xorWords(dst, a, b []byte) {
+// Words uses fastXORWords
+func Words(dst, a, b []byte) {
 	if supportsUnaligned {
 		fastXORWords(dst, a, b)
 	} else {
