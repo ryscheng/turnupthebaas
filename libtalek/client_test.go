@@ -77,7 +77,10 @@ func TestRead(t *testing.T) {
 		&common.Config{NumBuckets: 64, BucketDepth: 4, DataSize: 1024, BloomFalsePositive: 0.05, MaxLoadFactor: 0.95, LoadFactorStep: 0.05},
 		time.Second,
 		time.Second,
-		[]*common.TrustDomainConfig{common.NewTrustDomainConfig("TestTrustDomain", "127.0.0.1", true, false)},
+		[]*common.TrustDomainConfig{
+			common.NewTrustDomainConfig("TestTrustDomain0", "127.0.0.1", true, false),
+			common.NewTrustDomainConfig("TestTrustDomain1", "127.0.0.1", true, false),
+		},
 		"",
 	}
 
