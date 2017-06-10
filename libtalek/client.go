@@ -97,7 +97,7 @@ func (c *Client) Publish(handle *Topic, data []byte) error {
 	config := c.config.Load().(ClientConfig)
 
 	if len(data) > 65535 {
-		return errors.New("message is too long.")
+		return errors.New("message is too long")
 	}
 
 	// First word is prepended as length of data:
