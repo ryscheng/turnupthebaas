@@ -35,6 +35,10 @@ type Handle struct {
 	// Current log position
 	Seqno uint64
 
+	// partially read message
+	partialMsg       []byte
+	partialMsgLength int
+
 	// Notifications of new messages
 	updates chan []byte
 
@@ -142,9 +146,27 @@ func (h *Handle) Decrypt(cyphertext []byte, nonce *[24]byte) ([]byte, error) {
 // sending it to the handle's updates channel if valid.
 func (h *Handle) OnResponse(args *common.ReadArgs, reply *common.ReadReply, dataSize uint) {
 	msg := h.retrieveResponse(args, reply, dataSize)
-	if msg != nil && h.updates != nil {
+	if msg != nil {
 		h.Seqno++
-		h.updates <- msg
+		if h.partialMsgLength == 0 {
+			msgLength := binary.LittleEndian.Uint32(msg[0:4])
+			if msgLength > 65535 {
+				h.log.Warn.Printf("message is unacceptably long. assuming corruption.")
+				return
+			}
+			h.partialMsgLength = int(msgLength)
+			h.partialMsg = msg[4:]
+		} else {
+			h.partialMsg = append(h.partialMsg, msg...)
+		}
+	}
+
+	if h.partialMsgLength > 0 && len(h.partialMsg) > h.partialMsgLength {
+		if h.updates != nil {
+			h.updates <- h.partialMsg[0:h.partialMsgLength]
+		}
+		h.partialMsg = []byte{}
+		h.partialMsgLength = 0
 	}
 }
 

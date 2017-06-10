@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/privacylab/talek/common"
+	"github.com/privacylab/talek/pir/xor"
 )
 
 type mockLeader struct {
@@ -109,13 +110,19 @@ func TestRead(t *testing.T) {
 
 	//Due to thread race, there may be a random read made before
 	//the requested poll is queued up.
-	decRead1, _ := read1.Decode(0, config.TrustDomains[0])
-	decRead2, err := read2.Decode(0, config.TrustDomains[0])
+	decRead11, _ := read1.Decode(0, config.TrustDomains[0])
+	decRead12, _ := read1.Decode(1, config.TrustDomains[1])
+	decRead21, _ := read2.Decode(0, config.TrustDomains[0])
+	decRead22, err := read2.Decode(1, config.TrustDomains[1])
 	if err != nil {
 		t.Fatalf("Failed to decode read %v", err)
 	}
-	if decRead1.RequestVector[bucket/8]&(1<<(bucket%8)) == 0 &&
-		decRead2.RequestVector[bucket/8]&(1<<(bucket%8)) == 0 {
-		t.Fatalf("Read wasn't for the enqueued subscription. %v / %v / %d", decRead1.RequestVector, decRead2.RequestVector, bucket)
+	rv1 := make([]byte, len(decRead11.RequestVector))
+	rv2 := make([]byte, len(decRead11.RequestVector))
+	xor.Bytes(rv1, decRead11.RequestVector, decRead12.RequestVector)
+	xor.Bytes(rv2, decRead21.RequestVector, decRead22.RequestVector)
+	if rv1[bucket/8]&(1<<(bucket%8)) == 0 &&
+		rv2[bucket/8]&(1<<(bucket%8)) == 0 {
+		t.Fatalf("Read wasn't for the enqueued subscription. %v / %v / %d", rv1, rv2, bucket)
 	}
 }

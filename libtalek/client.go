@@ -2,6 +2,7 @@ package libtalek
 
 import (
 	"crypto/rand"
+	"encoding/binary"
 	"errors"
 	"io"
 	"math/big"
@@ -95,30 +96,42 @@ func (c *Client) MaxLength() uint64 {
 func (c *Client) Publish(handle *Topic, data []byte) error {
 	config := c.config.Load().(ClientConfig)
 
-	if len(data) > int(config.DataSize)-PublishingOverhead {
-		return errors.New("message too long")
-	} else if len(data) < int(config.DataSize)-PublishingOverhead {
+	if len(data) > 65535 {
+		return errors.New("message is too long.")
+	}
+
+	// First word is prepended as length of data:
+	prefixed := make([]byte, 4, 4+len(data))
+	binary.LittleEndian.PutUint32(prefixed[0:4], uint32(len(data)))
+	data = append(prefixed, data...)
+
+	left := len(data)
+	for left > 0 {
 		allocation := make([]byte, config.DataSize-PublishingOverhead)
+
 		copy(allocation[:], data)
-		data = allocation
-	}
+		left -= len(allocation)
+		if left > 0 {
+			data = data[len(allocation):]
+		}
 
-	writeArgs, err := handle.GeneratePublish(config.Config, data)
-	if c.Verbose {
-		c.log.Info.Printf("Wrote %v(%d) to %d,%d.",
-			writeArgs.Data[0:4],
-			len(writeArgs.Data),
-			writeArgs.Bucket1,
-			writeArgs.Bucket2)
-	}
-	if err != nil {
-		return err
-	}
+		writeArgs, err := handle.GeneratePublish(config.Config, allocation)
+		if c.Verbose {
+			c.log.Info.Printf("Wrote %v(%d) to %d,%d.",
+				writeArgs.Data[0:4],
+				len(writeArgs.Data),
+				writeArgs.Bucket1,
+				writeArgs.Bucket2)
+		}
+		if err != nil {
+			return err
+		}
 
-	c.writeMutex.Lock()
-	c.writeCount++
-	c.writeMutex.Unlock()
-	c.pendingWrites <- writeArgs
+		c.writeMutex.Lock()
+		c.writeCount++
+		c.writeMutex.Unlock()
+		c.pendingWrites <- writeArgs
+	}
 	return nil
 }
 
@@ -142,7 +155,7 @@ func (c *Client) Poll(handle *Handle) chan []byte {
 		if c.handles[x] == handle {
 			c.handleMutex.Unlock()
 			if c.Verbose {
-				c.log.Info.Println("Ignoring request to poll, becuase already polling.")
+				c.log.Info.Println("Ignoring request to poll, because already polling.")
 			}
 			return nil
 		}
