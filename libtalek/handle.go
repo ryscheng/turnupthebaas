@@ -36,8 +36,8 @@ type Handle struct {
 	Seqno uint64
 
 	// partially read message
-	partialMsg       []byte
-	partialMsgLength int
+	partialHeader msgHeader
+	partialMsg    []byte
 
 	// Notifications of new messages
 	updates chan []byte
@@ -148,25 +148,19 @@ func (h *Handle) OnResponse(args *common.ReadArgs, reply *common.ReadReply, data
 	msg := h.retrieveResponse(args, reply, dataSize)
 	if msg != nil {
 		h.Seqno++
-		if h.partialMsgLength == 0 {
-			msgLength := binary.LittleEndian.Uint32(msg[0:4])
-			if msgLength > 65535 {
-				h.log.Warn.Printf("message is unacceptably long. assuming corruption.")
-				return
-			}
-			h.partialMsgLength = int(msgLength)
-			h.partialMsg = msg[4:]
-		} else {
-			h.partialMsg = append(h.partialMsg, msg...)
-		}
-	}
 
-	if h.partialMsgLength > 0 && len(h.partialMsg) > h.partialMsgLength {
-		if h.updates != nil {
-			h.updates <- h.partialMsg[0:h.partialMsgLength]
+		done, err := h.partialHeader.Unpack(&h.partialMsg, msg)
+		if err != nil {
+			h.log.Error.Printf("Message fragment failed to unpack: %v", err)
+			return
 		}
-		h.partialMsg = []byte{}
-		h.partialMsgLength = 0
+		if done {
+			if h.updates != nil {
+				h.updates <- h.partialMsg
+			}
+			h.partialHeader = msgHeader{}
+			h.partialMsg = []byte{}
+		}
 	}
 }
 
