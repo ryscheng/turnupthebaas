@@ -36,8 +36,7 @@ type Handle struct {
 	Seqno uint64
 
 	// partially read message
-	partialHeader msgHeader
-	partialMsg    []byte
+	partialMessage message
 
 	// Notifications of new messages
 	updates chan []byte
@@ -149,17 +148,11 @@ func (h *Handle) OnResponse(args *common.ReadArgs, reply *common.ReadReply, data
 	if msg != nil {
 		h.Seqno++
 
-		done, err := h.partialHeader.Unpack(&h.partialMsg, msg)
-		if err != nil {
-			h.log.Error.Printf("Message fragment failed to unpack: %v", err)
-			return
-		}
-		if done {
+		if h.partialMessage.Join(msg) {
 			if h.updates != nil {
-				h.updates <- h.partialMsg
+				h.updates <- h.partialMessage.Retrieve()
 			}
-			h.partialHeader = msgHeader{}
-			h.partialMsg = []byte{}
+			h.partialMessage = message{}
 		}
 	}
 }

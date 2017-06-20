@@ -2,7 +2,6 @@ package libtalek
 
 import (
 	"crypto/rand"
-	"encoding/binary"
 	"errors"
 	"io"
 	"math/big"
@@ -37,57 +36,6 @@ type Client struct {
 	// for debugging / testing
 	Verbose bool
 	Rand    io.Reader
-}
-
-// msgHeader is a header prepended to each message fragment published by
-// libTalek to deal with fragmentation.
-// The fragment bit indicates that this is a subsequent message within
-// a sequence of messages. if a client is desynchronized, it can resume
-// a log once it finds the next message where the fragment bit is not set.
-type msgHeader struct {
-	flags byte // flags [0000000<Fragment>]
-	left  uint32
-}
-
-// Fill will fill a destination buffer with the header, followed by the src msg.
-func (m *msgHeader) Fill(dst, src []byte) int {
-	if len(dst) < 6 {
-		return -1
-	}
-	dst[0] = m.flags
-	binary.LittleEndian.PutUint32(dst[1:5], m.left)
-	num := uint32(copy(dst[5:], src[:]))
-	m.left -= num
-	m.flags |= 1
-	return int(num)
-}
-
-// Unpack an incoming fragment of message onto a destination buffer.
-// returns whether the destination is now a complete message.
-func (m *msgHeader) Unpack(dest *[]byte, source []byte) (bool, error) {
-	if len(source) < 6 {
-		return false, errors.New("fragment too short")
-	}
-
-	if (m.flags&1) == 0 && (source[0]&1) == 1 {
-		return false, errors.New("expecting beginning of message. saw fragment")
-	}
-	m.flags |= 1
-	left := binary.LittleEndian.Uint32(source[1:5])
-	if m.left > 0 && left != m.left {
-		return false, errors.New("fragment indicated longer length than full msg")
-	}
-	fragmentLength := uint32(len(source) - 5)
-	if left < fragmentLength {
-		fragmentLength = left
-	}
-	left -= fragmentLength
-	m.left = left
-
-	slice := *dest
-	*dest = append(slice, source[5:5+fragmentLength]...)
-
-	return left == 0, nil
 }
 
 type request struct {
@@ -152,15 +100,10 @@ func (c *Client) Publish(handle *Topic, data []byte) error {
 	}
 
 	// First word is prepended as length of data:
-	header := new(msgHeader)
-	header.left = uint32(len(data))
+	parts := newMessage(data).Split(int(config.DataSize - PublishingOverhead))
 
-	for header.left > 0 {
-		allocation := make([]byte, config.DataSize-PublishingOverhead)
-		num := header.Fill(allocation[:], data[:])
-		data = data[num:]
-
-		writeArgs, err := handle.GeneratePublish(config.Config, allocation)
+	for _, part := range parts {
+		writeArgs, err := handle.GeneratePublish(config.Config, part)
 		if c.Verbose {
 			c.log.Info.Printf("Wrote %v(%d) to %d,%d.",
 				writeArgs.Data[0:4],
