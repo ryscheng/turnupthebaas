@@ -88,37 +88,38 @@ func (c *Client) Kill() {
 // TODO: support messages spanning multiple data items.
 func (c *Client) MaxLength() uint64 {
 	config := c.config.Load().(ClientConfig)
-	return config.DataSize
+	return config.DataSize * common.MsgMaxFragments
 }
 
 // Publish a new message to the end of a topic.
 func (c *Client) Publish(handle *Topic, data []byte) error {
 	config := c.config.Load().(ClientConfig)
 
-	if len(data) > int(config.DataSize)-PublishingOverhead {
-		return errors.New("message too long")
-	} else if len(data) < int(config.DataSize)-PublishingOverhead {
-		allocation := make([]byte, config.DataSize-PublishingOverhead)
-		copy(allocation[:], data)
-		data = allocation
+	if len(data) > int(config.DataSize*common.MsgMaxFragments) {
+		return errors.New("message is too long")
 	}
 
-	writeArgs, err := handle.GeneratePublish(config.Config, data)
-	if c.Verbose {
-		c.log.Info.Printf("Wrote %v(%d) to %d,%d.",
-			writeArgs.Data[0:4],
-			len(writeArgs.Data),
-			writeArgs.Bucket1,
-			writeArgs.Bucket2)
-	}
-	if err != nil {
-		return err
-	}
+	// First word is prepended as length of data:
+	parts := newMessage(data).Split(int(config.DataSize - PublishingOverhead))
 
-	c.writeMutex.Lock()
-	c.writeCount++
-	c.writeMutex.Unlock()
-	c.pendingWrites <- writeArgs
+	for _, part := range parts {
+		writeArgs, err := handle.GeneratePublish(config.Config, part)
+		if c.Verbose {
+			c.log.Info.Printf("Wrote %v(%d) to %d,%d.",
+				writeArgs.Data[0:4],
+				len(writeArgs.Data),
+				writeArgs.Bucket1,
+				writeArgs.Bucket2)
+		}
+		if err != nil {
+			return err
+		}
+
+		c.writeMutex.Lock()
+		c.writeCount++
+		c.writeMutex.Unlock()
+		c.pendingWrites <- writeArgs
+	}
 	return nil
 }
 
@@ -142,7 +143,7 @@ func (c *Client) Poll(handle *Handle) chan []byte {
 		if c.handles[x] == handle {
 			c.handleMutex.Unlock()
 			if c.Verbose {
-				c.log.Info.Println("Ignoring request to poll, becuase already polling.")
+				c.log.Info.Println("Ignoring request to poll, because already polling.")
 			}
 			return nil
 		}

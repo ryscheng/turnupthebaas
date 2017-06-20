@@ -35,6 +35,9 @@ type Handle struct {
 	// Current log position
 	Seqno uint64
 
+	// partially read message
+	partialMessage message
+
 	// Notifications of new messages
 	updates chan []byte
 
@@ -142,9 +145,15 @@ func (h *Handle) Decrypt(cyphertext []byte, nonce *[24]byte) ([]byte, error) {
 // sending it to the handle's updates channel if valid.
 func (h *Handle) OnResponse(args *common.ReadArgs, reply *common.ReadReply, dataSize uint) {
 	msg := h.retrieveResponse(args, reply, dataSize)
-	if msg != nil && h.updates != nil {
+	if msg != nil {
 		h.Seqno++
-		h.updates <- msg
+
+		if h.partialMessage.Join(msg) {
+			if h.updates != nil {
+				h.updates <- h.partialMessage.Retrieve()
+			}
+			h.partialMessage = message{}
+		}
 	}
 }
 
