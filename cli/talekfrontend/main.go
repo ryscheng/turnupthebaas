@@ -32,6 +32,10 @@ func main() {
 	pflag.Parse()
 
 	config := libtalek.ClientConfigFromFile(*configPath)
+	if config == nil {
+		pflag.Usage()
+		return
+	}
 	config.Config = common.ConfigFromFile(*commonPath)
 	serverConfig := server.ConfigFromFile(*systemPath, config.Config)
 
