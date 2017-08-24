@@ -39,7 +39,7 @@ func main() {
 	pflag.Parse()
 
 	if *outputCommon {
-		common := common.Config{
+		com := common.Config{
 			NumBuckets:         1024,
 			BucketDepth:        4,
 			DataSize:           1024,
@@ -48,7 +48,7 @@ func main() {
 			ReadInterval:       time.Second,
 			MaxLoadFactor:      0.95,
 		}
-		commonDat, err := json.MarshalIndent(common, "", "  ")
+		commonDat, err := json.MarshalIndent(com, "", "  ")
 		if err != nil {
 			fmt.Printf("Could not serialize common config: %v\n", err)
 			return
