@@ -243,7 +243,7 @@ func (t *Table) insertAndEvict(bucketIndex uint64, item *Item) (bool, *Item) {
 	}
 
 	// Eviction
-	itemIndex := bucketIndex*t.bucketDepth + (t.rand.Uint64() % t.bucketDepth)
+	itemIndex := bucketIndex*t.bucketDepth + (uint64(t.rand.Int63()) % t.bucketDepth)
 	removedItem := t.getItem(itemIndex).Copy()
 	t.index[itemIndex].filled = false
 
