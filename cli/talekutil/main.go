@@ -24,6 +24,7 @@ func main() {
 	outputClient := pflag.Bool("client", false, "Create configuration for a talek client.")
 	outputReplica := pflag.Bool("replica", false, "Create configuration for a talek server.")
 	outputTD := pflag.Bool("trustdomain", false, "Create raw trustdomain configuration.")
+	outputCommon := pflag.Bool("common", false, "Create common config template.")
 	name := pflag.String("name", "talek", "Server Name.")
 	address := pflag.String("address", "localhost:9000", "Server Address.")
 	infile := pflag.String("infile", "", "Begin with configuration from file.")
@@ -37,11 +38,31 @@ func main() {
 	}
 	pflag.Parse()
 
+	if *outputCommon {
+		common := common.Config{
+			NumBuckets:         1024,
+			BucketDepth:        4,
+			DataSize:           1024,
+			BloomFalsePositive: .05,
+			WriteInterval:      time.Second,
+			ReadInterval:       time.Second,
+			MaxLoadFactor:      0.95,
+		}
+		commonDat, err := json.MarshalIndent(common, "", "  ")
+		if err != nil {
+			fmt.Printf("Could not serialize common config: %v\n", err)
+			return
+		}
+		ioutil.WriteFile(*outfile, commonDat, 0640)
+
+		return
+	}
+
 	if !*outputReplica && !*outputTD && !*outputClient {
-		fmt.Println("Talekutil needs a mode: -client, -server, or -trustdomain.")
+		fmt.Println("Talekutil needs a mode: --client, --replica, or --trustdomain.")
 		return
 	} else if (*outputReplica && *outputTD) || (*outputClient && *outputReplica) || (*outputClient && *outputTD) {
-		fmt.Println("Mode must be one of -server or -trustdomain or -client.")
+		fmt.Println("Mode must be one of --replica or --trustdomain or --client.")
 		return
 	}
 

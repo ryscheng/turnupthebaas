@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -57,14 +56,14 @@ func main() {
 		}
 		topic = *nt
 	} else {
-		if err = json.Unmarshal(topicdata, &topic); err != nil {
+		if err = topic.UnmarshalText(topicdata); err != nil {
 			panic(err)
 		}
 	}
 
 	if len(*share) > 0 {
 		handle := topic.Handle
-		handleBytes, handleerr := json.Marshal(handle)
+		handleBytes, handleerr := handle.MarshalText()
 		if handleerr != nil {
 			panic(handleerr)
 		}
@@ -96,7 +95,13 @@ func main() {
 		}
 		client.Flush()
 	} else if *read == false {
-		fmt.Fprintf(os.Stderr, "No Read or Write operation requested. Closing.\n")
+		if *create {
+			if *verbose {
+				fmt.Fprintf(os.Stderr, "New topic written to %s.\n", *handlePath)
+			}
+		} else {
+			fmt.Fprintf(os.Stderr, "No Read or Write operation requested. Closing.\n")
+		}
 	} else {
 		if len(*write) > 0 {
 			fmt.Fprintf(os.Stderr, "Cannot read and write at the same time.\n")
@@ -132,7 +137,7 @@ func main() {
 		client.Done(&topic.Handle)
 	}
 
-	updatedTopic, err := json.Marshal(topic)
+	updatedTopic, err := topic.MarshalText()
 	if err != nil {
 		panic(err)
 	}
