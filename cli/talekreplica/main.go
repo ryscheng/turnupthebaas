@@ -5,9 +5,9 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"time"
 
 	"github.com/coreos/etcd/pkg/flags"
@@ -59,11 +59,11 @@ func main() {
 		TrustDomain:      &common.TrustDomainConfig{},
 		TrustDomainIndex: 0,
 	}
-	if err := json.Unmarshal(configString, &serverConfig); err != nil {
+	if err = json.Unmarshal(configString, &serverConfig); err != nil {
 		log.Printf("Could not parse %s: %v\n", *configPath, err)
 		return
 	}
-	if err := json.Unmarshal(commonString, serverConfig.Config); err != nil {
+	if err = json.Unmarshal(commonString, serverConfig.Config); err != nil {
 		log.Printf("Could not parse %s: %v\n", *commonPath, err)
 		return
 	}
@@ -72,15 +72,25 @@ func main() {
 	log.Printf("serverConfig=%#+v\n", serverConfig)
 	log.Printf("serverConfig.Config=%#+v\n", serverConfig.Config)
 
-	s := server.NewCentralized(serverConfig.TrustDomain.Name, *backing, serverConfig)
-	_, port, _ := net.SplitHostPort(serverConfig.TrustDomain.Address)
-	pnum, _ := strconv.Atoi(port)
-	_ = server.NewNetworkRPC(s, pnum)
+	r := server.NewReplicaServer(serverConfig.TrustDomain.Name, *backing, serverConfig)
+
+	bindAddr, err := net.ResolveTCPAddr("ip", serverConfig.TrustDomain.Address)
+	if err != nil {
+		log.Printf("Couldn't resolve frontend address: %v\n", err)
+		return
+	}
+	listener, err := net.ListenTCP("ip", bindAddr)
+	if err != nil {
+		log.Printf("Couldn't listen to frontend address: %v\n", err)
+		return
+	}
+	go http.Serve(listener, r)
 
 	log.Println("Running.")
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	<-c
-	s.Close()
+	r.Replica.Close()
+	listener.Close()
 }

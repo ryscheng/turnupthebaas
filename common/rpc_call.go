@@ -1,38 +1,43 @@
 package common
 
 import (
-	"net/rpc"
+	"bytes"
+	"net/http"
+
+	"github.com/gorilla/rpc/json"
 )
 
-// RPCCall generalizes an RPC call that caches a client
-// If client is not specified (nil), it will try to dial a new client
-// If a client is specified, it will reuse the same client
-// Returns:
-// - client if one exists, nil otherwise
-// - nil on success, error on failure
-func RPCCall(client *rpc.Client, addr string, methodName string, args interface{}, reply interface{}) (*rpc.Client, error) {
-	// Get address
+// RPCCall Makes a JSON RPC client.
+func RPCCall(client *http.Client, address string, methodName string, args interface{}, reply interface{}) error {
 	var err error
-
-	// Setup connection
 	if client == nil {
-		client, err = rpc.Dial("tcp", addr)
-		if err != nil {
-			//c.log.Error.Printf("rpc dialing failed: %v\n", err)
-			return nil, err
-		}
-		//defer client.Close()
+		client = &http.Client{}
 	}
+
+	// Encode arguments
+	message, err := json.EncodeClientRequest(methodName, args)
+	if err != nil {
+		return err
+	}
+
+	// Construct request
+	req, err := http.NewRequest("POST", "http://"+address, bytes.NewBuffer(message))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
 
 	// Do RPC
-	err = client.Call(methodName, args, reply)
+	resp, err := client.Do(req)
 	if err != nil {
-		//c.log.Error.Printf("rpc error: %v", err)
-		// Close the client and retry a new connection next time
-		client.Close()
-		return nil, err
+		return err
 	}
 
-	//l.log.Printf("%s.Call(): %v, %v, %v\n", addr, args, reply)
-	return client, nil
+	defer resp.Body.Close()
+
+	if err = json.DecodeClientResponse(resp.Body, reply); err != nil {
+		return err
+	}
+
+	return nil
 }

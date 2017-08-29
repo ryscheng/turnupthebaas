@@ -4,17 +4,16 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"fmt"
-	"net"
-	"strconv"
 	"sync"
 	"time"
 
+	"github.com/gorilla/rpc"
+	"github.com/gorilla/rpc/json"
 	"github.com/privacylab/talek/bloom"
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/cuckoo"
 	"github.com/privacylab/talek/protocol/coordinator"
 	"github.com/privacylab/talek/protocol/notify"
-	"github.com/privacylab/talek/server"
 	"golang.org/x/net/trace"
 )
 
@@ -25,7 +24,6 @@ type Server struct {
 	log               *common.Logger
 	name              string
 	addr              string
-	networkRPC        *server.NetworkRPC
 	snapshotThreshold uint64
 	snapshotInterval  time.Duration
 
@@ -44,21 +42,18 @@ type Server struct {
 	// Channels
 	notifyChan chan bool
 	closeChan  chan bool
+
+	// RPC Interface
+	*rpc.Server
 }
 
 // NewServer creates a new Talek centralized coordinator server
-func NewServer(name string, addr string, listenRPC bool, config common.Config, servers []notify.Interface, snapshotThreshold uint64, snapshotInterval time.Duration) (*Server, error) {
+func NewServer(name string, addr string, config common.Config, servers []notify.Interface, snapshotThreshold uint64, snapshotInterval time.Duration) (*Server, error) {
 	s := &Server{}
 	s.log = common.NewLogger(name)
 	s.name = name
 	s.addr = addr
-	if listenRPC {
-		_, port, _ := net.SplitHostPort(addr)
-		pnum, _ := strconv.Atoi(port)
-		s.networkRPC = server.NewNetworkRPC(s, pnum)
-	} else {
-		s.networkRPC = nil
-	}
+
 	s.snapshotThreshold = snapshotThreshold
 	s.snapshotInterval = snapshotInterval
 
@@ -95,6 +90,11 @@ func NewServer(name string, addr string, listenRPC bool, config common.Config, s
 	s.closeChan = make(chan bool)
 
 	go s.loop()
+
+	// Set up the RPC server component.
+	s.Server = rpc.NewServer()
+	s.Server.RegisterCodec(json.NewCodec(), "application/json")
+	s.Server.RegisterTCPService(s, "Coordinator")
 
 	s.log.Info.Printf("coordinator.NewServer(%v) success\n", name)
 	return s, nil
@@ -224,9 +224,6 @@ func (s *Server) Commit(args *coordinator.CommitArgs, reply *coordinator.CommitR
 func (s *Server) Close() {
 	s.log.Info.Printf("%v.Close: success", s.name)
 	s.closeChan <- true
-	if s.networkRPC != nil {
-		s.networkRPC.Kill()
-	}
 }
 
 // AddServer adds a server to the list that is notified on snapshot changes

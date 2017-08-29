@@ -73,9 +73,9 @@ func main() {
 	}
 
 	// Client-connected activity below.
-	leaderRPC := common.NewFrontendRPC("RPC", config.FrontendAddr)
+	frontendRPC := common.NewFrontendRPC("RPC", config.FrontendAddr)
 
-	client := libtalek.NewClient("Client", *config, leaderRPC)
+	client := libtalek.NewClient("Client", *config, frontendRPC)
 	if client == nil {
 		panic("could not create talek client")
 	} else if *verbose {

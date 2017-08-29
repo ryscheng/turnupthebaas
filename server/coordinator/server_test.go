@@ -139,7 +139,7 @@ func TestSendNotification(t *testing.T) {
 }
 
 func TestNewServer(t *testing.T) {
-	s, err := NewServer("test", testAddr, false, testConfig(), nil, 5, time.Hour)
+	s, err := NewServer("test", testAddr, testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
@@ -147,7 +147,7 @@ func TestNewServer(t *testing.T) {
 }
 
 func TestGetInfo(t *testing.T) {
-	s, err := NewServer("test", testAddr, false, testConfig(), nil, 5, time.Hour)
+	s, err := NewServer("test", testAddr, testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
@@ -163,7 +163,7 @@ func TestGetInfo(t *testing.T) {
 }
 
 func TestGetCommonConfig(t *testing.T) {
-	s, err := NewServer("test", testAddr, false, testConfig(), nil, 5, time.Hour)
+	s, err := NewServer("test", testAddr, testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
@@ -179,7 +179,7 @@ func TestGetCommonConfig(t *testing.T) {
 }
 
 func TestGetLayoutInvalidSnapshotID(t *testing.T) {
-	s, err := NewServer("test", testAddr, false, testConfig(), nil, 5, time.Hour)
+	s, err := NewServer("test", testAddr, testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
@@ -199,7 +199,7 @@ func TestGetLayoutInvalidSnapshotID(t *testing.T) {
 }
 
 func TestGetLayoutInvalidNumShards(t *testing.T) {
-	s, err := NewServer("test", testAddr, false, testConfig(), nil, 5, time.Hour)
+	s, err := NewServer("test", testAddr, testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
@@ -219,7 +219,7 @@ func TestGetLayoutInvalidNumShards(t *testing.T) {
 }
 
 func TestGetLayoutInvalidShardID(t *testing.T) {
-	s, err := NewServer("test", testAddr, false, testConfig(), nil, 5, time.Hour)
+	s, err := NewServer("test", testAddr, testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
@@ -239,7 +239,7 @@ func TestGetLayoutInvalidShardID(t *testing.T) {
 }
 
 func TestGetLayoutEmpty(t *testing.T) {
-	s, err := NewServer("test", testAddr, false, testConfig(), nil, 5, time.Hour)
+	s, err := NewServer("test", testAddr, testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
@@ -264,7 +264,7 @@ func TestGetLayoutEmpty(t *testing.T) {
 }
 
 func TestGetIntVecInvalidSnapshotID(t *testing.T) {
-	s, err := NewServer("test", testAddr, false, testConfig(), nil, 5, time.Hour)
+	s, err := NewServer("test", testAddr, testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
@@ -280,7 +280,7 @@ func TestGetIntVecInvalidSnapshotID(t *testing.T) {
 }
 
 func TestGetIntVecEmpty(t *testing.T) {
-	s, err := NewServer("test", testAddr, false, testConfig(), nil, 5, time.Hour)
+	s, err := NewServer("test", testAddr, testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
@@ -301,7 +301,7 @@ func TestGetIntVecEmpty(t *testing.T) {
 }
 
 func TestCommit(t *testing.T) {
-	s, err := NewServer("test", testAddr, false, testConfig(), nil, 5, time.Hour)
+	s, err := NewServer("test", testAddr, testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
@@ -319,7 +319,7 @@ func TestCommit(t *testing.T) {
 func TestAddServer(t *testing.T) {
 	numServers := 3
 	mocks, channels := setupMocks(numServers)
-	s, err := NewServer("test", testAddr, false, testConfig(), mocks, 5, time.Hour)
+	s, err := NewServer("test", testAddr, testConfig(), mocks, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
@@ -333,7 +333,7 @@ func TestSnapshot(t *testing.T) {
 	numServers := 3
 	config := testConfig()
 	mocks, channels := setupMocks(numServers)
-	s, err := NewServer("test", testAddr, false, config, mocks, 5, time.Hour)
+	s, err := NewServer("test", testAddr, config, mocks, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
@@ -396,7 +396,7 @@ func TestSnapshotThreshold(t *testing.T) {
 	numServers := 3
 	snapshotThreshold := 32
 	mocks, channels := setupMocks(numServers)
-	s, err := NewServer("test", testAddr, false, testConfig(), mocks, uint64(snapshotThreshold), time.Hour)
+	s, err := NewServer("test", testAddr, testConfig(), mocks, uint64(snapshotThreshold), time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
@@ -425,7 +425,7 @@ func TestSnapshotThreshold(t *testing.T) {
 func TestSnapshotTimer(t *testing.T) {
 	numServers := 3
 	mocks, channels := setupMocks(numServers)
-	s, err := NewServer("test", testAddr, false, testConfig(), mocks, 5, 10*time.Millisecond)
+	s, err := NewServer("test", testAddr, testConfig(), mocks, 5, 10*time.Millisecond)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}

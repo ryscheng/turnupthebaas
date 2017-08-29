@@ -19,10 +19,12 @@ var leaderPIR = flag.String("leader", "cpu.0", "PIR backing for leader shard")
 var followerPIR = flag.String("follower", "cpu.1", "PIR backing for follower shard")
 
 type killable interface {
-	Kill()
+	Close() error
 }
 
 func main() {
+	var err error
+
 	log.Println("Simple Sanity Test")
 	s := make(map[string]killable)
 	flag.Parse()
@@ -44,19 +46,20 @@ func main() {
 	serverConfigF.TrustDomain = trustDomainFE
 
 	// Trust Domain 1
-	t1 := server.NewCentralized("t1", *followerPIR, *serverConfig1)
-	s["t1"] = server.NewNetworkRPC(t1, 9001)
+	t1 := server.NewReplicaServer("t1", *followerPIR, *serverConfig1)
+	s["t1"], err = t1.Run("localhost:9001")
+	if err != nil {
+		panic(err)
+	}
 
 	// Trust Domain 0
 	//t0 := server.NewCentralized("t0", config, t1, true)
-	t0 := server.NewCentralized("t0", *leaderPIR, *serverConfig0)
-	s["t0"] = server.NewNetworkRPC(t0, 9000)
+	t0 := server.NewReplicaServer("t0", *leaderPIR, *serverConfig0)
+	s["t0"], _ = t0.Run("localhost:9000")
 
 	// Frontend
-	ft0 := common.NewReplicaRPC("f0-t0", trustDomainConfig0)
-	ft1 := common.NewReplicaRPC("f0-t1", trustDomainConfig1)
-	f0 := server.NewFrontend("f0", serverConfigF, []common.ReplicaInterface{ft0, ft1})
-	server.NewNetworkRPC(f0, 8999)
+	f0 := server.NewFrontendServer("f0", serverConfigF, []*common.TrustDomainConfig{trustDomainConfig0, trustDomainConfig1})
+	s["f0"], _ = f0.Run("localhost:8999")
 
 	// Client
 	clientConfig := libtalek.ClientConfig{
@@ -72,9 +75,13 @@ func main() {
 	for i := 0; i < *numClients; i++ {
 		clients[i] = libtalek.NewClient("c"+string(i), clientConfig, clientLeaderSock)
 		handle, _ := libtalek.NewTopic()
+		var origHandle libtalek.Handle
+		origHandle = handle.Handle
 		clients[i].Publish(handle, []byte("Hello from client"+string(i)))
-		data := clients[i].Poll(&handle.Handle)
-		fmt.Printf("!!! data=%v", data)
+		fmt.Printf("Published. Waiting for response.")
+		data := clients[i].Poll(&origHandle)
+		_ = <-data
+		fmt.Printf("Client Roundtrip.")
 	}
 	//c1.Ping()
 
@@ -82,9 +89,6 @@ func main() {
 	signal.Notify(c, os.Interrupt)
 	<-c
 	for _, v := range s {
-		v.Kill()
+		v.Close()
 	}
-	f0.Close()
-	t1.Close()
-	t0.Close()
 }

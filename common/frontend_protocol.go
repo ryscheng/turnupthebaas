@@ -19,7 +19,7 @@ type WriteArgs struct {
 	InterestVector []uint64
 	//Internal
 	GlobalSeqNo uint64
-	ReplyChan   chan *WriteReply
+	ReplyChan   chan *WriteReply `json:"-"`
 }
 
 // WriteReply contain return status of writes

@@ -5,6 +5,6 @@
   "BloomFalsePositive": 0.001,
   "MaxLoadFactor": 0.90,
   "LoadFactorStep": 0.05,
-  "WriteInterval": 5000000000,
-  "ReadInterval": 5000000000
+  "WriteInterval": "5000000000",
+  "ReadInterval": "5000000000"
 }

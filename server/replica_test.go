@@ -35,7 +35,7 @@ func BenchmarkWrite(b *testing.B) {
 	}
 
 	var reply common.ReplicaWriteReply
-	t0 := NewCentralized("t0", "cpu.0", Config{&config, 1, 0, 0, nil, 0})
+	t0 := NewReplica("t0", "cpu.0", Config{&config, 1, 0, 0, nil, 0})
 
 	// Start timing
 	b.ResetTimer()

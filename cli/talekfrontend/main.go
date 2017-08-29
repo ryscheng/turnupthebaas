@@ -3,9 +3,9 @@ package main
 import (
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 
 	"github.com/coreos/etcd/pkg/flags"
 	"github.com/privacylab/talek/common"
@@ -39,21 +39,25 @@ func main() {
 	config.Config = common.ConfigFromFile(*commonPath)
 	serverConfig := server.ConfigFromFile(*systemPath, config.Config)
 
-	replicas := make([]common.ReplicaInterface, len(config.TrustDomains))
-	for i, td := range config.TrustDomains {
-		replicas[i] = common.NewReplicaRPC(td.Name, td)
-	}
+	f := server.NewFrontendServer("Talek Frontend", serverConfig, config.TrustDomains)
+	f.Frontend.Verbose = *verbose
 
-	f := server.NewFrontend("Talek Frontend", serverConfig, replicas)
-	f.Verbose = *verbose
-	_, port, _ := net.SplitHostPort(config.FrontendAddr)
-	pnum, _ := strconv.Atoi(port)
-	_ = server.NewNetworkRPC(common.FrontendInterface(f), pnum)
+	bindAddr, err := net.ResolveTCPAddr("ip", config.FrontendAddr)
+	if err != nil {
+		log.Printf("Couldn't resolve frontend address: %v\n", err)
+		return
+	}
+	listener, err := net.ListenTCP("ip", bindAddr)
+	if err != nil {
+		log.Printf("Couldn't listen to frontend address: %v\n", err)
+		return
+	}
+	go http.Serve(listener, f)
 
 	log.Println("Running.")
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	<-c
-	f.Close()
+	listener.Close()
 }
