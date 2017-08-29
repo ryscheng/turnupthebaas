@@ -27,6 +27,7 @@ func main() {
 	configPath := pflag.StringP("config", "c", "replica.conf", "Talek Replica Configuration (env TALEK_CONFIG)")
 	commonPath := pflag.StringP("common", "f", "common.conf", "Talek Common Configuration (env TALEK_COMMON)")
 	backing := pflag.StringP("backing", "b", "cpu.0", "PIR daemon method (env TALEK_BACKING)")
+	listen := pflag.StringP("listen", "l", ":8080", "Listening Address")
 	err := flags.SetPflagsFromEnv(common.EnvPrefix, pflag.CommandLine)
 	if err != nil {
 		log.Printf("Error reading environment variables, %v\n", err)
@@ -74,9 +75,9 @@ func main() {
 
 	r := server.NewReplicaServer(serverConfig.TrustDomain.Name, *backing, serverConfig)
 
-	bindAddr, err := net.ResolveTCPAddr("ip", serverConfig.TrustDomain.Address)
+	bindAddr, err := net.ResolveTCPAddr("ip", *listen)
 	if err != nil {
-		log.Printf("Couldn't resolve frontend address: %v\n", err)
+		log.Printf("Couldn't resolve frontend address '%s': %v\n", *listen, err)
 		return
 	}
 	listener, err := net.ListenTCP("ip", bindAddr)

@@ -23,6 +23,7 @@ func main() {
 	configPath := pflag.String("client", "talek.conf", "Talek Client Configuration")
 	commonPath := pflag.String("common", "common.conf", "Talek Common Configuration")
 	systemPath := pflag.String("server", "server.conf", "Talek Server Configuration")
+	listen := pflag.StringP("listen", "l", ":8080", "Listening Address")
 	verbose := pflag.Bool("verbose", false, "Verbose output")
 	err := flags.SetPflagsFromEnv(common.EnvPrefix, pflag.CommandLine)
 	if err != nil {
@@ -42,9 +43,9 @@ func main() {
 	f := server.NewFrontendServer("Talek Frontend", serverConfig, config.TrustDomains)
 	f.Frontend.Verbose = *verbose
 
-	bindAddr, err := net.ResolveTCPAddr("ip", config.FrontendAddr)
+	bindAddr, err := net.ResolveTCPAddr("ip", *listen)
 	if err != nil {
-		log.Printf("Couldn't resolve frontend address: %v\n", err)
+		log.Printf("Couldn't resolve address '%s': %v\n", *listen, err)
 		return
 	}
 	listener, err := net.ListenTCP("ip", bindAddr)
