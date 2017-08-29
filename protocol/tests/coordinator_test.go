@@ -30,8 +30,8 @@ func TestRPCBasic(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	testAddrTCP, err := net.ResolveTCPAddr("ip", testAddr)
-	l, err := net.ListenTCP("ip", testAddrTCP)
+	testAddrTCP, _ := net.ResolveTCPAddr("tcp4", testAddr)
+	l, err := net.ListenTCP("tcp4", testAddrTCP)
 	if err != nil {
 		t.Errorf("Could not bind to test address")
 	}
