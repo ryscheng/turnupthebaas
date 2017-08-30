@@ -57,6 +57,18 @@
 			"revisionTime": "2016-04-02T05:07:51Z"
 		},
 		{
+			"checksumSHA1": "UcxIsr0IzcSKDqGVnK1HsxnSSVU=",
+			"path": "github.com/gorilla/rpc",
+			"revision": "22c016f3df3febe0c1f6727598b6389507e03a18",
+			"revisionTime": "2016-09-23T22:06:01Z"
+		},
+		{
+			"checksumSHA1": "XaF5REB8hCVZiiOp0hMZ9L0EtOo=",
+			"path": "github.com/gorilla/rpc/json",
+			"revision": "22c016f3df3febe0c1f6727598b6389507e03a18",
+			"revisionTime": "2016-09-23T22:06:01Z"
+		},
+		{
 			"checksumSHA1": "0Qi2QAv9T10RCUs9vhbIAAnyEZU=",
 			"path": "github.com/spf13/pflag",
 			"revision": "e453343e6260b4a3a89f1f0e10a2fbb07f8d9750",
