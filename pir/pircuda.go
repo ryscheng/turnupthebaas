@@ -1,4 +1,4 @@
-//+build !nocuda,!travis
+//+build cuda,!travis
 
 package pir
 
