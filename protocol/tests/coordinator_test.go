@@ -58,4 +58,5 @@ func TestRPCBasic(t *testing.T) {
 
 	c.Close()
 	s.Close()
+	l.Close()
 }

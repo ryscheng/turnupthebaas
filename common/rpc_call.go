@@ -21,7 +21,7 @@ func RPCCall(client *http.Client, address string, methodName string, args interf
 	}
 
 	// Construct request
-	req, err := http.NewRequest("POST", "http://"+address, bytes.NewBuffer(message))
+	req, err := http.NewRequest("POST", address, bytes.NewBuffer(message))
 	if err != nil {
 		return err
 	}
