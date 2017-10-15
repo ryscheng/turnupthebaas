@@ -36,7 +36,7 @@ func TestRPCBasic(t *testing.T) {
 		t.Errorf("Could not bind to test address")
 	}
 	go http.Serve(l, s)
-	c := protocol.NewClient("test", testAddr)
+	c := protocol.NewClient("test", "http://"+testAddr)
 	var cc protocol.Interface
 	cc = c
 
