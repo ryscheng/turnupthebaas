@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
-	"net"
-	"net/http"
 	"os"
 	"os/signal"
 	"time"
@@ -74,18 +72,11 @@ func main() {
 	log.Printf("serverConfig.Config=%#+v\n", serverConfig.Config)
 
 	r := server.NewReplicaServer(serverConfig.TrustDomain.Name, *backing, serverConfig)
-
-	bindAddr, err := net.ResolveTCPAddr("ip", *listen)
-	if err != nil {
-		log.Printf("Couldn't resolve frontend address '%s': %v\n", *listen, err)
-		return
-	}
-	listener, err := net.ListenTCP("ip", bindAddr)
+	listener, err := r.Run(*listen)
 	if err != nil {
 		log.Printf("Couldn't listen to frontend address: %v\n", err)
 		return
 	}
-	go http.Serve(listener, r)
 
 	log.Println("Running.")
 

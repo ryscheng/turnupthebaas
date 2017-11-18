@@ -2,7 +2,6 @@ package common
 
 import (
 	"log"
-	"net/http"
 	"os"
 )
 
@@ -12,7 +11,6 @@ type FrontendRPC struct {
 	name         string
 	address      string
 	methodPrefix string
-	*http.Client
 }
 
 // NewFrontendRPC instantiates a LeaderRPC stub
@@ -35,25 +33,25 @@ func (f *FrontendRPC) GetName(_ *interface{}, reply *string) error {
 // GetConfig tells the client about current config.
 func (f *FrontendRPC) GetConfig(_ *interface{}, reply *Config) error {
 	var args interface{}
-	err := RPCCall(f.Client, f.address, f.methodPrefix+".GetConfig", &args, reply)
+	err := RPCCall(f.address, f.methodPrefix+".GetConfig", &args, reply)
 	return err
 }
 
 func (f *FrontendRPC) Write(args *WriteArgs, reply *WriteReply) error {
 	//l.log.Printf("Write: enter\n")
-	err := RPCCall(f.Client, f.address, f.methodPrefix+".Write", args, reply)
+	err := RPCCall(f.address, f.methodPrefix+".Write", args, reply)
 	return err
 }
 
 func (f *FrontendRPC) Read(args *EncodedReadArgs, reply *ReadReply) error {
 	//l.log.Printf("Read: enter\n")
-	err := RPCCall(f.Client, f.address, f.methodPrefix+".Read", args, reply)
+	err := RPCCall(f.address, f.methodPrefix+".Read", args, reply)
 	return err
 }
 
 // GetUpdates provides the global interest vector.
 func (f *FrontendRPC) GetUpdates(args *GetUpdatesArgs, reply *GetUpdatesReply) error {
 	//l.log.Printf("GetUpdates: enter\n")
-	err := RPCCall(f.Client, f.address, f.methodPrefix+".GetUpdates", args, reply)
+	err := RPCCall(f.address, f.methodPrefix+".GetUpdates", args, reply)
 	return err
 }

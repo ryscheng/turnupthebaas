@@ -73,6 +73,6 @@ func StatInfo() {
 	}
 }
 
-func main() {
+func init() {
 	StatInfo()
 }

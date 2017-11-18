@@ -2,7 +2,6 @@ package common
 
 import (
 	"log"
-	"net/http"
 	"os"
 )
 
@@ -12,7 +11,6 @@ type ReplicaRPC struct {
 	name         string
 	address      string
 	methodPrefix string
-	*http.Client
 }
 
 // NewReplicaRPC creates a new ReplicaRPC
@@ -33,20 +31,20 @@ func NewReplicaRPC(name string, config *TrustDomainConfig) *ReplicaRPC {
 
 func (r *ReplicaRPC) Write(args *ReplicaWriteArgs, reply *ReplicaWriteReply) error {
 	//f.log.Printf("Write: enter\n")
-	err := RPCCall(r.Client, r.address, r.methodPrefix+".Write", args, reply)
+	err := RPCCall(r.address, r.methodPrefix+".Write", args, reply)
 	return err
 }
 
 // BatchRead performs a set of PIR reads.
 func (r *ReplicaRPC) BatchRead(args *BatchReadRequest, reply *BatchReadReply) error {
 	//f.log.Printf("BatchRead: enter\n")
-	err := RPCCall(r.Client, r.address, r.methodPrefix+".BatchRead", args, reply)
+	err := RPCCall(r.address, r.methodPrefix+".BatchRead", args, reply)
 	return err
 }
 
 // GetUpdates provies the most recent set of global interest vector changes.
 func (r *ReplicaRPC) GetUpdates(args *GetUpdatesArgs, reply *GetUpdatesReply) error {
 	//f.log.Printf("GetUpdates: enter\n")
-	err := RPCCall(r.Client, r.address, r.methodPrefix+".GetUpdates", args, reply)
+	err := RPCCall(r.address, r.methodPrefix+".GetUpdates", args, reply)
 	return err
 }

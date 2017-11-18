@@ -2,8 +2,6 @@ package main
 
 import (
 	"log"
-	"net"
-	"net/http"
 	"os"
 	"os/signal"
 
@@ -42,18 +40,11 @@ func main() {
 
 	f := server.NewFrontendServer("Talek Frontend", serverConfig, config.TrustDomains)
 	f.Frontend.Verbose = *verbose
-
-	bindAddr, err := net.ResolveTCPAddr("ip", *listen)
-	if err != nil {
-		log.Printf("Couldn't resolve address '%s': %v\n", *listen, err)
-		return
-	}
-	listener, err := net.ListenTCP("ip", bindAddr)
+	listener, err := f.Run(*listen)
 	if err != nil {
 		log.Printf("Couldn't listen to frontend address: %v\n", err)
 		return
 	}
-	go http.Serve(listener, f)
 
 	log.Println("Running.")
 

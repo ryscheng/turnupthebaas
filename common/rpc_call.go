@@ -8,11 +8,8 @@ import (
 )
 
 // RPCCall Makes a JSON RPC client.
-func RPCCall(client *http.Client, address string, methodName string, args interface{}, reply interface{}) error {
+func RPCCall(address string, methodName string, args interface{}, reply interface{}) error {
 	var err error
-	if client == nil {
-		client = &http.Client{}
-	}
 
 	// Encode arguments
 	message, err := json.EncodeClientRequest(methodName, args)
@@ -28,7 +25,7 @@ func RPCCall(client *http.Client, address string, methodName string, args interf
 	req.Header.Set("Content-Type", "application/json")
 
 	// Do RPC
-	resp, err := client.Do(req)
+	resp, err := (&http.Client{}).Do(req)
 	if err != nil {
 		return err
 	}
