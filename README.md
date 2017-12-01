@@ -59,6 +59,10 @@ All tests should pass before submitting a pull request
 $ make test
 ```
 
+The GPU backings are not built by default. Changes to `pir/`, where the
+backing interface may be affected should ensure that code is tested with
+`go test -tags 'cuda,opencl'` to include testing of all drivers.
+
 ### Vendoring
 Talek vendors all of its dependencies into the local `vendor/` directory.
 To add or update dependencies to the latest in `vendor/`, use the `govendor` tool, as follows:

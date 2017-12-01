@@ -4,10 +4,8 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
-	"net"
 	"os"
 	"os/signal"
-	"strconv"
 	"time"
 
 	"github.com/coreos/etcd/pkg/flags"
@@ -27,6 +25,7 @@ func main() {
 	configPath := pflag.StringP("config", "c", "replica.conf", "Talek Replica Configuration (env TALEK_CONFIG)")
 	commonPath := pflag.StringP("common", "f", "common.conf", "Talek Common Configuration (env TALEK_COMMON)")
 	backing := pflag.StringP("backing", "b", "cpu.0", "PIR daemon method (env TALEK_BACKING)")
+	listen := pflag.StringP("listen", "l", ":8080", "Listening Address")
 	err := flags.SetPflagsFromEnv(common.EnvPrefix, pflag.CommandLine)
 	if err != nil {
 		log.Printf("Error reading environment variables, %v\n", err)
@@ -59,11 +58,11 @@ func main() {
 		TrustDomain:      &common.TrustDomainConfig{},
 		TrustDomainIndex: 0,
 	}
-	if err := json.Unmarshal(configString, &serverConfig); err != nil {
+	if err = json.Unmarshal(configString, &serverConfig); err != nil {
 		log.Printf("Could not parse %s: %v\n", *configPath, err)
 		return
 	}
-	if err := json.Unmarshal(commonString, serverConfig.Config); err != nil {
+	if err = json.Unmarshal(commonString, serverConfig.Config); err != nil {
 		log.Printf("Could not parse %s: %v\n", *commonPath, err)
 		return
 	}
@@ -72,15 +71,18 @@ func main() {
 	log.Printf("serverConfig=%#+v\n", serverConfig)
 	log.Printf("serverConfig.Config=%#+v\n", serverConfig.Config)
 
-	s := server.NewCentralized(serverConfig.TrustDomain.Name, *backing, serverConfig)
-	_, port, _ := net.SplitHostPort(serverConfig.TrustDomain.Address)
-	pnum, _ := strconv.Atoi(port)
-	_ = server.NewNetworkRPC(s, pnum)
+	r := server.NewReplicaServer(serverConfig.TrustDomain.Name, *backing, serverConfig)
+	listener, err := r.Run(*listen)
+	if err != nil {
+		log.Printf("Couldn't listen to frontend address: %v\n", err)
+		return
+	}
 
 	log.Println("Running.")
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	<-c
-	s.Close()
+	r.Replica.Close()
+	listener.Close()
 }

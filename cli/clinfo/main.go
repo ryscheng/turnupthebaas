@@ -1,4 +1,4 @@
-//+build !noopencl,!travis
+//+build opencl,!travis
 
 package main
 
@@ -73,6 +73,6 @@ func StatInfo() {
 	}
 }
 
-func main() {
+func init() {
 	StatInfo()
 }

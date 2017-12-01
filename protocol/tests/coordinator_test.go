@@ -1,6 +1,8 @@
 package tests
 
 import (
+	"net"
+	"net/http"
 	"testing"
 	"time"
 
@@ -24,11 +26,17 @@ func testConfig() common.Config {
 }
 
 func TestRPCBasic(t *testing.T) {
-	s, err := server.NewServer("test", testAddr, true, testConfig(), nil, 5, time.Hour)
+	s, err := server.NewServer("test", testAddr, testConfig(), nil, 5, time.Hour)
 	if err != nil {
 		t.Errorf("Error creating new server")
 	}
-	c := protocol.NewClient("test", testAddr)
+	testAddrTCP, _ := net.ResolveTCPAddr("tcp4", testAddr)
+	l, err := net.ListenTCP("tcp4", testAddrTCP)
+	if err != nil {
+		t.Errorf("Could not bind to test address")
+	}
+	go http.Serve(l, s)
+	c := protocol.NewClient("test", "http://"+testAddr)
 	var cc protocol.Interface
 	cc = c
 
@@ -50,4 +58,5 @@ func TestRPCBasic(t *testing.T) {
 
 	c.Close()
 	s.Close()
+	l.Close()
 }

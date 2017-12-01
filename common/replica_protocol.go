@@ -16,7 +16,7 @@ type ReplicaWriteReply struct {
 type BatchReadRequest struct {
 	Args       []EncodedReadArgs // Set of Read requests
 	SeqNoRange Range
-	ReplyChan  chan *BatchReadReply
+	ReplyChan  chan *BatchReadReply `json:"-"`
 }
 
 // BatchReadReply is a response to a BatchReadRequest.

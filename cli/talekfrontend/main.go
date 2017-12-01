@@ -2,10 +2,8 @@ package main
 
 import (
 	"log"
-	"net"
 	"os"
 	"os/signal"
-	"strconv"
 
 	"github.com/coreos/etcd/pkg/flags"
 	"github.com/privacylab/talek/common"
@@ -23,6 +21,7 @@ func main() {
 	configPath := pflag.String("client", "talek.conf", "Talek Client Configuration")
 	commonPath := pflag.String("common", "common.conf", "Talek Common Configuration")
 	systemPath := pflag.String("server", "server.conf", "Talek Server Configuration")
+	listen := pflag.StringP("listen", "l", ":8080", "Listening Address")
 	verbose := pflag.Bool("verbose", false, "Verbose output")
 	err := flags.SetPflagsFromEnv(common.EnvPrefix, pflag.CommandLine)
 	if err != nil {
@@ -39,21 +38,18 @@ func main() {
 	config.Config = common.ConfigFromFile(*commonPath)
 	serverConfig := server.ConfigFromFile(*systemPath, config.Config)
 
-	replicas := make([]common.ReplicaInterface, len(config.TrustDomains))
-	for i, td := range config.TrustDomains {
-		replicas[i] = common.NewReplicaRPC(td.Name, td)
+	f := server.NewFrontendServer("Talek Frontend", serverConfig, config.TrustDomains)
+	f.Frontend.Verbose = *verbose
+	listener, err := f.Run(*listen)
+	if err != nil {
+		log.Printf("Couldn't listen to frontend address: %v\n", err)
+		return
 	}
-
-	f := server.NewFrontend("Talek Frontend", serverConfig, replicas)
-	f.Verbose = *verbose
-	_, port, _ := net.SplitHostPort(config.FrontendAddr)
-	pnum, _ := strconv.Atoi(port)
-	_ = server.NewNetworkRPC(common.FrontendInterface(f), pnum)
 
 	log.Println("Running.")
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	<-c
-	f.Close()
+	listener.Close()
 }

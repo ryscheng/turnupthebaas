@@ -1,6 +1,11 @@
 Talek Server
 ============
 
+Server code is divided between a 'Frontend', which receives requests from users,
+and relays them to the disparate trust domains, and 'Replica', which processes
+requests for an individual trust domain, by maintaining a copy of the database,
+which is updated and read by one or more 'Shard's.
+
 Testing Shard Performance
 ------------------------
 

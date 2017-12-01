@@ -52,14 +52,15 @@ func main() {
 		sc1 := server.Config{Config: conf, WriteInterval: time.Second, ReadBatch: 4, TrustDomain: td1}
 		sc2 := server.Config{Config: conf, ReadBatch: 4, TrustDomain: td2, TrustDomainIndex: 1}
 		//replicas
-		r1 := server.NewCentralized("r1", "cpu.0", sc1)
-		r2 := server.NewCentralized("r2", "cpu.0", sc2)
+		r1 := server.NewReplica("r1", "cpu.0", sc1)
+		r2 := server.NewReplica("r2", "cpu.0", sc2)
 		//client
 		config = &libtalek.ClientConfig{Config: conf, WriteInterval: time.Second, ReadInterval: time.Second, TrustDomains: []*common.TrustDomainConfig{td1, td2}, FrontendAddr: "localhost:9000"}
 		//frontend
 		f0 := server.NewFrontend("f0", &sc1, []common.ReplicaInterface{common.ReplicaInterface(r1), common.ReplicaInterface(r2)})
 		f0.Verbose = true
-		server.NewNetworkRPC(f0, 9000)
+		f0s := server.FrontendServer{Frontend: f0}
+		f0s.Run("localhost:9000")
 	} else {
 		// Config
 		config = libtalek.ClientConfigFromFile(*configPath)

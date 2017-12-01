@@ -8,9 +8,8 @@ import (
 	"golang.org/x/net/trace"
 )
 
-// Centralized talek server implements a replica implemented by a single Centralized
-// shard of data.
-type Centralized struct {
+// Replica implements a centralized talek replica.
+type Replica struct {
 	/** Private State **/
 	// Static
 	log    *common.Logger
@@ -28,48 +27,48 @@ type Centralized struct {
 	closeChan chan int
 }
 
-// NewCentralized creates a new Centralized talek server.
-func NewCentralized(name string, socket string, config Config) *Centralized {
-	c := &Centralized{}
-	c.log = common.NewLogger(name)
-	c.name = name
+// NewReplica creates a new Replica server.
+func NewReplica(name string, socket string, config Config) *Replica {
+	r := &Replica{}
+	r.log = common.NewLogger(name)
+	r.name = name
 
-	c.config.Store(config)
+	r.config.Store(config)
 
-	c.shard = NewShard(name, socket, config)
+	r.shard = NewShard(name, socket, config)
 
-	return c
+	return r
 }
 
 // Close shuts down active reading and writing threads of the server.
-func (c *Centralized) Close() {
+func (r *Replica) Close() {
 	// Stop the shard.
-	c.shard.Close()
+	r.shard.Close()
 }
 
 /** PUBLIC METHODS (threadsafe) **/
 
-func (c *Centralized) Write(args *common.ReplicaWriteArgs, reply *common.ReplicaWriteReply) error {
-	c.log.Trace.Println("Write: enter")
-	tr := trace.New("centralized.write", "Write")
+func (r *Replica) Write(args *common.ReplicaWriteArgs, reply *common.ReplicaWriteReply) error {
+	r.log.Trace.Println("Write: enter")
+	tr := trace.New("replica.write", "Write")
 	defer tr.Finish()
 
-	c.shard.Write(args)
+	r.shard.Write(args)
 
-	atomic.StoreUint64(&c.committedSeqNo, args.GlobalSeqNo)
+	atomic.StoreUint64(&r.committedSeqNo, args.GlobalSeqNo)
 	reply.GlobalSeqNo = args.GlobalSeqNo
-	c.log.Trace.Println("Write: exit")
+	r.log.Trace.Println("Write: exit")
 	return nil
 }
 
 // BatchRead performs a set of reads against the talek database at one logical point in time.
 // BatchRead is replicated to followers with a batching determined by the leader.
-func (c *Centralized) BatchRead(args *common.BatchReadRequest, reply *common.BatchReadReply) error {
-	c.log.Trace.Println("BatchRead: enter")
-	tr := trace.New("centralized.batchread", "BatchRead")
+func (r *Replica) BatchRead(args *common.BatchReadRequest, reply *common.BatchReadReply) error {
+	r.log.Trace.Println("BatchRead: enter")
+	tr := trace.New("replica.batchread", "BatchRead")
 	defer tr.Finish()
 	// Start local computation
-	config := c.config.Load().(Config)
+	config := r.config.Load().(Config)
 
 	localArgs := new(DecodedBatchReadRequest)
 	localArgs.ReplyChan = make(chan *common.BatchReadReply)
@@ -84,12 +83,12 @@ func (c *Centralized) BatchRead(args *common.BatchReadRequest, reply *common.Bat
 		pir, err := val.Decode(config.TrustDomainIndex, config.TrustDomain)
 		if err != nil {
 			reply.Err = err.Error()
-			c.log.Error.Fatalf("Failed to decode part of batch read %v [at index %d]", err, i)
+			r.log.Error.Fatalf("Failed to decode part of batch read %v [at index %d]", err, i)
 			return err
 		}
 		localArgs.Args[i] = pir
 	}
-	c.shard.BatchRead(localArgs)
+	r.shard.BatchRead(localArgs)
 
 	// wait for results
 	myReply := <-localArgs.ReplyChan
@@ -104,18 +103,18 @@ func (c *Centralized) BatchRead(args *common.BatchReadRequest, reply *common.Bat
 	}
 
 	if len(args.Args) > len(myReply.Replies) {
-		c.log.Warn.Println("Shard did not respond to all reads!")
+		r.log.Warn.Println("Shard did not respond to all reads!")
 		return nil
 	}
 	reply.Replies = myReply.Replies[0:len(args.Args)]
-	c.log.Trace.Println("BatchRead: exit")
+	r.log.Trace.Println("BatchRead: exit")
 	return nil
 }
 
 // GetUpdates provies the most recent bloom filter of changed cells.
 // TODO
-func (c *Centralized) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdatesReply) error {
-	c.log.Trace.Println("GetUpdates: ")
+func (r *Replica) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdatesReply) error {
+	r.log.Trace.Println("GetUpdates: ")
 	// @TODO
 	return nil
 }
