@@ -103,15 +103,6 @@ func (s *Shard) Write(args *common.ReplicaWriteArgs) error {
 	return nil
 }
 
-// GetUpdates returns the current global interest vector of changed items.
-func (s *Shard) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdatesReply) error {
-	s.log.Trace.Println("GetUpdates: ")
-	// @TODO
-	reply.Err = ""
-	//reply.InterestVector =
-	return nil
-}
-
 // BatchRead performs a read of a set of client requests against the database.
 func (s *Shard) BatchRead(args *DecodedBatchReadRequest) {
 	s.readChan <- args

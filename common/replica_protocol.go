@@ -4,12 +4,14 @@ package common
 type ReplicaWriteArgs struct {
 	WriteArgs
 	EpochFlag bool
+	InterestFlag bool
 }
 
 // ReplicaWriteReply contain return status of writes
 type ReplicaWriteReply struct {
 	Err         string
 	GlobalSeqNo uint64
+	InterestVec []byte
 }
 
 // BatchReadRequest are a batch of requests sent to PIR servers from frontend.

@@ -51,6 +51,7 @@ type ReadReply struct {
 	Err         string
 	Data        []byte
 	GlobalSeqNo Range
+	LastInterestSN uint64
 }
 
 // Combine xors two partial read replies together
@@ -85,4 +86,5 @@ type GetUpdatesArgs struct {
 type GetUpdatesReply struct {
 	Err            string
 	InterestVector []byte
+	Signature      []byte // signatures of interest vector by each trust domain
 }

@@ -77,6 +77,12 @@ func (h *Handle) nextBuckets(conf *common.Config) (uint64, uint64) {
 	return b1, b2
 }
 
+// nextInterestVector returns the bytes that will be used to set the bloom filter location
+// the next time this handle is written to.
+func (h *Handle) nextInterestVector() []byte {
+	return []byte{}
+}
+
 func makeReadArg(config *ClientConfig, bucket uint64, rand io.Reader) *common.ReadArgs {
 	arg := &common.ReadArgs{}
 	num := len(config.TrustDomains)

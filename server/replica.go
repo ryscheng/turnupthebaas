@@ -53,6 +53,11 @@ func (r *Replica) Write(args *common.ReplicaWriteArgs, reply *common.ReplicaWrit
 	tr := trace.New("replica.write", "Write")
 	defer tr.Finish()
 
+	// update new global interest vector.
+	if args.InterestFlag {
+		reply.InterestVec = nil // new interest vector.
+	}
+
 	r.shard.Write(args)
 
 	atomic.StoreUint64(&r.committedSeqNo, args.GlobalSeqNo)
@@ -108,13 +113,5 @@ func (r *Replica) BatchRead(args *common.BatchReadRequest, reply *common.BatchRe
 	}
 	reply.Replies = myReply.Replies[0:len(args.Args)]
 	r.log.Trace.Println("BatchRead: exit")
-	return nil
-}
-
-// GetUpdates provies the most recent bloom filter of changed cells.
-// TODO
-func (r *Replica) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdatesReply) error {
-	r.log.Trace.Println("GetUpdates: ")
-	// @TODO
 	return nil
 }

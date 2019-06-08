@@ -32,6 +32,8 @@ type Client struct {
 	handleMutex  sync.Mutex
 
 	lastSeqNo uint64
+	// Used to synchronize fetches of global interest vector.
+	lastInterestSN uint64
 
 	// for debugging / testing
 	Verbose bool
@@ -134,7 +136,7 @@ func (c *Client) Flush() {
 }
 
 // Poll handles to updates on a given log.
-// When done reading message,s the the channel can be closed via the Done
+// When done reading messages, the channel can be closed via the Done
 // method.
 func (c *Client) Poll(handle *Handle) chan []byte {
 	// Check if already polling.
@@ -252,7 +254,19 @@ func (c *Client) readPeriodic() {
 		if req.Handle != nil {
 			req.Handle.OnResponse(req.ReadArgs, &reply, uint(conf.DataSize))
 		}
+		if reply.LastInterestSN != c.lastInterestSN {
+			go c.updatePeriodic()
+		}
 		time.Sleep(conf.ReadInterval)
+	}
+}
+
+func (c *Client) updatePeriodic() {
+	var req request
+
+	for atomic.LoadInt32(&c.dead) == 0 {
+		// every multiple * writeInterval unless
+		// triggered early to syncrhonize.
 	}
 }
 
@@ -287,6 +301,24 @@ func (c *Client) generateRandomRead(config *ClientConfig) *common.ReadArgs {
 		}
 	}
 	return args
+}
+
+func (c *Client) prioritizeRequests(changedBuckets *bloom.Filter) {
+	prioritized := []
+	deprioritized := []
+
+	c.handleMutex.Lock()
+	conf := c.config.Load().(ClientConfig)
+	for _, h := range c.handles {
+		if changedBuckets.Test(h.nextInterestVector()) {
+			prioritized = append(prioritized, h)
+		} else {
+			deprioritized = append(deprioritized, h)
+		}
+	}
+
+	c.handles = append(prioritized, deprioritized...)
+	c.handleMutex.Unlock()
 }
 
 func (c *Client) nextRequest(config *ClientConfig) request {

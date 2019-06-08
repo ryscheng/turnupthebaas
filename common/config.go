@@ -20,6 +20,8 @@ type Config struct {
 	WriteInterval time.Duration `json:",string"`
 	// Minimum period between reads
 	ReadInterval time.Duration `json:",string"`
+	// On what multiple of write intervals will new interest vectors be computed
+	InterestMultiple uint64
 	// Max fraction of DB capacity that can store messages
 	MaxLoadFactor float64
 

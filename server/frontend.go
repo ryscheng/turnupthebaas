@@ -19,6 +19,8 @@ type Frontend struct {
 	*Config
 
 	proposedSeqNo uint64 // Use atomic.AddUint64, atomic.LoadUint64
+	currInterestSN uint64
+	currInterest []byte
 	readChan      chan *readRequest
 
 	replicas []common.ReplicaInterface
@@ -108,8 +110,7 @@ func (fe *Frontend) Read(args *common.EncodedReadArgs, reply *common.ReadReply) 
 
 // GetUpdates provides the most recent global interest vector deltas.
 func (fe *Frontend) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdatesReply) error {
-	fe.log.Println("GetUpdates: ")
-	// @TODO
+	reply.InterestVector = fe.currInterest
 	return nil
 }
 
@@ -130,6 +131,26 @@ func (fe *Frontend) periodicWrite() {
 			for _, r := range fe.replicas {
 				r.Write(args, &rep)
 			}
+		}
+	}
+}
+
+func (fe *Frontend) periodicUpdate() {
+	// refresh global interest vector from replicas
+	for atomic.LoadInt32(&fe.dead) == 0 {
+		tick := time.After(fe.UpdateInterval)
+		select {
+		case <-tick:
+			args := &common.ReplicaUpdateArgs{
+			}
+			var rep common.ReplicaUpdateReply
+			if fe.Verbose {
+				fe.log.Printf("Periodic update of global interest vector sent to replicas.\n")
+			}
+			for _, r := range fe.replicas {
+				r.Update(args, &rep)
+			}
+			//combine & update.
 		}
 	}
 }
@@ -201,6 +222,7 @@ func (fe *Frontend) triggerBatchRead(batch []*readRequest) error {
 
 	// Respond to clients
 	// @todo propagate errors back to clients.
+	lastInterestSN := atomic.LoadUint64(&fe.currInterestSN)
 	replyLength := len(replies[0].Replies[0].Data)
 	for i, val := range batch {
 		val.Reply.Data = make([]byte, replyLength)
@@ -211,6 +233,7 @@ func (fe *Frontend) triggerBatchRead(batch []*readRequest) error {
 			val.Reply.Err = replicaErr.Error()
 		}
 		val.Reply.GlobalSeqNo = args.SeqNoRange
+		val.Reply.LastInterestSN = lastInterestSN
 		val.Done <- true
 	}
 
