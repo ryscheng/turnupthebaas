@@ -6,8 +6,7 @@ install: true
 script:
   - make ci
 go:
-  - 1.8
-  - 1.9
+  - 1.12
 notifications:
   email:
     - talek-dev@googlegroups.com

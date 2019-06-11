@@ -1,7 +1,6 @@
 .PHONY: get-tools test lint unit
 
 get-tools:
-	go get -u github.com/kardianos/govendor
 	go get github.com/go-playground/overalls
 	go get github.com/mattn/goveralls
 	go get -u github.com/alecthomas/gometalinter
@@ -10,7 +9,7 @@ get-tools:
 test: lint unit
 
 lint:
-	gometalinter --vendor --tests --deadline=60s \
+	gometalinter --tests --deadline=60s \
 		--disable-all \
 		--enable=gofmt \
 		--enable=vet \
@@ -19,10 +18,10 @@ lint:
 		--enable=ineffassign \
 		--enable=goconst \
 		./...
-	#golint ./... | grep -v ^vendor || echo "golint: done"
+	golint ./...
 
 unit:
-	govendor test +local
+	go test ./...
 
 coverage:
 	overalls -project=github.com/privacylab/talek -covermode=count -debug
