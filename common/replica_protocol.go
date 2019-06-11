@@ -3,7 +3,7 @@ package common
 // ReplicaWriteArgs forwards a client write from frontend to replicas.
 type ReplicaWriteArgs struct {
 	WriteArgs
-	EpochFlag bool
+	EpochFlag    bool
 	InterestFlag bool
 }
 
@@ -25,6 +25,16 @@ type BatchReadRequest struct {
 type BatchReadReply struct {
 	Err     string
 	Replies []ReadReply
+}
+
+// ReplicaUpdateArgs is a frontend request for the current interest delta.
+// The indication to transition to the next delta is given via the
+// interest flag in ReplicaWriteArgs.
+type ReplicaUpdateArgs struct {
+}
+
+type ReplicaUpdateReply struct {
+	Signature [32]byte
 }
 
 /*************

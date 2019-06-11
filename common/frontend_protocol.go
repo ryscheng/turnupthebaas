@@ -48,9 +48,9 @@ type EncodedReadArgs struct {
 
 // ReadReply contain the response to a read.
 type ReadReply struct {
-	Err         string
-	Data        []byte
-	GlobalSeqNo Range
+	Err            string
+	Data           []byte
+	GlobalSeqNo    Range
 	LastInterestSN uint64
 }
 
@@ -86,5 +86,11 @@ type GetUpdatesArgs struct {
 type GetUpdatesReply struct {
 	Err            string
 	InterestVector []byte
-	Signature      []byte // signatures of interest vector by each trust domain
+	Signature      [][32]byte
+}
+
+// Validate updates valdiates the signatures of a bloom filter update from trustdomain.
+func (u *GetUpdatesReply) Validate(trust []*TrustDomainConfig) error {
+	// TODO
+	return nil
 }

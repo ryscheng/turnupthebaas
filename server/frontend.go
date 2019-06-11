@@ -18,10 +18,10 @@ type Frontend struct {
 	name string
 	*Config
 
-	proposedSeqNo uint64 // Use atomic.AddUint64, atomic.LoadUint64
+	proposedSeqNo  uint64 // Use atomic.AddUint64, atomic.LoadUint64
 	currInterestSN uint64
-	currInterest []byte
-	readChan      chan *readRequest
+	currInterest   []byte
+	readChan       chan *readRequest
 
 	replicas []common.ReplicaInterface
 	dead     int32
@@ -138,17 +138,16 @@ func (fe *Frontend) periodicWrite() {
 func (fe *Frontend) periodicUpdate() {
 	// refresh global interest vector from replicas
 	for atomic.LoadInt32(&fe.dead) == 0 {
-		tick := time.After(fe.UpdateInterval)
+		tick := time.After(time.Duration(fe.WriteInterval.Nanoseconds() * int64(fe.InterestMultiple)))
 		select {
 		case <-tick:
-			args := &common.ReplicaUpdateArgs{
-			}
+			args := &common.ReplicaUpdateArgs{}
 			var rep common.ReplicaUpdateReply
 			if fe.Verbose {
 				fe.log.Printf("Periodic update of global interest vector sent to replicas.\n")
 			}
 			for _, r := range fe.replicas {
-				r.Update(args, &rep)
+				r.GetUpdates(args, &rep)
 			}
 			//combine & update.
 		}

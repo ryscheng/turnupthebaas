@@ -115,3 +115,13 @@ func (r *Replica) BatchRead(args *common.BatchReadRequest, reply *common.BatchRe
 	r.log.Trace.Println("BatchRead: exit")
 	return nil
 }
+
+// GetUpdates returns the signed version of the current global interest vector
+func (r *Replica) GetUpdates(args *common.ReplicaUpdateArgs, reply *common.ReplicaUpdateReply) error {
+	r.log.Trace.Println("GetUpdates: enter")
+	tr := trace.New("replica.getupdates", "GetUpdates")
+	defer tr.Finish()
+
+	r.log.Trace.Println("GetUpdates: exit")
+	return nil
+}

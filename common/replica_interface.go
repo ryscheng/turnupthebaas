@@ -5,4 +5,5 @@ package common
 type ReplicaInterface interface {
 	Write(args *ReplicaWriteArgs, reply *ReplicaWriteReply) error
 	BatchRead(args *BatchReadRequest, reply *BatchReadReply) error
+	GetUpdates(args *ReplicaUpdateArgs, reply *ReplicaUpdateReply) error
 }

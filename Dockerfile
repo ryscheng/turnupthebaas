@@ -1,5 +1,5 @@
 # Dockerfile for talek
-FROM golang:1.8
+FROM golang:1.12
 MAINTAINER Raymond Cheng <me@raymondcheng.net>
 USER root
 

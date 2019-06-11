@@ -11,6 +11,7 @@ import (
 
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/drbg"
+	"github.com/willscott/bloom"
 )
 
 // Client represents a connection to the Talek system. Typically created with
@@ -22,11 +23,12 @@ type Client struct {
 	dead   int32
 	leader common.FrontendInterface
 
-	handles       []*Handle
-	pendingWrites chan *common.WriteArgs
-	writeCount    int
-	writeMutex    sync.Mutex
-	writeWaiters  *sync.Cond
+	handles        []*Handle
+	pendingWrites  chan *common.WriteArgs
+	pendingUpdates chan bool
+	writeCount     int
+	writeMutex     sync.Mutex
+	writeWaiters   *sync.Cond
 
 	pendingReads chan request
 	handleMutex  sync.Mutex
@@ -59,12 +61,14 @@ func NewClient(name string, config ClientConfig, leader common.FrontendInterface
 	//todo: should channel capacity be smarter?
 	c.pendingReads = make(chan request, 5)
 	c.pendingWrites = make(chan *common.WriteArgs, 5)
+	c.pendingUpdates = make(chan bool, 5)
 
 	c.writeWaiters = sync.NewCond(&c.writeMutex)
 	c.Rand = rand.Reader
 
 	go c.readPeriodic()
 	go c.writePeriodic()
+	go c.updatePeriodic()
 
 	return c
 }
@@ -255,18 +259,33 @@ func (c *Client) readPeriodic() {
 			req.Handle.OnResponse(req.ReadArgs, &reply, uint(conf.DataSize))
 		}
 		if reply.LastInterestSN != c.lastInterestSN {
-			go c.updatePeriodic()
+			c.pendingUpdates <- true
 		}
 		time.Sleep(conf.ReadInterval)
 	}
 }
 
 func (c *Client) updatePeriodic() {
-	var req request
+	var req common.GetUpdatesArgs
 
 	for atomic.LoadInt32(&c.dead) == 0 {
 		// every multiple * writeInterval unless
-		// triggered early to syncrhonize.
+		// triggered early to synchronize.
+		conf := c.config.Load().(ClientConfig)
+
+		select {
+		case <-c.pendingUpdates:
+		case <-time.After(time.Duration(conf.WriteInterval.Nanoseconds() * int64(conf.InterestMultiple))):
+			break
+		}
+
+		reply := common.GetUpdatesReply{}
+		c.leader.GetUpdates(&req, &reply)
+		if err := reply.Validate(conf.TrustDomains); err != nil {
+			c.log.Warn.Printf("Failed to retrieve interest update: %v\n", err)
+		} else if c.Verbose {
+			c.log.Info.Printf("Reprioritizing reads from interest vectors\n")
+		}
 	}
 }
 
@@ -304,11 +323,10 @@ func (c *Client) generateRandomRead(config *ClientConfig) *common.ReadArgs {
 }
 
 func (c *Client) prioritizeRequests(changedBuckets *bloom.Filter) {
-	prioritized := []
-	deprioritized := []
+	prioritized := make([]*Handle, 0, len(c.handles))
+	deprioritized := make([]*Handle, 0, len(c.handles))
 
 	c.handleMutex.Lock()
-	conf := c.config.Load().(ClientConfig)
 	for _, h := range c.handles {
 		if changedBuckets.Test(h.nextInterestVector()) {
 			prioritized = append(prioritized, h)
