@@ -41,10 +41,3 @@ func (r *ReplicaRPC) BatchRead(args *BatchReadRequest, reply *BatchReadReply) er
 	err := RPCCall(r.address, r.methodPrefix+".BatchRead", args, reply)
 	return err
 }
-
-// BatchRead performs a set of PIR reads.
-func (r *ReplicaRPC) GetUpdates(args *ReplicaUpdateArgs, reply *ReplicaUpdateReply) error {
-	//f.log.Printf("Update: enter\n")
-	err := RPCCall(r.address, r.methodPrefix+".GetUpdates", args, reply)
-	return err
-}

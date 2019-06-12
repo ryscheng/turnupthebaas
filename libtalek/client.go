@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"io"
+	"math"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -32,6 +33,8 @@ type Client struct {
 
 	pendingReads chan request
 	handleMutex  sync.Mutex
+
+	interestVector *bloom.Filter
 
 	lastSeqNo uint64
 	// Used to synchronize fetches of global interest vector.
@@ -62,6 +65,14 @@ func NewClient(name string, config ClientConfig, leader common.FrontendInterface
 	c.pendingReads = make(chan request, 5)
 	c.pendingWrites = make(chan *common.WriteArgs, 5)
 	c.pendingUpdates = make(chan bool, 5)
+
+	bfSize := math.Ceil(math.Log2(float64(config.NumBuckets)))
+	iv, err := bloom.New(rand.Reader, int(bfSize), config.BloomFalsePositive)
+	if err != nil {
+		c.log.Error.Printf("Failed to initialize interest vector: %v", err)
+		return nil
+	}
+	c.interestVector = iv
 
 	c.writeWaiters = sync.NewCond(&c.writeMutex)
 	c.Rand = rand.Reader
@@ -283,9 +294,13 @@ func (c *Client) updatePeriodic() {
 		c.leader.GetUpdates(&req, &reply)
 		if err := reply.Validate(conf.TrustDomains); err != nil {
 			c.log.Warn.Printf("Failed to retrieve interest update: %v\n", err)
+			continue
 		} else if c.Verbose {
 			c.log.Info.Printf("Reprioritizing reads from interest vectors\n")
 		}
+
+		c.interestVector.Import(reply.InterestVector)
+		c.prioritizeRequests()
 	}
 }
 
@@ -322,13 +337,13 @@ func (c *Client) generateRandomRead(config *ClientConfig) *common.ReadArgs {
 	return args
 }
 
-func (c *Client) prioritizeRequests(changedBuckets *bloom.Filter) {
+func (c *Client) prioritizeRequests() {
 	prioritized := make([]*Handle, 0, len(c.handles))
 	deprioritized := make([]*Handle, 0, len(c.handles))
 
 	c.handleMutex.Lock()
 	for _, h := range c.handles {
-		if changedBuckets.Test(h.nextInterestVector()) {
+		if c.interestVector.Test(h.nextInterestVector()) {
 			prioritized = append(prioritized, h)
 		} else {
 			deprioritized = append(deprioritized, h)

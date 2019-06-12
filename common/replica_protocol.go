@@ -27,16 +27,6 @@ type BatchReadReply struct {
 	Replies []ReadReply
 }
 
-// ReplicaUpdateArgs is a frontend request for the current interest delta.
-// The indication to transition to the next delta is given via the
-// interest flag in ReplicaWriteArgs.
-type ReplicaUpdateArgs struct {
-}
-
-type ReplicaUpdateReply struct {
-	Signature [32]byte
-}
-
 /*************
  * OTHER TYPES
  *************/

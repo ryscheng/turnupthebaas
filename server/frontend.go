@@ -141,13 +141,15 @@ func (fe *Frontend) periodicUpdate() {
 		tick := time.After(time.Duration(fe.WriteInterval.Nanoseconds() * int64(fe.InterestMultiple)))
 		select {
 		case <-tick:
-			args := &common.ReplicaUpdateArgs{}
-			var rep common.ReplicaUpdateReply
+			args := &common.ReplicaWriteArgs{
+				InterestFlag: true,
+			}
+			var rep common.ReplicaWriteReply
 			if fe.Verbose {
 				fe.log.Printf("Periodic update of global interest vector sent to replicas.\n")
 			}
 			for _, r := range fe.replicas {
-				r.GetUpdates(args, &rep)
+				r.Write(args, &rep)
 			}
 			//combine & update.
 		}
