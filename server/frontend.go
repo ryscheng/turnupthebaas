@@ -55,6 +55,8 @@ func NewFrontend(name string, config *Config, replicas []common.ReplicaInterface
 	fe.Config = config
 	fe.replicas = replicas
 	fe.readChan = make(chan *readRequest, 10)
+	nextInterest := new(globalInterest)
+	fe.currentInterest = nextInterest
 
 	// Periodically serialize database epoch advances.
 	go fe.periodicWrite()

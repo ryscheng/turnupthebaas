@@ -3,21 +3,21 @@
 get-tools:
 	go get github.com/go-playground/overalls
 	go get github.com/mattn/goveralls
-	go get -u github.com/alecthomas/gometalinter
-	gometalinter --install
+	#go get -u github.com/alecthomas/gometalinter
+	#gometalinter --install
 
 test: lint unit
 
 lint:
-	gometalinter --tests --deadline=60s \
-		--disable-all \
-		--enable=gofmt \
-		--enable=vet \
-		--enable=vetshadow \
-		--enable=golint \
-		--enable=ineffassign \
-		--enable=goconst \
-		./...
+	#gometalinter --tests --deadline=60s \
+	#	--disable-all \
+	#	--enable=gofmt \
+	#	--enable=vet \
+	#	--enable=vetshadow \
+	#	--enable=golint \
+	#	--enable=ineffassign \
+	#	--enable=goconst \
+	#	./...
 	golint ./...
 
 unit:

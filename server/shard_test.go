@@ -57,7 +57,7 @@ func TestShardSanity(t *testing.T) {
 			Bucket1:        0,
 			Bucket2:        1,
 			Data:           data,
-			InterestVector: []uint64{},
+			InterestVector: []byte{},
 			ReplyChan:      writeReplyChan,
 		},
 		EpochFlag: false,
@@ -104,7 +104,7 @@ func BenchmarkShard(b *testing.B) {
 		Bucket1:        0,
 		Bucket2:        1,
 		Data:           bytes.NewBufferString("Magic").Bytes(),
-		InterestVector: []uint64{},
+		InterestVector: []byte{},
 	}
 	shardWrite := &common.ReplicaWriteArgs{
 		WriteArgs: stdWrite,
