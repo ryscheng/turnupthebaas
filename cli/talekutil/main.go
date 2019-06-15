@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"strings"
 	"time"
 
@@ -27,6 +28,8 @@ func main() {
 	outputCommon := pflag.Bool("common", false, "Create common config template.")
 	name := pflag.String("name", "talek", "Server Name.")
 	address := pflag.String("address", "localhost:9000", "Server Address.")
+	index := pflag.Int("index", 0, "Trust Domain Index.")
+	incommon := pflag.String("incommon", "", "Load common configuration from file.")
 	infile := pflag.String("infile", "", "Begin with configuration from file.")
 	outfile := pflag.String("outfile", "talek.json", "Save configuration to file.")
 	private := pflag.Bool("private", false, "Include private key configuration.")
@@ -46,9 +49,19 @@ func main() {
 			BloomFalsePositive: .05,
 			WriteInterval:      time.Second,
 			ReadInterval:       time.Second,
+			InterestMultiple:   10,
+			InterestSeed:       int64(rand.Uint64()),
 			MaxLoadFactor:      0.95,
+			LoadFactorStep:     0.05,
 		}
-		commonDat, err := json.MarshalIndent(com, "", "  ")
+		sc := server.Config{
+			ReadBatch:     8,
+			WriteInterval: time.Second,
+			ReadInterval:  time.Second,
+			Config: &com,
+		}
+	
+		commonDat, err := json.MarshalIndent(sc, "", "  ")
 		if err != nil {
 			fmt.Printf("Could not serialize common config: %v\n", err)
 			return
@@ -98,12 +111,25 @@ func main() {
 	} else {
 		tdc = *common.NewTrustDomainConfig(*name, *address, true, false)
 	}
+	if len(*incommon) > 0 {
+		dat, readerr := ioutil.ReadFile(*infile)
+		if readerr != nil {
+			fmt.Printf("Could not read input file: %v\n", readerr)
+			return
+		}
+		err = json.Unmarshal(dat, &sc)
+		if err != nil {
+			fmt.Printf("Could not parse input file: %v\n", err)
+			return
+		}
+	}
 	if sc.TrustDomain != nil {
 		tdc = *sc.TrustDomain
 	}
 	tdc.Name = *name
 	tdc.Address = *address
 	tdc.IsValid = true
+	sc.TrustDomainIndex = *index
 
 	var tdb []byte
 	if *private {

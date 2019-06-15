@@ -1,12 +1,17 @@
 package server
 
 import (
+	"bufio"
+	"bytes"
+	"crypto/sha256"
+	"encoding/binary"
 	"errors"
 	"log"
 	"os"
 	"sync/atomic"
 	"time"
 
+	"github.com/foobaz/go-zopfli/zopfli"
 	"github.com/privacylab/talek/common"
 )
 
@@ -18,15 +23,20 @@ type Frontend struct {
 	name string
 	*Config
 
-	proposedSeqNo  uint64 // Use atomic.AddUint64, atomic.LoadUint64
-	currInterestSN uint64
-	currInterest   []byte
-	readChan       chan *readRequest
+	proposedSeqNo   uint64 // Use atomic.AddUint64, atomic.LoadUint64
+	currentInterest *globalInterest
+	readChan        chan *readRequest
 
 	replicas []common.ReplicaInterface
 	dead     int32
 
 	Verbose bool
+}
+
+type globalInterest struct {
+	ID               uint64
+	CompressedVector []byte
+	Signatures       [][32]byte
 }
 
 // readRequest is the grouped request and reply memory used for batching
@@ -110,7 +120,9 @@ func (fe *Frontend) Read(args *common.EncodedReadArgs, reply *common.ReadReply) 
 
 // GetUpdates provides the most recent global interest vector deltas.
 func (fe *Frontend) GetUpdates(args *common.GetUpdatesArgs, reply *common.GetUpdatesReply) error {
-	reply.InterestVector = fe.currInterest
+	intr := fe.currentInterest
+	reply.InterestVector = intr.CompressedVector
+	reply.Signature = intr.Signatures
 	return nil
 }
 
@@ -144,16 +156,56 @@ func (fe *Frontend) periodicUpdate() {
 			args := &common.ReplicaWriteArgs{
 				InterestFlag: true,
 			}
-			var rep common.ReplicaWriteReply
+			resp := make([]common.ReplicaWriteReply, len(fe.replicas))
 			if fe.Verbose {
-				fe.log.Printf("Periodic update of global interest vector sent to replicas.\n")
+				fe.log.Printf("Periodic update of global interest vector to replicas.\n")
 			}
-			for _, r := range fe.replicas {
-				r.Write(args, &rep)
+			for i, r := range fe.replicas {
+				r.Write(args, &resp[i])
 			}
-			//combine & update.
+			go fe.generateInterestVector(resp)
 		}
 	}
+}
+
+func (fe *Frontend) generateInterestVector(partials []common.ReplicaWriteReply) {
+	// Check that all replicas provided the same interest vector.
+	for i, v := range partials {
+		if !bytes.Equal(partials[0].InterestVec, v.InterestVec) {
+			fe.log.Printf("Replica %d Interest Vector out of sync. Aborting.", i)
+			return
+		}
+	}
+
+	nextInterest := new(globalInterest)
+	// TODO: not a bad idea for frontend to validate replica signatures.
+	nextInterest.Signatures = make([][32]byte, len(partials))
+	for i, v := range partials {
+		copy(nextInterest.Signatures[i][:], v.Signature[:])
+	}
+
+	// Compress the vector
+	var b bytes.Buffer
+	writer := bufio.NewWriter(&b)
+	opts := zopfli.DefaultOptions()
+	err := zopfli.Compress(
+		&opts,
+		zopfli.FORMAT_DEFLATE,
+		partials[0].InterestVec,
+		writer)
+	if err != nil {
+		fe.log.Printf("Failed to update interest vector delta: %v", err)
+		return
+	}
+	compressed := b.Bytes()
+	sum := sha256.Sum256(compressed)
+
+	nextInterest.ID = binary.LittleEndian.Uint64(sum[0:8])
+	nextInterest.CompressedVector = compressed
+	if fe.Verbose {
+		fe.log.Printf("Interest Vector of recent writes regenerated. %d bytes.", len(compressed))
+	}
+	fe.currentInterest = nextInterest
 }
 
 func (fe *Frontend) batchReads() {
@@ -223,7 +275,7 @@ func (fe *Frontend) triggerBatchRead(batch []*readRequest) error {
 
 	// Respond to clients
 	// @todo propagate errors back to clients.
-	lastInterestSN := atomic.LoadUint64(&fe.currInterestSN)
+	lastInterestSN := fe.currentInterest.ID
 	replyLength := len(replies[0].Replies[0].Data)
 	for i, val := range batch {
 		val.Reply.Data = make([]byte, replyLength)

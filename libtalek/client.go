@@ -1,6 +1,9 @@
 package libtalek
 
 import (
+	"bufio"
+	"bytes"
+	"compress/flate"
 	"crypto/rand"
 	"errors"
 	"io"
@@ -287,19 +290,30 @@ func (c *Client) updatePeriodic() {
 		select {
 		case <-c.pendingUpdates:
 		case <-time.After(time.Duration(conf.WriteInterval.Nanoseconds() * int64(conf.InterestMultiple))):
-			break
+			if c.Verbose {
+				c.log.Info.Printf("Fetching Global Interest Vector")
+			}
 		}
 
 		reply := common.GetUpdatesReply{}
 		c.leader.GetUpdates(&req, &reply)
-		if err := reply.Validate(conf.TrustDomains); err != nil {
-			c.log.Warn.Printf("Failed to retrieve interest update: %v\n", err)
+
+		// Decompress.
+		var decompressedInterest bytes.Buffer
+		writer := bufio.NewWriter(&decompressedInterest)
+		reader := flate.NewReader(bytes.NewReader(reply.InterestVector))
+		if _, err := io.Copy(writer, reader); err != nil {
+			c.log.Warn.Printf("Failed to decompress interest update: %v\n", err)
 			continue
-		} else if c.Verbose {
-			c.log.Info.Printf("Reprioritizing reads from interest vectors\n")
 		}
 
-		c.interestVector.Import(reply.InterestVector)
+		// signatures are on the uncompressed data.
+		//if err := reply.Validate(conf.TrustDomains); err != nil {
+		//	c.log.Warn.Printf("Failed to retrieve interest update: %v\n", err)
+		//	continue
+		//}
+
+		c.interestVector.Import(decompressedInterest.Bytes())
 		c.prioritizeRequests()
 	}
 }

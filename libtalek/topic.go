@@ -84,6 +84,8 @@ func (t *Topic) GeneratePublish(commonConfig *common.Config, message []byte) (*c
 	var seqNoBytes [24]byte
 	_ = binary.PutUvarint(seqNoBytes[:], t.Seqno)
 
+	args.InterestVector = t.Handle.nextInterestVector()
+
 	t.Handle.Seqno++
 	ciphertext, err := t.encrypt(message, &seqNoBytes)
 	if err != nil {

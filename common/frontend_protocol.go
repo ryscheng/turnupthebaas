@@ -16,7 +16,7 @@ type WriteArgs struct {
 	Bucket1        uint64
 	Bucket2        uint64
 	Data           []byte
-	InterestVector []uint64
+	InterestVector []byte // sha256 hash - expect 32bytes
 	//Internal
 	GlobalSeqNo uint64
 	ReplyChan   chan *WriteReply `json:"-"`
@@ -87,10 +87,4 @@ type GetUpdatesReply struct {
 	Err            string
 	InterestVector []byte
 	Signature      [][32]byte
-}
-
-// Validate updates valdiates the signatures of a bloom filter update from trustdomain.
-func (u *GetUpdatesReply) Validate(trust []*TrustDomainConfig) error {
-	// TODO
-	return nil
 }

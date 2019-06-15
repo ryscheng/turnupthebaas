@@ -12,6 +12,7 @@ type ReplicaWriteReply struct {
 	Err         string
 	GlobalSeqNo uint64
 	InterestVec []byte
+	Signature   []byte
 }
 
 // BatchReadRequest are a batch of requests sent to PIR servers from frontend.

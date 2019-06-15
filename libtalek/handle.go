@@ -2,9 +2,11 @@ package libtalek
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 
 	"github.com/agl/ed25519"
@@ -41,6 +43,9 @@ type Handle struct {
 	// Notifications of new messages
 	updates chan []byte
 
+	// Hash function for interest vectors.
+	hasher hash.Hash
+
 	// log for messages
 	log *common.Logger
 }
@@ -48,12 +53,14 @@ type Handle struct {
 //NewHandle creates a new topic handle, without attachment to a specific topic.
 func NewHandle() (h *Handle, err error) {
 	h = &Handle{}
+	h.hasher = sha256.New()
 	err = initHandle(h)
 	return
 }
 
 func initHandle(h *Handle) (err error) {
 	h.updates = make(chan []byte)
+	h.hasher = sha256.New()
 
 	h.drbg, err = drbg.NewHashDrbg(nil)
 	return
@@ -80,7 +87,10 @@ func (h *Handle) nextBuckets(conf *common.Config) (uint64, uint64) {
 // nextInterestVector returns the bytes that will be used to set the bloom filter location
 // the next time this handle is written to.
 func (h *Handle) nextInterestVector() []byte {
-	return []byte{}
+	var seqNoBytes [24]byte
+	_ = binary.PutUvarint(seqNoBytes[:], h.Seqno)
+	interestKey := append(h.SigningPublicKey[:], seqNoBytes[:]...)
+	return h.hasher.Sum(interestKey)
 }
 
 func makeReadArg(config *ClientConfig, bucket uint64, rand io.Reader) *common.ReadArgs {

@@ -1,10 +1,13 @@
 package server
 
 import (
+	"math"
+	"math/rand"
 	"sync/atomic"
 
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/drbg"
+	"github.com/willscott/bloom"
 	"golang.org/x/net/trace"
 )
 
@@ -20,6 +23,8 @@ type Replica struct {
 	config         atomic.Value //Config
 	shard          *Shard
 	committedSeqNo uint64 // Use atomic.AddUint64, atomic.LoadUint64
+	interestVector *bloom.Filter
+
 	// Channels
 	ReadBatch []*common.ReadRequest
 	ReadChan  chan *common.ReadRequest
@@ -32,6 +37,15 @@ func NewReplica(name string, socket string, config Config) *Replica {
 	r := &Replica{}
 	r.log = common.NewLogger(name)
 	r.name = name
+
+	bfSize := math.Ceil(math.Log2(float64(config.NumBuckets)))
+	rand := rand.New(rand.NewSource(config.InterestSeed))
+	iv, err := bloom.New(rand, int(bfSize), config.BloomFalsePositive)
+	if err != nil {
+		r.log.Error.Printf("Failed to initialize interest vector: %v", err)
+		return nil
+	}
+	r.interestVector = iv
 
 	r.config.Store(config)
 
@@ -47,7 +61,8 @@ func (r *Replica) Close() {
 }
 
 /** PUBLIC METHODS (threadsafe) **/
-
+// TODO: need a receive queue serializer to be able to pause on missing seq numbers and
+// process only in order - in case conn between leader and replica needs restart.
 func (r *Replica) Write(args *common.ReplicaWriteArgs, reply *common.ReplicaWriteReply) error {
 	r.log.Trace.Println("Write: enter")
 	tr := trace.New("replica.write", "Write")
@@ -55,10 +70,14 @@ func (r *Replica) Write(args *common.ReplicaWriteArgs, reply *common.ReplicaWrit
 
 	// update new global interest vector.
 	if args.InterestFlag {
-		reply.InterestVec = nil // new interest vector.
+		reply.InterestVec = r.interestVector.Delta()
+		// TODO: sign
+		r.log.Trace.Println("Write-GlobalInterest epoch exit")
+		return nil
 	}
 
 	r.shard.Write(args)
+	r.interestVector.TestAndSet(args.InterestVector)
 
 	atomic.StoreUint64(&r.committedSeqNo, args.GlobalSeqNo)
 	reply.GlobalSeqNo = args.GlobalSeqNo
