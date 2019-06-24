@@ -1,0 +1,15 @@
+github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412 h1:w1UutsfOrms1J05zt7ISrnJIXKzwaspym5BTKGx93EI=
+github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412/go.mod h1:WPjqKcmVOxf0XSf3YxCJs6N6AOSrOx3obionmG7T0y0=
+github.com/barnex/cuda5 v0.0.0-20170131213030-57cec7ab46da/go.mod h1:GnBnFz4V/+kxwKFnquvOOi+IjZoVJsIUbcAVOXLCxCo=
+github.com/coreos/etcd v0.0.0-20170414193847-e2d0db95ebbc/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
+github.com/coreos/go-systemd v0.0.0-20170324095819-1f9909e51b2d/go.mod h1:F5haX7vjVVG0kc13fIWeqUViNPyEJxv/OmvnBo0Yme4=
+github.com/coreos/pkg v0.0.0-20170405072653-099530d80109/go.mod h1:E3G3o1h8I7cfcXa63jLwjI0eiQQMgzzUDFVpN/nH/eA=
+github.com/dchest/siphash v1.1.0 h1:1Rs9eTUlZLPBEvV+2sTaM8O0NWn0ppbgqS7p11aWawI=
+github.com/dchest/siphash v1.1.0/go.mod h1:q+IRvb2gOSrUnYoPqHiyHXS0FOBBOdl6tONBlVnOnt4=
+github.com/go-gl/cl v0.0.0-20160402050751-283e73a0ca2a/go.mod h1:x9JFrvJwNd4nJdwEzeF+68Bul1G/WftfhxdnJF85OUc=
+github.com/gorilla/rpc v1.1.0 h1:marKfvVP0Gpd/jHlVBKCQ8RAoUPdX7K1Nuh6l1BNh7A=
+github.com/gorilla/rpc v1.1.0/go.mod h1:V4h9r+4sF5HnzqbwIez0fKSpANP0zlYd3qR7p36jkTQ=
+github.com/spf13/pflag v0.0.0-20170412152249-e453343e6260/go.mod h1:DYY7MBk1bdzusC3SYhjObp+wFpr4gzcvqqNjLnInEg4=
+golang.org/x/crypto v0.0.0-20170909204757-9ba3862cf6a5 h1:wI3ECb1ewTDNEY9X/w0xpvbk3pnAQc06SUgeJfdIVsM=
+golang.org/x/crypto v0.0.0-20170909204757-9ba3862cf6a5/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
+golang.org/x/net v0.0.0-20170406210907-d1e1b351919c/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=

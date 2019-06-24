@@ -10,6 +10,7 @@ pird/pird
 # Config files
 *.conf
 *.handle
+.env
 
 # Coverage
 overalls.coverprofile
