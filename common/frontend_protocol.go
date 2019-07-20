@@ -16,7 +16,7 @@ type WriteArgs struct {
 	Bucket1        uint64
 	Bucket2        uint64
 	Data           []byte
-	InterestVector []uint64
+	InterestVector []byte // sha256 hash - expect 32bytes
 	//Internal
 	GlobalSeqNo uint64
 	ReplyChan   chan *WriteReply `json:"-"`
@@ -48,9 +48,10 @@ type EncodedReadArgs struct {
 
 // ReadReply contain the response to a read.
 type ReadReply struct {
-	Err         string
-	Data        []byte
-	GlobalSeqNo Range
+	Err            string
+	Data           []byte
+	GlobalSeqNo    Range
+	LastInterestSN uint64
 }
 
 // Combine xors two partial read replies together
@@ -85,4 +86,5 @@ type GetUpdatesArgs struct {
 type GetUpdatesReply struct {
 	Err            string
 	InterestVector []byte
+	Signature      [][32]byte
 }

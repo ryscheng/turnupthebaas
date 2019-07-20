@@ -1,9 +1,13 @@
 package libtalek
 
 import (
+	"bufio"
+	"bytes"
+	"compress/flate"
 	"crypto/rand"
 	"errors"
 	"io"
+	"math"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -11,6 +15,7 @@ import (
 
 	"github.com/privacylab/talek/common"
 	"github.com/privacylab/talek/drbg"
+	"github.com/willscott/bloom"
 )
 
 // Client represents a connection to the Talek system. Typically created with
@@ -22,16 +27,21 @@ type Client struct {
 	dead   int32
 	leader common.FrontendInterface
 
-	handles       []*Handle
-	pendingWrites chan *common.WriteArgs
-	writeCount    int
-	writeMutex    sync.Mutex
-	writeWaiters  *sync.Cond
+	handles        []*Handle
+	pendingWrites  chan *common.WriteArgs
+	pendingUpdates chan bool
+	writeCount     int
+	writeMutex     sync.Mutex
+	writeWaiters   *sync.Cond
 
 	pendingReads chan request
 	handleMutex  sync.Mutex
 
+	interestVector *bloom.Filter
+
 	lastSeqNo uint64
+	// Used to synchronize fetches of global interest vector.
+	lastInterestSN uint64
 
 	// for debugging / testing
 	Verbose bool
@@ -57,12 +67,22 @@ func NewClient(name string, config ClientConfig, leader common.FrontendInterface
 	//todo: should channel capacity be smarter?
 	c.pendingReads = make(chan request, 5)
 	c.pendingWrites = make(chan *common.WriteArgs, 5)
+	c.pendingUpdates = make(chan bool, 5)
+
+	bfSize := math.Ceil(math.Log2(float64(config.NumBuckets)))
+	iv, err := bloom.New(rand.Reader, int(bfSize), config.BloomFalsePositive)
+	if err != nil {
+		c.log.Error.Printf("Failed to initialize interest vector: %v", err)
+		return nil
+	}
+	c.interestVector = iv
 
 	c.writeWaiters = sync.NewCond(&c.writeMutex)
 	c.Rand = rand.Reader
 
 	go c.readPeriodic()
 	go c.writePeriodic()
+	go c.updatePeriodic()
 
 	return c
 }
@@ -134,7 +154,7 @@ func (c *Client) Flush() {
 }
 
 // Poll handles to updates on a given log.
-// When done reading message,s the the channel can be closed via the Done
+// When done reading messages, the channel can be closed via the Done
 // method.
 func (c *Client) Poll(handle *Handle) chan []byte {
 	// Check if already polling.
@@ -252,7 +272,49 @@ func (c *Client) readPeriodic() {
 		if req.Handle != nil {
 			req.Handle.OnResponse(req.ReadArgs, &reply, uint(conf.DataSize))
 		}
+		if reply.LastInterestSN != c.lastInterestSN {
+			c.pendingUpdates <- true
+		}
 		time.Sleep(conf.ReadInterval)
+	}
+}
+
+func (c *Client) updatePeriodic() {
+	var req common.GetUpdatesArgs
+
+	for atomic.LoadInt32(&c.dead) == 0 {
+		// every multiple * writeInterval unless
+		// triggered early to synchronize.
+		conf := c.config.Load().(ClientConfig)
+
+		select {
+		case <-c.pendingUpdates:
+		case <-time.After(time.Duration(conf.WriteInterval.Nanoseconds() * int64(conf.InterestMultiple))):
+			if c.Verbose {
+				c.log.Info.Printf("Fetching Global Interest Vector")
+			}
+		}
+
+		reply := common.GetUpdatesReply{}
+		c.leader.GetUpdates(&req, &reply)
+
+		// Decompress.
+		var decompressedInterest bytes.Buffer
+		writer := bufio.NewWriter(&decompressedInterest)
+		reader := flate.NewReader(bytes.NewReader(reply.InterestVector))
+		if _, err := io.Copy(writer, reader); err != nil {
+			c.log.Warn.Printf("Failed to decompress interest update: %v\n", err)
+			continue
+		}
+
+		// signatures are on the uncompressed data.
+		//if err := reply.Validate(conf.TrustDomains); err != nil {
+		//	c.log.Warn.Printf("Failed to retrieve interest update: %v\n", err)
+		//	continue
+		//}
+
+		c.interestVector.Import(decompressedInterest.Bytes())
+		c.prioritizeRequests()
 	}
 }
 
@@ -287,6 +349,23 @@ func (c *Client) generateRandomRead(config *ClientConfig) *common.ReadArgs {
 		}
 	}
 	return args
+}
+
+func (c *Client) prioritizeRequests() {
+	prioritized := make([]*Handle, 0, len(c.handles))
+	deprioritized := make([]*Handle, 0, len(c.handles))
+
+	c.handleMutex.Lock()
+	for _, h := range c.handles {
+		if c.interestVector.Test(h.nextInterestVector()) {
+			prioritized = append(prioritized, h)
+		} else {
+			deprioritized = append(deprioritized, h)
+		}
+	}
+
+	c.handles = append(prioritized, deprioritized...)
+	c.handleMutex.Unlock()
 }
 
 func (c *Client) nextRequest(config *ClientConfig) request {

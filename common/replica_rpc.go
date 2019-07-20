@@ -41,10 +41,3 @@ func (r *ReplicaRPC) BatchRead(args *BatchReadRequest, reply *BatchReadReply) er
 	err := RPCCall(r.address, r.methodPrefix+".BatchRead", args, reply)
 	return err
 }
-
-// GetUpdates provies the most recent set of global interest vector changes.
-func (r *ReplicaRPC) GetUpdates(args *GetUpdatesArgs, reply *GetUpdatesReply) error {
-	//f.log.Printf("GetUpdates: enter\n")
-	err := RPCCall(r.address, r.methodPrefix+".GetUpdates", args, reply)
-	return err
-}

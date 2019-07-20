@@ -6,7 +6,7 @@
 Talek is a privacy-preserving messaging system. User communication is stored on untrusted systems using PIR.
 
 ## Getting Started
-A basic client (which is not resistant to traffic analysis!) can be found at   
+A basic client can be found at
 ```go get github.com/privacylab/talek/cli/talekclient```
 
 Talek uses a construct called topic handles. Topics represent a stream of
@@ -45,7 +45,6 @@ OpenCL on macOS:
 
 
 ### Tools
-- [govendor](https://github.com/kardianos/govendor) for vendoring
 - [gometalinter](https://github.com/alecthomas/gometalinter) for linting
 
 ```bash
@@ -62,14 +61,6 @@ $ make test
 The GPU backings are not built by default. Changes to `pir/`, where the
 backing interface may be affected should ensure that code is tested with
 `go test -tags 'cuda,opencl'` to include testing of all drivers.
-
-### Vendoring
-Talek vendors all of its dependencies into the local `vendor/` directory.
-To add or update dependencies to the latest in `vendor/`, use the `govendor` tool, as follows:
-- `govendor fetch github.com/foo/bar`
-
-To see a list and status of dependencies:
-- `govendor list`
 
 
 ## Following Along:

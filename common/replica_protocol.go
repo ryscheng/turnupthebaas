@@ -3,13 +3,16 @@ package common
 // ReplicaWriteArgs forwards a client write from frontend to replicas.
 type ReplicaWriteArgs struct {
 	WriteArgs
-	EpochFlag bool
+	EpochFlag    bool
+	InterestFlag bool
 }
 
 // ReplicaWriteReply contain return status of writes
 type ReplicaWriteReply struct {
 	Err         string
 	GlobalSeqNo uint64
+	InterestVec []byte
+	Signature   []byte
 }
 
 // BatchReadRequest are a batch of requests sent to PIR servers from frontend.
