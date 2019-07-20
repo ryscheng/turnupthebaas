@@ -1,5 +1,6 @@
 github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412 h1:w1UutsfOrms1J05zt7ISrnJIXKzwaspym5BTKGx93EI=
 github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412/go.mod h1:WPjqKcmVOxf0XSf3YxCJs6N6AOSrOx3obionmG7T0y0=
+github.com/barnex/cuda5 v0.0.0-20170131213030-57cec7ab46da/go.mod h1:GnBnFz4V/+kxwKFnquvOOi+IjZoVJsIUbcAVOXLCxCo=
 github.com/coreos/etcd v0.0.0-20170414193847-e2d0db95ebbc h1:VR+2Zdu4LwGrVDMUdVphibZfMHoFEnb5t8xQDWi1IAk=
 github.com/coreos/etcd v0.0.0-20170414193847-e2d0db95ebbc/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
 github.com/coreos/go-systemd v0.0.0-20170324095819-1f9909e51b2d h1:JmJsvY9kF4oqiNrI+3FEoTtpRu8HvlxPgCSIrxxoZTQ=
