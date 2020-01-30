@@ -70,5 +70,5 @@ Join the mailing list: https://lists.riseup.net/www/info/talek
 ## Publication
 Talek: a Private Publish-Subscribe Protocol.   
 Raymond Cheng, Will Scott, Bryan Parno, Irene Zhang, Arvind Krishnamurthy, Tom Anderson.   
-In Submission. 2017.   
-[PDF](https://raymondcheng.net/download/papers/talek-tr.pdf)
+In Submission. 2020.   
+[PDF](https://arxiv.org/abs/2001.08250)
