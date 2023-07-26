@@ -112,7 +112,7 @@ func main() {
 		tdc = *common.NewTrustDomainConfig(*name, *address, true, false)
 	}
 	if len(*incommon) > 0 {
-		dat, readerr := ioutil.ReadFile(*infile)
+		dat, readerr := ioutil.ReadFile(*incommon)
 		if readerr != nil {
 			fmt.Printf("Could not read input file: %v\n", readerr)
 			return
