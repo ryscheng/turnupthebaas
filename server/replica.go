@@ -33,7 +33,7 @@ type Replica struct {
 }
 
 // NewReplica creates a new Replica server.
-func NewReplica(name string, socket string, config Config) *Replica {
+func NewReplica(name string, backing string, config Config) *Replica {
 	r := &Replica{}
 	r.log = common.NewLogger(name)
 	r.name = name
@@ -49,7 +49,7 @@ func NewReplica(name string, socket string, config Config) *Replica {
 
 	r.config.Store(config)
 
-	r.shard = NewShard(name, socket, config)
+	r.shard = NewShard(name, backing, config)
 
 	return r
 }
