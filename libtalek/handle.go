@@ -53,7 +53,6 @@ type Handle struct {
 //NewHandle creates a new topic handle, without attachment to a specific topic.
 func NewHandle() (h *Handle, err error) {
 	h = &Handle{}
-	h.hasher = sha256.New()
 	err = initHandle(h)
 	return
 }
@@ -244,6 +243,9 @@ func (h *Handle) UnmarshalText(text []byte) error {
 		return err
 	}
 	if err := h.Seed2.UnmarshalBinary(s2); err != nil {
+		return err
+	}
+	if err := initHandle(h); err != nil {
 		return err
 	}
 	return nil
