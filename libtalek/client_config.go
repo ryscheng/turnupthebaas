@@ -11,7 +11,7 @@ import (
 // ClientConfig represents the configuration parameters to Talek needed by
 // the client.
 type ClientConfig struct {
-	*common.Config `json:"-"`
+	*common.Config
 
 	// How often should Writes be made to the server
 	WriteInterval time.Duration `json:",string"`
