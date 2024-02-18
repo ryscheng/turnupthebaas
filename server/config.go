@@ -11,7 +11,7 @@ import (
 // Config represents the configuration needed to start a Talek server.
 // configurations can be generated through util/talekutil
 type Config struct {
-	*common.Config `json:"-"`
+	*common.Config
 
 	// How many read requests should be made of the PIR server at a time?
 	ReadBatch int
