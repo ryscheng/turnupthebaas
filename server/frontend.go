@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"sync/atomic"
@@ -270,7 +271,7 @@ func (fe *Frontend) triggerBatchRead(batch []*readRequest) error {
 			fe.log.Fatalf("Error making read to replica %d: %v%v", i, err, replies[i].Err)
 		}
 		if len(replies[i].Replies) != len(batch) {
-			replicaErr = errors.New("failure from Replica " + string(i))
+			replicaErr = errors.New("failure from Replica " + fmt.Sprintf("%d", i))
 			fe.log.Fatalf("Replica %d gave the wrong number of replies (%d instead of %d)", i, len(replies[i].Replies), len(batch))
 		}
 	}

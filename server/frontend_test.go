@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -15,14 +16,14 @@ func (m *mockReplica) Write(args *common.ReplicaWriteArgs, reply *common.Replica
 	if m.calls == nil {
 		m.calls = make([]string, 1)
 	}
-	m.calls = append(m.calls, "write-"+string(args.GlobalSeqNo))
+	m.calls = append(m.calls, "write-"+fmt.Sprintf("%d", args.GlobalSeqNo))
 	return nil
 }
 func (m *mockReplica) BatchRead(args *common.BatchReadRequest, reply *common.BatchReadReply) error {
 	if m.calls == nil {
 		m.calls = make([]string, 1)
 	}
-	m.calls = append(m.calls, "read-"+string(len(args.Args)))
+	m.calls = append(m.calls, "read-"+fmt.Sprintf("%d", (len(args.Args))))
 	reply.Replies = make([]common.ReadReply, len(args.Args))
 	return nil
 }
