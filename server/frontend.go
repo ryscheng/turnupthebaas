@@ -103,7 +103,7 @@ func (fe *Frontend) Write(args *common.WriteArgs, reply *common.WriteReply) erro
 		err := r.Write(replicaWrite, &replicaReply)
 		if err != nil {
 			reply.Err = err.Error()
-			fe.log.Fatalf("Error writing to replica %d: %v", i, err)
+			fe.log.Printf("Error writing to replica %d: %v", i, err)
 		} else if len(replicaReply.Err) > 0 {
 			reply.Err = replicaReply.Err
 		}
@@ -268,11 +268,13 @@ func (fe *Frontend) triggerBatchRead(batch []*readRequest) error {
 		err := r.BatchRead(args, &replies[i])
 		if err != nil || replies[i].Err != "" {
 			replicaErr = err
-			fe.log.Fatalf("Error making read to replica %d: %v%v", i, err, replies[i].Err)
+			fe.log.Printf("Error making read to replica %d: %v%v", i, err, replies[i].Err)
+			break
 		}
 		if len(replies[i].Replies) != len(batch) {
 			replicaErr = errors.New("failure from Replica " + fmt.Sprintf("%d", i))
-			fe.log.Fatalf("Replica %d gave the wrong number of replies (%d instead of %d)", i, len(replies[i].Replies), len(batch))
+			fe.log.Printf("Replica %d gave the wrong number of replies (%d instead of %d)", i, len(replies[i].Replies), len(batch))
+			break
 		}
 	}
 
