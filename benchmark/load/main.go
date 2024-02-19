@@ -73,11 +73,11 @@ func main() {
 	clients := make([]*libtalek.Client, *numClients)
 	clientLeaderSock := common.NewFrontendRPC("c0->f0", trustDomainFE.Address)
 	for i := 0; i < *numClients; i++ {
-		clients[i] = libtalek.NewClient("c"+string(i), clientConfig, clientLeaderSock)
+		clients[i] = libtalek.NewClient("c"+fmt.Sprintf("%d", i), clientConfig, clientLeaderSock)
 		handle, _ := libtalek.NewTopic()
 		var origHandle libtalek.Handle
 		origHandle = handle.Handle
-		clients[i].Publish(handle, []byte("Hello from client"+string(i)))
+		clients[i].Publish(handle, []byte("Hello from client"+fmt.Sprintf("%d", i)))
 		fmt.Printf("Published. Waiting for response.")
 		data := clients[i].Poll(&origHandle)
 		_ = <-data
