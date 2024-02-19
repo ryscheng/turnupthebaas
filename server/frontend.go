@@ -281,14 +281,18 @@ func (fe *Frontend) triggerBatchRead(batch []*readRequest) error {
 	// Respond to clients
 	// @todo propagate errors back to clients.
 	lastInterestSN := fe.currentInterest.ID
-	replyLength := len(replies[0].Replies[0].Data)
 	for i, val := range batch {
+		// any error from any replica invalidates the response
+		if replicaErr != nil {
+			val.Reply.Err = replicaErr.Error()
+			val.Done <- true
+			break
+		}
+
+		replyLength := len(replies[i].Replies[i].Data)
 		val.Reply.Data = make([]byte, replyLength)
 		for _, rp := range replies {
 			val.Reply.Combine(rp.Replies[i].Data)
-		}
-		if replicaErr != nil {
-			val.Reply.Err = replicaErr.Error()
 		}
 		val.Reply.GlobalSeqNo = args.SeqNoRange
 		val.Reply.LastInterestSN = lastInterestSN
