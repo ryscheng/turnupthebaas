@@ -4,10 +4,10 @@ services:
 
   frontend:
     restart: "no"
-    image: talek
+    image: talek-cli
     volumes:
-      - ./:/talek_net
-    command: talekfrontend  --client /talek_net/talek.json --common /talek_net/common.json -l ":8080" --verbose
+      - ./:/talek_shared
+    command: talekfrontend  --client /talek_shared/talek.json --common /talek_shared/common.json -l ":8080" --verbose
     network_mode: host
     depends_on:
       - replica1
@@ -16,24 +16,24 @@ services:
 
   replica1:
     restart: "no"
-    image: talek
+    image: talek-cli
     volumes:
-      - ./:/talek_net
-    command: talekreplica -f /talek_net/common.json -l ":8081" -c /talek_net/replica1.json
+      - ./:/talek_shared
+    command: talekreplica -f /talek_shared/common.json -l ":8081" -c /talek_shared/replica1.json
     network_mode: host
 
   replica2:
     restart: "no"
-    image: talek
+    image: talek-cli
     volumes:
-      - ./:/talek_net
-    command: talekreplica -f /talek_net/common.json -l ":8082" -c /talek_net/replica2.json
+      - ./:/talek_shared
+    command: talekreplica -f /talek_shared/common.json -l ":8082" -c /talek_shared/replica2.json
     network_mode: host
 
   replica3:
     restart: "no"
-    image: talek
+    image: talek-cli
     volumes:
-      - ./:/talek_net
-    command: talekreplica -f /talek_net/common.json -l ":8083" -c /talek_net/replica3.json
+      - ./:/talek_shared
+    command: talekreplica -f /talek_shared/common.json -l ":8083" -c /talek_shared/replica3.json
     network_mode: host
