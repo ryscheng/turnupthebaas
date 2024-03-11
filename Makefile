@@ -39,7 +39,7 @@ docker-bash:
 	$(docker) run -it talek-base:latest bash
 
 testnet-build-config: docker-build-cli.stamp
-	$(docker) run --rm -v ./$(net_name):/$(net_name) talek-cli bash -c "cd /$(net_name) && talekutil --common --outfile common.json && \
+	$(docker) run --rm -v ./$(net_name):/talek_shared talek-cli bash -c "cd /talek_shared && talekutil --common --outfile common.json && \
 	talekutil --replica --incommon common.json --private --index 1 --name replica1 --address :8081 --outfile replica1.json && \
 	talekutil --replica --incommon common.json --private --index 2 --name replica2 --address :8082 --outfile replica2.json && \
 	talekutil --replica --incommon common.json --private --index 3 --name replica3 --address :8083 --outfile replica3.json && \
@@ -66,4 +66,4 @@ testnet-clean:
 	rm docker-build.stamp
 
 testnet-cli:
-	$(docker) run --rm --network host -it -v ./$(net_name):/$(net_name) talek-cli:latest bash
+	$(docker) run --rm --network host -it -v ./$(net_name):/talek_shared talek-cli:latest bash
