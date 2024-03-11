@@ -46,7 +46,8 @@ testnet-build-config: docker-build-cli.stamp
 	talekutil --trustdomain --infile replica1.json --outfile replica1.pub.json && \
 	talekutil --trustdomain --infile replica2.json --outfile replica2.pub.json && \
 	talekutil --trustdomain --infile replica3.json --outfile replica3.pub.json && \
-	talekutil --client --infile common.json --trustdomains replica1.pub.json,replica2.pub.json,replica3.pub.json --outfile talek.json"
+	talekutil --client --infile common.json --trustdomains replica1.pub.json,replica2.pub.json,replica3.pub.json --outfile tmp.json"
+	$(docker) run --rm -v ./$(net_name):/talek_shared python bash -c "cd /talek_shared && python -c 'import json,sys;c = json.load(sys.stdin); c[\"FrontendAddr\"] = \"127.0.0.1:8080/rpc\"; print(json.dumps(c))' > talek.json < tmp.json && rm tmp.json"
 
 docker-build-cli.stamp: docker-build.stamp
 	$(docker) build -t talek-cli:latest ./cli/
