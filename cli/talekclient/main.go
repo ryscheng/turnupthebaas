@@ -56,8 +56,18 @@ func main() {
 		}
 		topic = *nt
 	} else {
-		if err = topic.UnmarshalText(topicdata); err != nil {
-			panic(err)
+		err = topic.UnmarshalText(topicdata)
+		if err != nil {
+			// if it is a read-only share, unmarshal only the Handle part
+			if *read {
+				topic.SigningPrivateKey = new([64]byte)
+				err = topic.Handle.UnmarshalText(topicdata)
+				if err != nil {
+					panic(err)
+				}
+			} else {
+				panic(err)
+			}
 		}
 	}
 
