@@ -38,7 +38,7 @@ docker-build.stamp:
 docker-bash:
 	$(docker) run -it talek-base:latest bash
 
-testnet-build-config: docker-build-cli.stamp
+$(net_name)/talek.conf: docker-build-cli.stamp
 	$(docker) run --rm -v ./$(net_name):/talek_shared talek-cli bash -c "cd /talek_shared && talekutil --common --outfile common.conf && \
 	talekutil --replica --incommon common.conf --private --index 0 --name replica0 --address http://127.0.0.1:8081 --outfile replica0.json && \
 	talekutil --replica --incommon common.conf --private --index 1 --name replica1 --address http://127.0.0.1:8082 --outfile replica1.json && \
@@ -53,7 +53,9 @@ docker-build-cli.stamp: docker-build.stamp
 	$(docker) build -t talek-cli:latest ./cli/
 	touch $@
 
-testnet-start: testnet-build-config
+testnet-start: $(net_name)/running.stamp
+
+$(net_name)/running.stamp: $(net_name)/talek.conf
 	cd $(net_name); DOCKER_USER=${docker_user} $(docker_compose) up --remove-orphans -d; $(docker_compose) top
 	touch $(net_name)/running.stamp
 
@@ -69,7 +71,7 @@ testnet-clean: testnet-stop
 testnet-cli:
 	$(docker) run --rm --network host -it -v ./$(net_name):/talek_shared -w /talek_shared talek-cli:latest bash
 
-testnet-test-write-and-read:
+testnet-test-write-and-read: $(net_name)/running.stamp
 	$(docker) run --rm --network host -it -v ./$(net_name):/talek_shared -w /talek_shared talek-cli:latest bash -c " \
 	rm -f test_output.log && \
 	talekclient --verbose --create --topic writehandle && \
