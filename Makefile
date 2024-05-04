@@ -75,7 +75,7 @@ testnet-test-write-and-read: $(net_name)/running.stamp
 	$(docker) run --rm --network host -it -v ./$(net_name):/talek_shared -w /talek_shared talek-cli:latest bash -c " \
 	rm -f test_output.log && \
 	talekclient --verbose --create --topic writehandle && \
-	cp writehandle readhandle && \
+	talekclient --verbose --topic writehandle --share readhandle && \
 	talekclient --verbose --topic writehandle --write Hello1 && \
 	talekclient --verbose --topic writehandle --write Hello2 && \
 	talekclient --verbose --topic writehandle --write Hello3 && \
