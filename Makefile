@@ -58,13 +58,13 @@ testnet-start: testnet-build-config
 	touch $(net_name)/running.stamp
 
 testnet-stop:
-	cd $(net_name) && DOCKER_USER=${docker_user} $(docker_compose) down --remove-orphans; rm -fv running.stamp
+	-cd $(net_name) && DOCKER_USER=${docker_user} $(docker_compose) down --remove-orphans; rm -fv running.stamp
 
-testnet-clean:
-	$(docker) rmi talek-cli
-	$(docker) rmi talek-base
-	rm docker-build-cli.stamp
-	rm docker-build.stamp
+testnet-clean: testnet-stop
+	-$(docker) rmi talek-cli
+	-$(docker) rmi talek-base
+	rm -f docker-build-cli.stamp
+	rm -f docker-build.stamp
 
 testnet-cli:
 	$(docker) run --rm --network host -it -v ./$(net_name):/talek_shared talek-cli:latest bash
