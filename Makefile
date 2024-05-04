@@ -68,3 +68,19 @@ testnet-clean: testnet-stop
 
 testnet-cli:
 	$(docker) run --rm --network host -it -v ./$(net_name):/talek_shared -w /talek_shared talek-cli:latest bash
+
+testnet-test-write-and-read:
+	$(docker) run --rm --network host -it -v ./$(net_name):/talek_shared -w /talek_shared talek-cli:latest bash -c " \
+	rm -f test_output.log && \
+	talekclient --verbose --create --topic writehandle && \
+	cp writehandle readhandle && \
+	talekclient --verbose --topic writehandle --write Hello1 && \
+	talekclient --verbose --topic writehandle --write Hello2 && \
+	talekclient --verbose --topic writehandle --write Hello3 && \
+	talekclient --verbose --topic readhandle --read | tee >(grep Hello >> test_output.log) && \
+	talekclient --verbose --topic readhandle --read | tee >(grep Hello >> test_output.log) && \
+	talekclient --verbose --topic readhandle --read | tee >(grep Hello >> test_output.log) && \
+	cat test_output.log && \
+	sha256sum -c <<<'81ff3368be913d26d96879a0215e4fbace25449f029c7aabf07350207f0aa980  test_output.log' \
+		&& echo 'Successfully wrote and read three items!' \
+		|| echo 'Failed to read something.'"
