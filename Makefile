@@ -46,8 +46,8 @@ testnet-build-config: docker-build-cli.stamp
 	talekutil --trustdomain --index 0 --name replica0 --address http://127.0.0.1:8081 --infile replica0.json --outfile replica0.pub.json && \
 	talekutil --trustdomain --index 1 --name replica1 --address http://127.0.0.1:8082 --infile replica1.json --outfile replica1.pub.json && \
 	talekutil --trustdomain --index 2 --name replica2 --address http://127.0.0.1:8083 --infile replica2.json --outfile replica2.pub.json && \
-	talekutil --client --infile common.json --trustdomains replica0.pub.json,replica1.pub.json,replica2.pub.json --outfile tmp.json"
-	$(docker) run --rm -v ./$(net_name):/talek_shared python bash -c "cd /talek_shared && python -c 'import json,sys;c = json.load(sys.stdin); c[\"FrontendAddr\"] = \"http://127.0.0.1:8080/rpc\"; print(json.dumps(c))' > talek.json < tmp.json && rm tmp.json"
+	talekutil --client --infile common.json --trustdomains replica0.pub.json,replica1.pub.json,replica2.pub.json --outfile talek.json && \
+	sed -i -e 's/"FrontendAddr": ""/"FrontendAddr": "http:\/\/127.0.0.1:880\/rpc"/' talek.json"
 
 docker-build-cli.stamp: docker-build.stamp
 	$(docker) build -t talek-cli:latest ./cli/
